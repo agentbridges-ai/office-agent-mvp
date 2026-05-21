@@ -29,6 +29,7 @@ export function prepareOnlyOfficeBuffer(binData: OnlyOfficeBinData): ArrayBuffer
     throw new Error(`OnlyOffice binary length mismatch: expected ${expectedByteLength}, got ${decodedLength}`);
   }
 
+  // header-preserving: 9.3 opens the complete DOCY/XLSY/PPTY header string and decodes its payload internally.
   return new TextEncoder().encode(binData).buffer;
 }
 

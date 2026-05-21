@@ -67,6 +67,9 @@ function main() {
   if (!binary.includes('ArrayBuffer.isView')) {
     failures.push('lib/onlyoffice-compat/binary.ts: must use cross-realm ArrayBuffer view detection');
   }
+  if (!binary.includes('header-preserving')) {
+    failures.push('lib/onlyoffice-compat/binary.ts: must document header-preserving OnlyOffice bin string behavior');
+  }
 
   for (const relativePath of CROSS_REALM_BINARY_FILES) {
     const source = readText(root, relativePath);

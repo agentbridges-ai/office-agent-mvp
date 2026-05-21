@@ -36,6 +36,9 @@ let editorOperationQueue: Promise<void> = Promise.resolve();
 
 const DOWNLOAD_BRIDGE_INSTALL_TIMEOUT_MS = 10000;
 const DOWNLOAD_BRIDGE_INSTALL_INTERVAL_MS = 50;
+const EDITOR_CLEANUP_DELAY_MS = 150;
+const EDITOR_SWITCH_CLEANUP_DELAY_MS = 250;
+const PRESENTATION_CLEANUP_DELAY_MS = 400;
 
 /**
  * Queue editor operations to prevent concurrent editor creation/destruction
@@ -111,6 +114,15 @@ function showLocalSaveError(message: string): void {
   alert(message);
 }
 
+function isPresentationFileType(fileType: string): boolean {
+  return fileType === 'pptx' || fileType === 'ppt';
+}
+
+function getEditorCleanupDelayMs(hasExistingEditor: boolean, fileType: string): number {
+  if (!hasExistingEditor) return EDITOR_CLEANUP_DELAY_MS;
+  return isPresentationFileType(fileType) ? PRESENTATION_CLEANUP_DELAY_MS : EDITOR_SWITCH_CLEANUP_DELAY_MS;
+}
+
 function installLocalDownloadBridgeWhenReady(): void {
   const started = Date.now();
   const tryInstall = () => {
@@ -149,14 +161,8 @@ export function createEditorInstance(config: {
         console.log('Destroying previous editor instance...');
         window.editor.destroyEditor();
 
-        // When switching between document types, especially from/to PPT,
-        // we need more time for cleanup. PPT editors are particularly resource-intensive.
-        // Use longer delay when switching editors or when dealing with presentations
-        const isPresentation = fileType === 'pptx' || fileType === 'ppt';
-        const destroyDelay = hasExistingEditor && isPresentation ? 400 : hasExistingEditor ? 250 : 150;
-
         // Wait a bit for destroy to complete
-        await new Promise((resolve) => setTimeout(resolve, destroyDelay));
+        await new Promise((resolve) => setTimeout(resolve, getEditorCleanupDelayMs(hasExistingEditor, fileType)));
       } catch (error) {
         console.warn('Error destroying previous editor:', error);
       }
@@ -172,12 +178,7 @@ export function createEditorInstance(config: {
       }
     }
 
-    // Additional delay to ensure cleanup completes before creating new editor
-    // This is especially important when switching between different document types
-    // When switching editors, especially involving PPT, we need more time
-    const isPresentation = fileType === 'pptx' || fileType === 'ppt';
-    const cleanupDelay = hasExistingEditor && isPresentation ? 400 : hasExistingEditor ? 250 : 150;
-    await new Promise((resolve) => setTimeout(resolve, cleanupDelay));
+    await new Promise((resolve) => setTimeout(resolve, getEditorCleanupDelayMs(hasExistingEditor, fileType)));
 
     const editorLang = getOnlyOfficeLang();
     console.log('Creating new editor instance for:', fileName, 'type:', fileType);

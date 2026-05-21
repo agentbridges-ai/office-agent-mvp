@@ -8,6 +8,7 @@ const LOCAL_DOWNLOAD_BRIDGE_FLAG = '__onlyofficeLocalDownloadBridgeInstalled';
 const LOCAL_DOWNLOAD_HANDLER = '__onlyofficeHandleLocalDownloadAs';
 const BLOCKING_ACTION_TYPE = 1;
 const DOWNLOAD_ACTION_ID = 6;
+const SAME_ORIGIN_TARGET = window.location.origin;
 
 type OnlyOfficeFrameWindow = Window & {
   Asc?: {
@@ -99,7 +100,10 @@ export function installLocalDownloadBridge(options: {
   frame.AscCommon.T7c = function localDownloadAsBridge(...args: unknown[]) {
     const callback = findCallback(args);
     const event = createSaveEvent(frame, args);
-    frame.parent?.postMessage({ event: 'onlyofficeLocalDownloadBridge', data: { outputformat: event.data.option.outputformat } }, '*');
+    frame.parent?.postMessage(
+      { event: 'onlyofficeLocalDownloadBridge', data: { outputformat: event.data.option.outputformat } },
+      SAME_ORIGIN_TARGET,
+    );
 
     Promise.resolve((frame.parent as any)[LOCAL_DOWNLOAD_HANDLER](event))
       .then((result: LocalSaveResult) => {

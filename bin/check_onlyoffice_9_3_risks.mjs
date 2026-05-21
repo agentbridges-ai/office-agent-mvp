@@ -8,7 +8,6 @@ const REQUIRED_ADAPTER_FILES = [
   'lib/onlyoffice-compat/save.ts',
   'lib/onlyoffice-compat/media.ts',
   'lib/onlyoffice-compat/pdf.ts',
-  'lib/onlyoffice-compat/fonts.ts',
 ];
 
 const UNCLAIMED_VENDOR_PATHS = [
@@ -184,8 +183,33 @@ function checkLocalRuntimeShimContract(root, failures) {
 
 function checkBrowserFonts(root, failures) {
   const allFonts = readText(root, 'public/sdkjs/common/AllFonts.js');
+  const fontContract = readText(root, 'lib/onlyoffice-compat/fonts.ts');
+  requireNeedle(
+    fontContract,
+    'ONLYOFFICE_INVALID_FONT_PATH_NEEDLES',
+    'lib/onlyoffice-compat/fonts.ts: font boundary must own invalid font path needles used by risk gate',
+    failures,
+  );
   for (const needle of ['C:\\\\Windows\\\\Fonts', 'core-fonts', '/fonts//fonts']) {
     rejectNeedle(allFonts, needle, `public/sdkjs/common/AllFonts.js: forbidden font path ${needle}`, failures);
+  }
+}
+
+function checkAdapterCleanupSmells(root, failures) {
+  const editor = readText(root, 'lib/onlyoffice-editor.ts');
+  if (!editor.includes('getEditorCleanupDelayMs')) {
+    failures.push('lib/onlyoffice-editor.ts: editor cleanup timing must be centralized in getEditorCleanupDelayMs');
+  }
+
+  for (const relativePath of [
+    'lib/onlyoffice-compat/save.ts',
+    'lib/onlyoffice-compat/runtime.ts',
+    'lib/onlyoffice-compat/local-binary.ts',
+  ]) {
+    const source = readText(root, relativePath);
+    if (source.includes("postMessage(") && source.includes(", '*'")) {
+      failures.push(`${relativePath}: adapter postMessage target origin must not default to '*'`);
+    }
   }
 }
 
@@ -271,6 +295,7 @@ function main() {
   checkDownloadAs(root, failures);
   checkLocalRuntimeShimContract(root, failures);
   checkBrowserFonts(root, failures);
+  checkAdapterCleanupSmells(root, failures);
   checkEmptyBins(root, failures);
   checkUnsupportedPresentationBoundary(root, failures);
   checkSmokeHarness(root, failures);

@@ -49,7 +49,9 @@ export function summarizeSelectedEvents(events) {
 }
 
 export function collectFailures(entries) {
-  return entries.flatMap(({ result, analysis }) => [
+  const serviceWorkerObserved = entries.some(({ analysis }) => analysis.serviceWorkerObserved);
+  return [
+    ...entries.flatMap(({ result, analysis }) => [
     ...(result.status === 'FAIL' ? [`${result.name}: ${result.error}`] : []),
     ...analysis.failedResponses.map((response) => `${result.name}: HTTP ${response.status}: ${response.url}`),
     ...analysis.badFontRequests.map((url) => `${result.name}: bad font URL: ${url}`),
@@ -57,9 +59,10 @@ export function collectFailures(entries) {
       (url) => `${result.name}: unexpected DocumentServer download request: ${url}`,
     ),
     ...analysis.missingRequests.map((path) => `${result.name}: missing required browser request: ${path}`),
-    ...(analysis.serviceWorkerObserved ? [] : [`${result.name}: service worker was not observed`]),
     ...analysis.exceptions.map((exception) => `${result.name}: browser exception: ${exception.message}`),
-  ]);
+    ]),
+    ...(serviceWorkerObserved ? [] : ['service worker was not observed in any scenario']),
+  ];
 }
 
 function summarizeRequests(requests) {

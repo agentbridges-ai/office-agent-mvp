@@ -5,6 +5,7 @@ const LOCAL_BINARY_READY_HOOK_CANDIDATES = [
   'Mmg',
   'NOf',
 ] as const;
+const SAME_ORIGIN_TARGET = window.location.origin;
 
 type OnlyOfficeFrameWindow = Window & {
   Asc?: any;
@@ -114,6 +115,6 @@ function reportLocalBinaryBridge(frame: OnlyOfficeFrameWindow, status: string): 
       event: 'onlyofficeLocalBinaryBridge',
       data: { status },
     },
-    '*',
+    SAME_ORIGIN_TARGET,
   );
 }

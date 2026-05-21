@@ -1,4 +1,5 @@
 const ONLYOFFICE_HOST_STYLE_ID = 'onlyoffice-9-3-host-sizing';
+const SAME_ORIGIN_TARGET = window.location.origin;
 
 export function ensureOnlyOfficeHostSizing(): void {
   if (document.getElementById(ONLYOFFICE_HOST_STYLE_ID)) return;
@@ -73,7 +74,7 @@ export function openLocalDocument(editor: DocEditor | undefined, buffer: ArrayBu
       event: 'onlyofficeLocalBinaryOpen',
       data: { byteLength: buffer.byteLength },
     },
-    '*',
+    SAME_ORIGIN_TARGET,
   );
-  frame.postMessage({ command: 'openDocumentFromBinary', data: buffer }, '*', [buffer]);
+  frame.postMessage({ command: 'openDocumentFromBinary', data: buffer }, SAME_ORIGIN_TARGET, [buffer]);
 }
