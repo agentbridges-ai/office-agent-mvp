@@ -11,7 +11,7 @@
 ## 当前状态
 
 - Overall: `in_progress`
-- 当前阶段: T15 最小 9.3 runtime manifest
+- 当前阶段: T17 final verification
 - 当前工作目录: `/tmp/document-onlyoffice-9-3-gcd-adapter`
 - 当前实施分支: `feat/onlyoffice-9-3-gcd-adapter`
 - 基线提交: `96b2a9e2`
@@ -80,6 +80,10 @@
 | 2026-05-21T02:39:52Z | T16 DEBUG | 完整矩阵首轮功能结果 7/7 PASS，但 harness 失败，因为 9.3 app 通过 `Common.Utils.loadConfig` 请求根路径 `/themes.json` 返回 404；根因是只保留了 `web-apps/apps/common/main/resources/themes/themes.json`，Vite 根路径未暴露该资源。 |
 | 2026-05-21T02:39:52Z | T16 FIX | 新增 `public/themes.json`，内容为官方空 theme config `{ "themes": [] }`，并在 risk gate 中要求根路径 theme config 存在，防止后续回退。 |
 | 2026-05-21T02:39:52Z | T16 SMOKE | `timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,new-xlsx,open-docx,open-xlsx,open-csv,input-save-docx,pdf-block-docx --timeout-ms 90000` 退出 0；7/7 PASS，`failures=[]`，全部场景 `version=9.3.1`、`documentReady=true`，无 failed responses、无 `/downloadas/`、无 `/fonts//fonts`、无 browser exception。`input-save-docx` 观测 `modified=true`、`.docx` download anchor、`onlyofficeLocalDownloadBridge outputformat=65`、`asc_onEndAction [1,6]`；`pdf-block-docx` 观测 server-side conversion alert、无 `.pdf` download anchor、`onlyofficeLocalDownloadBridge outputformat=513`、`asc_onEndAction [1,6]`。 |
+| 2026-05-21T02:46:35Z | T16 REFACTOR RED | review 自检发现 `bin/smoke_onlyoffice_9_3_browser.mjs` 为 1161 行，不符合项目代码文件 300 行上限；拆分后首轮验证暴露 `createSmokeState` 缺失 import，以及 risk gate 仍在入口单文件查找动态端口和生成样本信号。 |
+| 2026-05-21T02:46:35Z | T16 REFACTOR GREEN | smoke harness 拆分为入口文件加 `bin/onlyoffice-smoke/{actions,cdp,config,diagnostics,hooks,processes,samples,scenario,utils}.mjs`；所有模块均低于 300 行。risk gate 改为检查模块化 smoke 所有者：`samples.mjs` 负责 `server.listen(0)` 和生成样本，`processes.mjs` 负责动态 Vite helper，入口负责 `scenarioDiagnostics`。 |
+| 2026-05-21T02:46:35Z | T16 REFACTOR VERIFY | `timeout 60 node --check bin/smoke_onlyoffice_9_3_browser.mjs`、`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs`、`timeout 60 node bin/check_onlyoffice_bridge_contract.mjs`、`timeout 60 pnpm exec oxlint bin/smoke_onlyoffice_9_3_browser.mjs bin/onlyoffice-smoke/*.mjs bin/check_onlyoffice_9_3_risks.mjs` 均退出 0。 |
+| 2026-05-21T02:46:35Z | T16 REFACTOR SMOKE | 拆分后重新执行 `timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,new-xlsx,open-docx,open-xlsx,open-csv,input-save-docx,pdf-block-docx --timeout-ms 90000`，退出 0；7/7 PASS，`failures=[]`，动态 app/sample 端口分别为 `22639`/`39433`，无 failed responses、无 `/downloadas/`、无 `/fonts//fonts`、无 browser exception。 |
 
 ## 最近观测
 
@@ -105,6 +109,6 @@
 
 ## 下一步
 
-1. 提交 T16 browser smoke harness 闭环。
-2. 进入 T17/T6 final verification：fresh 执行 risk、bridge、lint、build、完整 smoke。
+1. 提交 T16 browser smoke harness 拆分闭环。
+2. 进入 T17 final verification：fresh 执行 risk、bridge、lint、build、完整 smoke。
 3. 用 review 视角确认不宣称 x2t 9.3、PPTX、完整协作或坏 PDF 成功。

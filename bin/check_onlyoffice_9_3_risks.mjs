@@ -186,21 +186,27 @@ function checkEmptyBins(root, failures) {
 
 function checkSmokeHarness(root, failures) {
   const relativePath = 'bin/smoke_onlyoffice_9_3_browser.mjs';
+  const moduleDir = 'bin/onlyoffice-smoke';
   const smoke = readText(root, relativePath);
   if (!smoke) {
     failures.push(`${relativePath}: browser smoke harness is missing`);
     return;
   }
 
-  requireNeedle(smoke, 'server.listen(0', `${relativePath}: sample server must use a dynamic port`, failures);
+  const processes = readText(root, `${moduleDir}/processes.mjs`);
+  const samples = readText(root, `${moduleDir}/samples.mjs`);
+  const diagnostics = readText(root, `${moduleDir}/diagnostics.mjs`);
+  const combined = [smoke, processes, samples, diagnostics].join('\n');
+
+  requireNeedle(samples, 'server.listen(0', `${moduleDir}/samples.mjs: sample server must use a dynamic port`, failures);
   requireNeedle(smoke, 'scenarioDiagnostics', `${relativePath}: output must include per-scenario diagnostics`, failures);
-  requireNeedle(smoke, 'createGeneratedSamples', `${relativePath}: samples must be generated or repo-local`, failures);
-  requireNeedle(smoke, 'startViteAppServer', `${relativePath}: app server must use a dynamic port helper`, failures);
-  rejectNeedle(smoke, '/Users/', `${relativePath}: must not depend on machine-specific /Users paths`, failures);
-  rejectNeedle(smoke, '/mnt/z/', `${relativePath}: must not depend on machine-specific /mnt/z paths`, failures);
-  rejectNeedle(smoke, '127.0.0.1:5174', `${relativePath}: must not hard-code Vite port 5174`, failures);
-  rejectNeedle(smoke, '127.0.0.1:5184', `${relativePath}: must not hard-code Vite port 5184`, failures);
-  rejectNeedle(smoke, 'new-pptx', `${relativePath}: PPTX is not in the claimed final smoke matrix`, failures);
+  requireNeedle(samples, 'createGeneratedSamples', `${moduleDir}/samples.mjs: samples must be generated or repo-local`, failures);
+  requireNeedle(processes, 'startViteAppServer', `${moduleDir}/processes.mjs: app server must use a dynamic port helper`, failures);
+  rejectNeedle(combined, '/Users/', `${relativePath}: must not depend on machine-specific /Users paths`, failures);
+  rejectNeedle(combined, '/mnt/z/', `${relativePath}: must not depend on machine-specific /mnt/z paths`, failures);
+  rejectNeedle(combined, '127.0.0.1:5174', `${relativePath}: must not hard-code Vite port 5174`, failures);
+  rejectNeedle(combined, '127.0.0.1:5184', `${relativePath}: must not hard-code Vite port 5184`, failures);
+  rejectNeedle(combined, 'new-pptx', `${relativePath}: PPTX is not in the claimed final smoke matrix`, failures);
 }
 
 function checkRuntimeRootResources(root, failures) {

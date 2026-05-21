@@ -88,6 +88,7 @@ Earlier runtime-patch exploration proved that browser-local flows can work, but 
 | TypeScript check | PASS | `timeout 60 pnpm run lint:ts` exits 0; only existing warning `bin/bundle_single_html.js:36 no-unused-expressions` |
 | Production build | pending | not run yet in final verification phase |
 | Browser smoke harness | PASS | dynamic Vite port, sample server `listen(0)`, generated DOCX/XLSX/CSV samples, structured JSON and per-scenario diagnostics |
+| Browser smoke harness structure | PASS | entrypoint `bin/smoke_onlyoffice_9_3_browser.mjs` delegates to `bin/onlyoffice-smoke/**`; each module stays below 300 lines and preserves the same full smoke behavior |
 | new-docx | PASS | full smoke matrix reports `documentReady=true`, version `9.3.1`, no 4xx, no bad font URLs |
 | new-xlsx | PASS | full smoke matrix reports `documentReady=true`, `onlyofficeLocalBinaryOpen`, `onlyofficeLocalBinaryBridge` |
 | open-docx | PASS | generated DOCX opens through adapter binary bridge |
