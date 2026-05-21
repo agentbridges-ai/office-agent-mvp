@@ -184,6 +184,26 @@ function checkEmptyBins(root, failures) {
   );
 }
 
+function checkUnsupportedPresentationBoundary(root, failures) {
+  const documentSource = readText(root, 'lib/document.ts');
+  const uiSource = readText(root, 'lib/ui.ts');
+  const notes = readText(root, 'docs/onlyoffice-9.3-upgrade-notes.md');
+
+  if (notes.includes('PPTX empty bin is not claimed')) {
+    for (const needle of ['.pptx', '.ppt']) {
+      if (documentSource.includes(`fileInput.accept =`) && documentSource.includes(needle)) {
+        failures.push(`lib/document.ts: ${needle} must not be accepted while PPTX is not claimed`);
+      }
+    }
+    if (uiSource.includes("onCreateNew('.pptx')")) {
+      failures.push('lib/ui.ts: new PPTX UI action must not be reachable while PPTX is not claimed');
+    }
+    if (!documentSource.includes('isUnsupportedPresentationFileName')) {
+      failures.push('lib/document.ts: PPT/PPTX open paths must be explicitly blocked before x2t initialization');
+    }
+  }
+}
+
 function checkSmokeHarness(root, failures) {
   const relativePath = 'bin/smoke_onlyoffice_9_3_browser.mjs';
   const moduleDir = 'bin/onlyoffice-smoke';
@@ -228,6 +248,7 @@ function main() {
   checkDownloadAs(root, failures);
   checkBrowserFonts(root, failures);
   checkEmptyBins(root, failures);
+  checkUnsupportedPresentationBoundary(root, failures);
   checkSmokeHarness(root, failures);
   checkRuntimeRootResources(root, failures);
 

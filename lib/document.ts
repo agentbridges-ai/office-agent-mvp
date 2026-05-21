@@ -1,6 +1,7 @@
 import { createObjectURL } from 'ranuts/utils';
 import { getDocmentObj, setDocmentObj } from '../store';
 import { handleDocumentOperation, initX2T, loadEditorApi, loadScript } from './converter';
+import { t } from './i18n';
 import { showLoading } from './loading';
 
 // Import UI functions with type-only to avoid circular dependency
@@ -22,14 +23,25 @@ export function setUICallbacks(callbacks: {
 // Create a single file input element
 const fileInput = document.createElement('input');
 fileInput.type = 'file';
-fileInput.accept = '.docx,.xlsx,.pptx,.doc,.xls,.ppt,.csv';
+fileInput.accept = '.docx,.xlsx,.doc,.xls,.csv';
 fileInput.style.setProperty('visibility', 'hidden');
 document.body.appendChild(fileInput);
+
+export function isUnsupportedPresentationFileName(fileName: string): boolean {
+  return /\.(pptx?|odp)$/i.test(fileName);
+}
+
+function assertSupportedLocalFileName(fileName: string): void {
+  if (isUnsupportedPresentationFileName(fileName)) {
+    throw new Error(`${t('unsupportedFileType')}${fileName.split('.').pop() || fileName}`);
+  }
+}
 
 export const onCreateNew = async (ext: string): Promise<void> => {
   // Note: Loading is now shown in the menu button click handler
   // This function should not show loading again to avoid double loading indicators
   try {
+    assertSupportedLocalFileName(`New_Document${ext}`);
     // Always hide control panel and ensure FAB is visible when creating new document
     if (hideControlPanelFn) {
       hideControlPanelFn();
@@ -76,6 +88,7 @@ export const onOpenDocument = (): void => {
     if (file) {
       const { removeLoading } = showLoading();
       try {
+        assertSupportedLocalFileName(file.name);
         if (hideControlPanelFn) {
           hideControlPanelFn();
         }
@@ -159,6 +172,7 @@ export const openDocumentFromUrl = async (url: string, fileName?: string): Promi
     }
 
     // Get file blob
+    assertSupportedLocalFileName(finalFileName);
     const blob = await response.blob();
     const file = new File([blob], finalFileName, { type: blob.type });
 
