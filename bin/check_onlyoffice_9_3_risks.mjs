@@ -243,6 +243,8 @@ function checkSmokeHarness(root, failures) {
   requireNeedle(smoke, 'scenarioDiagnostics', `${relativePath}: output must include per-scenario diagnostics`, failures);
   requireNeedle(samples, 'createGeneratedSamples', `${moduleDir}/samples.mjs: samples must be generated or repo-local`, failures);
   requireNeedle(processes, 'startViteAppServer', `${moduleDir}/processes.mjs: app server must use a dynamic port helper`, failures);
+  rejectNeedle(processes, 'Math.random()', `${moduleDir}/processes.mjs: Vite strict port selection must not rely on Math.random()`, failures);
+  requireNeedle(processes, 'VITE_PORT_CANDIDATE_COUNT', `${moduleDir}/processes.mjs: Vite strict port startup must have bounded retry candidates`, failures);
   rejectNeedle(combined, '/Users/', `${relativePath}: must not depend on machine-specific /Users paths`, failures);
   rejectNeedle(combined, '/mnt/z/', `${relativePath}: must not depend on machine-specific /mnt/z paths`, failures);
   rejectNeedle(combined, '127.0.0.1:5174', `${relativePath}: must not hard-code Vite port 5174`, failures);

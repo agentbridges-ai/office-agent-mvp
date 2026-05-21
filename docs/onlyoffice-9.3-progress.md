@@ -11,7 +11,7 @@
 ## 当前状态
 
 - Overall: `in_progress`
-- 当前阶段: T22 Task 4 runtime shim contract completed
+- 当前阶段: T23 Task 5 smoke port allocation completed
 - 当前工作目录: `/tmp/document-onlyoffice-9-3-gcd-adapter`
 - 当前实施分支: `feat/onlyoffice-9-3-gcd-adapter`
 - 基线提交: `96b2a9e2`
@@ -50,6 +50,7 @@
 | T20 | Review Task 2 save/PDF failure semantics | completed | smoke 已观测 PDF 阻断内部 download callback 从 `status: ok` 修正为 `status: error`；adapter 不再直接 `alert()`，由 editor orchestration 注入错误显示 |
 | T21 | Review Task 3 unsupported PPT/PPTX entry boundary | completed | risk gate 阻止 PPT/PPTX create/open 可达入口；file picker 移除 `.ppt/.pptx`，UI PowerPoint 动作显式 unsupported；非 PPT smoke 5/5 PASS |
 | T22 | Review Task 4 local runtime shim contract | completed | `AscCommon.T7c`、ready hook aliases、fake permission version 已写入 upgrade notes；risk gate 要求 shim provenance；ready hook 候选常量化 |
+| T23 | Review Task 5 smoke Vite port allocation | completed | risk gate 拒绝 `Math.random()` strictPort；Vite app server 使用 PID 派生候选端口和有界 retry；完整 smoke 7/7 PASS |
 
 ## 检查点日志
 
@@ -110,6 +111,9 @@
 | 2026-05-21T05:46:12Z | T22 RED | Task 4 新增 risk gate：代码出现 `AscCommon.T7c`、`asyncServerIdEndLoaded`、`n1f`、`Mmg`、`NOf` 或 `asc_getBuildVersion` 时，`docs/onlyoffice-9.3-upgrade-notes.md` 必须有 `Local Runtime Shim Contract` provenance。`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 1，命中 6 个未文档化 shim。 |
 | 2026-05-21T05:46:12Z | T22 GREEN | `docs/onlyoffice-9.3-upgrade-notes.md` 新增 `Local Runtime Shim Contract`，记录 `AscCommon.T7c`、ready hook aliases、`asc_getBuildVersion/asc_getBuildNumber` 的 RED 症状、最小锚点和非 DocumentServer 边界；`LOCAL_BINARY_READY_HOOK_CANDIDATES` 替代内联 alias fallback，错误信息列出候选。 |
 | 2026-05-21T05:46:12Z | T22 VERIFY | `timeout 60 node bin/check_onlyoffice_9_3_risks.mjs`、`timeout 60 node bin/check_onlyoffice_bridge_contract.mjs`、`timeout 60 pnpm run lint:ts` 均退出 0；`timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,input-save-docx,pdf-block-docx --timeout-ms 90000` 退出 0，3/3 PASS，binary bridge、DOCX save ok、PDF block error 均保持。 |
+| 2026-05-21T05:48:38Z | T23 RED | Task 5 新增 risk gate：`bin/onlyoffice-smoke/processes.mjs` 不得包含 `Math.random()`，且必须包含 `VITE_PORT_CANDIDATE_COUNT` 有界候选。`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 1，命中随机 strictPort 和缺少 retry 候选。 |
+| 2026-05-21T05:48:38Z | T23 GREEN | `startViteAppServer()` 改为 PID 派生候选端口列表，`startViteWithRetry()` 在 port collision 时终止当前 Vite 子进程并尝试下一个候选；保留 `--strictPort`，最终错误包含候选端口与最后错误。 |
+| 2026-05-21T05:48:38Z | T23 VERIFY | `timeout 60 node bin/check_onlyoffice_9_3_risks.mjs`、`timeout 60 node --check bin/onlyoffice-smoke/processes.mjs`、`timeout 60 pnpm exec oxlint bin/onlyoffice-smoke/processes.mjs bin/check_onlyoffice_9_3_risks.mjs` 均退出 0；完整 `timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,new-xlsx,open-docx,open-xlsx,open-csv,input-save-docx,pdf-block-docx --timeout-ms 90000` 退出 0，7/7 PASS，`failures=[]`，app 端口 `21362`。 |
 
 ## 最近观测
 
