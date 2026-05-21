@@ -10,8 +10,8 @@
 
 ## 当前状态
 
-- Overall: `completed`
-- 当前阶段: T17 final verification completed
+- Overall: `in_progress`
+- 当前阶段: T18 review follow-up planning completed
 - 当前工作目录: `/tmp/document-onlyoffice-9-3-gcd-adapter`
 - 当前实施分支: `feat/onlyoffice-9-3-gcd-adapter`
 - 基线提交: `96b2a9e2`
@@ -45,6 +45,7 @@
 | T15 | 最小 9.3 runtime manifest | completed | official 9.3.1 minimal runtime manifest、browser-local `AllFonts.js`、可信 9.3 DOCX/XLSX empty bin 已落地；risk/bridge/lint fresh 退出 0 |
 | T16 | GCD browser smoke verification | completed | dynamic-port smoke harness 已落地；完整矩阵 7/7 PASS；`failures=[]`、无 4xx、无 `/downloadas/`、无坏字体、无 browser exception |
 | T17 | GCD final verification and review | completed | fresh bridge/risk/lint/build/full smoke 均退出 0；review 自检未发现阻塞项 |
+| T18 | Claude + local hard review 交叉复盘 | completed | 已创建 `docs/onlyoffice-9.3-gcd-review.md` 和 `docs/superpowers/plans/2026-05-21-onlyoffice-9.3-gcd-review-fixes.md`；确认 F1/F2/F3 为 must-fix，F4/F5/F6 为 handoff 前 should-fix |
 
 ## 检查点日志
 
@@ -91,6 +92,8 @@
 | 2026-05-21T02:48:02Z | T17 VERIFY | `timeout 60 pnpm run build` 退出 0；保留 Vite external script/chunk size warning 与既有 shell 方言 warning `./bin/build.sh: 17: [[: Permission denied`，构建输出 `Build completed successfully!`。 |
 | 2026-05-21T02:48:02Z | T17 SMOKE | `timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,new-xlsx,open-docx,open-xlsx,open-csv,input-save-docx,pdf-block-docx --timeout-ms 90000` 退出 0；7/7 PASS，`failures=[]`，动态 app/sample 端口分别为 `22560`/`39271`；所有场景 `version=9.3.1`、`documentReady=true`、iframe `765x493`，无 failed responses、无 `/downloadas/`、无 `/fonts//fonts`、无 browser exception。 |
 | 2026-05-21T02:48:02Z | T17 REVIEW | 本地 review 自检：未声明 browser x2t 已 9.3；未声明 PPTX 支持；未声明完整多人协作；保存路径不依赖 `/downloadas/{documentId}`；坏 PDF 被阻断并提示 server-side conversion；smoke 不依赖固定端口或机器路径；vendor manifest 保持 minimal 9.3 runtime。 |
+| 2026-05-21T03:21:24Z | T18 REVIEW | 交叉复核 Claude review 与本地 review，形成 `docs/onlyoffice-9.3-gcd-review.md`。新增结论：当前 gates/smoke 虽 fresh pass，但仍缺 paste/writeFile realm 覆盖、save failure callback 状态覆盖、PPTX 产品入口边界覆盖、minified shim provenance gate、随机 Vite port gate。 |
+| 2026-05-21T03:21:24Z | T18 PLAN | 创建 `docs/superpowers/plans/2026-05-21-onlyoffice-9.3-gcd-review-fixes.md`。整改顺序为 cross-realm binary、save failure honesty、PPTX entry block、minified shim docs/gates、smoke port retry、low-severity adapter cleanup；每个闭环要求 RED/GREEN/VERIFY/commit。 |
 
 ## 最近观测
 
@@ -113,6 +116,10 @@
 | 旧 runtime 分支 vendor 过宽 | active | 不整分支 merge；只抽取 source provenance、风险清单和 smoke 证据 |
 | 旧 adapter 分支虽方向正确但仍需重做为 GCD 规划 | active | 以 adapter-first 作为结构参考，但新分支从 `96b2a9e2` 独立规划，避免继承未审查实现细节 |
 | 后续 ONLYOFFICE 更新造成 adapter 失效 | active | 把兼容逻辑集中在 `lib/onlyoffice-compat/**`，并用 bridge/risk/smoke gates 捕捉上游契约漂移 |
+| cross-realm 二进制值未覆盖 | active | T18 计划 Task 1：用 gate 阻止非中心 helper 的 `instanceof Uint8Array/ArrayBuffer` |
+| save/PDF 失败内部 callback 可能 fake success | active | T18 计划 Task 2：扩展 smoke diagnostics，禁止 PDF block 返回 `status: ok` |
+| PPTX 不 claim 但入口仍可达 | active | T18 计划 Task 3：在产品边界关闭 PPT/PPTX create/open |
+| minified shim 缺少 provenance gate | active | T18 计划 Task 4：文档化 `T7c`、ready hook aliases 和 fake server version，并增加 risk gate |
 
 ## 收口结论
 
