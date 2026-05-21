@@ -83,10 +83,10 @@ Earlier runtime-patch exploration proved that browser-local flows can work, but 
 | DOCX empty bin | PASS | `lib/empty_bin.ts` uses trusted 9.3 `DOCY;v4;8985` from `word/document/empty.js` |
 | XLSX empty bin | PASS | `lib/empty_bin.ts` uses trusted 9.3 `XLSY;v2;5958` from `cell/document/empty.js` |
 | PPTX empty bin | NOT CLAIMED | PPTX empty bin is not claimed; existing value is preserved only as legacy data and is outside final smoke |
-| adapter boundary check | PASS | `timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` exits 0 after T15 runtime changes |
-| risk check | PASS | `timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` exits 0 after T15 runtime and empty bin changes |
-| TypeScript check | PASS | `timeout 60 pnpm run lint:ts` exits 0; only existing warning `bin/bundle_single_html.js:36 no-unused-expressions` |
-| Production build | pending | not run yet in final verification phase |
+| adapter boundary check | PASS | fresh `timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` exits 0 |
+| risk check | PASS | fresh `timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` exits 0 |
+| TypeScript check | PASS | fresh `timeout 60 pnpm run lint:ts` exits 0; only existing warning `bin/bundle_single_html.js:36 no-unused-expressions` |
+| Production build | PASS | fresh `timeout 60 pnpm run build` exits 0; Vite external script/chunk warnings and existing shell `[[` warning are recorded but non-fatal |
 | Browser smoke harness | PASS | dynamic Vite port, sample server `listen(0)`, generated DOCX/XLSX/CSV samples, structured JSON and per-scenario diagnostics |
 | Browser smoke harness structure | PASS | entrypoint `bin/smoke_onlyoffice_9_3_browser.mjs` delegates to `bin/onlyoffice-smoke/**`; each module stays below 300 lines and preserves the same full smoke behavior |
 | new-docx | PASS | full smoke matrix reports `documentReady=true`, version `9.3.1`, no 4xx, no bad font URLs |
@@ -106,6 +106,18 @@ timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,new-xl
 ```
 
 Fresh result summary: 7/7 PASS, `failures=[]`, no failed responses, no `/downloadas/`, no `/fonts//fonts`, no browser exceptions.
+
+Fresh final verification commands:
+
+```bash
+timeout 60 node bin/check_onlyoffice_bridge_contract.mjs
+timeout 60 node bin/check_onlyoffice_9_3_risks.mjs
+timeout 60 pnpm run lint:ts
+timeout 60 pnpm run build
+timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,new-xlsx,open-docx,open-xlsx,open-csv,input-save-docx,pdf-block-docx --timeout-ms 90000
+```
+
+Review self-check: the final branch does not claim browser x2t is 9.3, does not claim PPTX or full collaboration, does not use `/downloadas/{documentId}` as the browser-local success path, blocks known bad zero-page PDF output, and keeps ONLYOFFICE compatibility logic in first-party adapters.
 
 ## Rollback
 
