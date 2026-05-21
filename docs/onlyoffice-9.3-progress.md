@@ -11,7 +11,7 @@
 ## 当前状态
 
 - Overall: `in_progress`
-- 当前阶段: T19 Task 1 cross-realm binary completed
+- 当前阶段: T20 Task 2 save failure semantics completed
 - 当前工作目录: `/tmp/document-onlyoffice-9-3-gcd-adapter`
 - 当前实施分支: `feat/onlyoffice-9-3-gcd-adapter`
 - 基线提交: `96b2a9e2`
@@ -47,6 +47,7 @@
 | T17 | GCD final verification and review | completed | fresh bridge/risk/lint/build/full smoke 均退出 0；review 自检未发现阻塞项 |
 | T18 | Claude + local hard review 交叉复盘 | completed | 已创建 `docs/onlyoffice-9.3-gcd-review.md` 和 `docs/superpowers/plans/2026-05-21-onlyoffice-9.3-gcd-review-fixes.md`；确认 F1/F2/F3 为 must-fix，F4/F5/F6 为 handoff 前 should-fix |
 | T19 | Review Task 1 cross-realm binary handling | completed | `binary.ts` 新增 realm-safe helpers；`media.ts`、`converter.ts`、`document-converter.ts` 不再直接使用 `instanceof Uint8Array/ArrayBuffer`；bridge/risk/lint fresh 通过 |
+| T20 | Review Task 2 save/PDF failure semantics | completed | smoke 已观测 PDF 阻断内部 download callback 从 `status: ok` 修正为 `status: error`；adapter 不再直接 `alert()`，由 editor orchestration 注入错误显示 |
 
 ## 检查点日志
 
@@ -98,6 +99,9 @@
 | 2026-05-21T05:34:42Z | T19 RED | Task 1 新增 bridge contract 检查：`lib/onlyoffice-compat/media.ts`、`lib/converter.ts`、`lib/document-converter.ts` 中出现 `instanceof Uint8Array/ArrayBuffer` 即失败。`timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` 退出 1，命中上述三个文件，符合 cross-realm 误差定义。 |
 | 2026-05-21T05:34:42Z | T19 GREEN | `lib/onlyoffice-compat/binary.ts` 新增 `toStandaloneArrayBuffer()` 与 `toUint8Array()`；`media.ts`、`converter.ts`、`document-converter.ts` 改为调用 helper，避免 iframe realm 的 `Uint8Array` 被误判。 |
 | 2026-05-21T05:34:42Z | T19 VERIFY | `timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` 退出 0；`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 0；`timeout 60 pnpm run lint:ts` 退出 0，仅保留既有 `bin/bundle_single_html.js:36 no-unused-expressions` warning。 |
+| 2026-05-21T05:40:27Z | T20 RED | Task 2 smoke diagnostics 新增 `frame:downloadCallback` 观测，并要求 `pdf-block-docx` 的 callback status 为 `error`。`timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario pdf-block-docx --timeout-ms 90000` 退出 1，recentEvents 显示 alert 为 PDF 0 pages，同时 `frame:downloadCallback status="ok"`，证明 fake-success 风险存在。 |
+| 2026-05-21T05:40:27Z | T20 GREEN | `handleLocalSaveDocument()` 改为返回 `{ ok: true } | { ok: false; error }`；`installLocalDownloadBridge()` 按结果向 ONLYOFFICE 内部 callback 返回 `ok` 或 `error`；`alert()` 从 adapter 移出，由 `onlyoffice-editor.ts` 注入 `onError`。 |
+| 2026-05-21T05:40:27Z | T20 VERIFY | `timeout 60 node bin/check_onlyoffice_9_3_risks.mjs`、`timeout 60 node bin/check_onlyoffice_bridge_contract.mjs`、`timeout 60 pnpm run lint:ts` 均退出 0；`timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario input-save-docx,pdf-block-docx --timeout-ms 90000` 退出 0，DOCX 保存 `frame:downloadCallback status="ok"`，PDF 阻断 `status="error"` 且 `failures=[]`。 |
 
 ## 最近观测
 
@@ -121,7 +125,7 @@
 | 旧 adapter 分支虽方向正确但仍需重做为 GCD 规划 | active | 以 adapter-first 作为结构参考，但新分支从 `96b2a9e2` 独立规划，避免继承未审查实现细节 |
 | 后续 ONLYOFFICE 更新造成 adapter 失效 | active | 把兼容逻辑集中在 `lib/onlyoffice-compat/**`，并用 bridge/risk/smoke gates 捕捉上游契约漂移 |
 | cross-realm 二进制值未覆盖 | resolved | T19 已用 bridge contract 阻止 adapter/converter 中的 `instanceof Uint8Array/ArrayBuffer`，并集中到 `onlyoffice-compat/binary.ts` helper |
-| save/PDF 失败内部 callback 可能 fake success | active | T18 计划 Task 2：扩展 smoke diagnostics，禁止 PDF block 返回 `status: ok` |
+| save/PDF 失败内部 callback 可能 fake success | resolved | T20 已用 smoke 覆盖内部 callback status；PDF 阻断返回 `status: error`，DOCX 保存仍返回 `status: ok` |
 | PPTX 不 claim 但入口仍可达 | active | T18 计划 Task 3：在产品边界关闭 PPT/PPTX create/open |
 | minified shim 缺少 provenance gate | active | T18 计划 Task 4：文档化 `T7c`、ready hook aliases 和 fake server version，并增加 risk gate |
 

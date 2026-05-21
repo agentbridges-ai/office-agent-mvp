@@ -115,6 +115,7 @@ function isDocxSaveComplete(events) {
   return (
     events.some((event) => event.type === 'frame:event' && event.event === 'onlyofficeLocalDownloadBridge') &&
     events.some((event) => event.type === 'download:anchor' && String(event.download || '').endsWith('.docx')) &&
+    events.some((event) => event.type === 'frame:downloadCallback' && event.status === 'ok') &&
     events.some((event) => event.type === 'frame:sdkCallback' && event.name === 'asc_onEndAction')
   );
 }
@@ -123,6 +124,7 @@ function isPdfBlockComplete(events) {
   return (
     events.some((event) => event.type === 'alert' && /server-side conversion|PDF export requires/i.test(event.message || '')) &&
     events.some((event) => event.type === 'frame:event' && event.event === 'onlyofficeLocalDownloadBridge') &&
+    events.some((event) => event.type === 'frame:downloadCallback' && event.status === 'error') &&
     events.some((event) => event.type === 'frame:sdkCallback' && event.name === 'asc_onEndAction') &&
     !events.some((event) => event.type === 'download:anchor' && String(event.download || '').endsWith('.pdf'))
   );

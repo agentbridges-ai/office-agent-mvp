@@ -20,7 +20,7 @@ export function hookSource() {
         try { window.__ooSmokeRecord(JSON.stringify(payload)); } catch (_) {}
       };
       window.__ooSmokeEvents = [];
-      window.__ooSmokeState = { created: false };
+      window.__ooSmokeState = { created: false, downloadHookInstalled: false };
       window.alert = (message) => emit({ type: 'alert', message: String(message) });
       window.showSaveFilePicker = undefined;
       const originalAnchorClick = HTMLAnchorElement.prototype.click;
@@ -198,17 +198,51 @@ export function hookSource() {
         emit({ type: 'frame:sdkHook' });
         return true;
       };
+      const installFrameDownloadHook = () => {
+        const ascCommon = window.AscCommon;
+        const current = ascCommon && ascCommon.T7c;
+        if (typeof current !== 'function' || current.__ooSmokeWrapped) return false;
+        const wrappedDownload = function() {
+          const args = Array.from(arguments).map((arg) => {
+            if (typeof arg !== 'function') return arg;
+            return function() {
+              const first = arguments[0];
+              emit({
+                type: 'frame:downloadCallback',
+                status: first && first.status,
+                error: first && first.error,
+                data: first && first.data,
+              });
+              return arg.apply(this, arguments);
+            };
+          });
+          return current.apply(this, args);
+        };
+        wrappedDownload.__ooSmokeWrapped = true;
+        wrappedDownload.__ooSmokeOriginal = current;
+        ascCommon.T7c = wrappedDownload;
+        window.__ooSmokeState.downloadHookInstalled = true;
+        emit({ type: 'frame:downloadHook' });
+        return true;
+      };
       const timer = setInterval(() => {
         install();
         installFrameGateway();
         installFrameSdk();
-        if (window.DocsAPI && window.DocsAPI.DocEditor && window.DocsAPI.DocEditor.__ooSmokeWrapped) {
+        installFrameDownloadHook();
+        if (
+          window.DocsAPI &&
+          window.DocsAPI.DocEditor &&
+          window.DocsAPI.DocEditor.__ooSmokeWrapped &&
+          window.__ooSmokeState.downloadHookInstalled
+        ) {
           clearInterval(timer);
         }
       }, 25);
       install();
       installFrameGateway();
       installFrameSdk();
+      installFrameDownloadHook();
     })();
   `;
 }

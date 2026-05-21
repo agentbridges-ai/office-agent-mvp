@@ -103,7 +103,12 @@ async function handleSaveDocument(event: SaveEvent) {
     event,
     editor: window.editor,
     convert: convertBinToDocumentAndDownloadFn,
+    onError: showLocalSaveError,
   });
+}
+
+function showLocalSaveError(message: string): void {
+  alert(message);
 }
 
 function installLocalDownloadBridgeWhenReady(): void {
@@ -113,6 +118,7 @@ function installLocalDownloadBridgeWhenReady(): void {
       installLocalDownloadBridge({
         editor: window.editor,
         convert: convertBinToDocumentAndDownloadFn,
+        onError: showLocalSaveError,
       });
     } catch (error) {
       if (Date.now() - started >= DOWNLOAD_BRIDGE_INSTALL_TIMEOUT_MS) {

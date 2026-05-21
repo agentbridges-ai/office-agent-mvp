@@ -3,6 +3,7 @@ import { c_oAscFileType2 } from '../file-types';
 import type { SaveEvent } from '../document-types';
 
 export type ConvertBinAndDownload = (bin: Uint8Array, fileName: string, targetExt?: string) => Promise<unknown>;
+type LocalSaveResult = { ok: true } | { ok: false; error: string };
 const LOCAL_DOWNLOAD_BRIDGE_FLAG = '__onlyofficeLocalDownloadBridgeInstalled';
 const LOCAL_DOWNLOAD_HANDLER = '__onlyofficeHandleLocalDownloadAs';
 const BLOCKING_ACTION_TYPE = 1;
@@ -45,11 +46,12 @@ export async function handleLocalSaveDocument(options: {
   event: SaveEvent;
   editor: DocEditor | undefined;
   convert: ConvertBinAndDownload | null;
-}): Promise<void> {
-  const { event, editor, convert } = options;
+  onError?: (message: string) => void;
+}): Promise<LocalSaveResult> {
+  const { event, editor, convert, onError } = options;
 
   try {
-    if (!event.data?.data) return;
+    if (!event.data?.data) return { ok: true };
     if (!convert) throw new Error('Converter callback not set');
 
     const { data, option } = event.data;
@@ -62,11 +64,13 @@ export async function handleLocalSaveDocument(options: {
 
     await convert(data.data, fileName, targetFormat);
     sendOnlyOfficeSaveCallback(editor);
+    return { ok: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown save error';
     console.error('Save document failed:', error);
-    alert(message);
+    onError?.(message);
     sendOnlyOfficeSaveCallback(editor, message);
+    return { ok: false, error: message };
   } finally {
     endOnlyOfficeDownloadAction(editor);
   }
@@ -75,12 +79,18 @@ export async function handleLocalSaveDocument(options: {
 export function installLocalDownloadBridge(options: {
   editor: DocEditor | undefined;
   convert: ConvertBinAndDownload | null;
+  onError?: (message: string) => void;
 }): void {
   const frame = getEditorFrameWindow();
   if (!frame?.AscCommon?.T7c) throw new Error('ONLYOFFICE download bridge target is unavailable');
 
   (window as any)[LOCAL_DOWNLOAD_HANDLER] = (event: SaveEvent) =>
-    handleLocalSaveDocument({ event, editor: options.editor, convert: options.convert });
+    handleLocalSaveDocument({
+      event,
+      editor: options.editor,
+      convert: options.convert,
+      onError: options.onError,
+    });
 
   const state = frame as unknown as Record<string, unknown>;
   if (state[LOCAL_DOWNLOAD_BRIDGE_FLAG]) return;
@@ -92,9 +102,13 @@ export function installLocalDownloadBridge(options: {
     frame.parent?.postMessage({ event: 'onlyofficeLocalDownloadBridge', data: { outputformat: event.data.option.outputformat } }, '*');
 
     Promise.resolve((frame.parent as any)[LOCAL_DOWNLOAD_HANDLER](event))
-      .then(() => {
+      .then((result: LocalSaveResult) => {
         endFrameDownloadAction(frame);
-        callback?.({ status: 'ok', data: 'local-adapter-save' }, true);
+        if (result.ok) {
+          callback?.({ status: 'ok', data: 'local-adapter-save' }, true);
+          return;
+        }
+        callback?.({ status: 'error', error: result.error }, true, result.error);
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : 'Unknown local download error';

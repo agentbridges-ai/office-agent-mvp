@@ -27,6 +27,7 @@ export function summarizeSelectedEvents(events) {
       event.type === 'download:anchor' ||
       event.type === 'alert' ||
       event.type === 'event:onSaveDocument' ||
+      event.type === 'frame:downloadCallback' ||
       event.event === 'onlyofficeLocalDownloadBridge' ||
       event.event === 'onlyofficeLocalBinaryBridge' ||
       event.event === 'onlyofficeLocalBinaryOpen' ||
@@ -40,9 +41,10 @@ export function summarizeSelectedEvents(events) {
       download: event.download,
       hasBinaryData: event.hasBinaryData,
       outputformat: event.outputformat,
-      status: event.data && event.data.status,
+      status: event.status || (event.data && event.data.status),
       byteLength: event.data && event.data.byteLength,
       message: event.message,
+      error: event.error,
     }));
 }
 
