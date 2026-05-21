@@ -5,7 +5,7 @@ import { X2TConverter } from './document-converter';
 import { createEditorInstance, loadEditorApi, setConverterCallback } from './onlyoffice-editor';
 import { getDocumentType } from './document-utils';
 import type { BinConversionResult, ConversionResult, EmscriptenModule } from './document-types';
-import type { OnlyOfficeBinData } from './onlyoffice-compat/binary';
+import { toStandaloneArrayBuffer, type OnlyOfficeBinData } from './onlyoffice-compat/binary';
 
 // Export types
 export type {
@@ -50,8 +50,7 @@ function isConversionResult(data: DocumentOperationData): data is ConversionResu
 
 function getOnlyOfficeBinData(data: DocumentOperationData): OnlyOfficeBinData {
   if (!isConversionResult(data)) return data.bin;
-  if (data.bin instanceof ArrayBuffer || data.bin instanceof Uint8Array) return data.bin;
-  throw new Error('Unsupported x2t binary output type');
+  return toStandaloneArrayBuffer(data.bin);
 }
 
 // Merged file operation method

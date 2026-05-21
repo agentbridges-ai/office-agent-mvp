@@ -9,6 +9,12 @@ const REQUIRED_IMPORTS = [
   './onlyoffice-compat/media',
 ];
 
+const CROSS_REALM_BINARY_FILES = [
+  'lib/onlyoffice-compat/media.ts',
+  'lib/converter.ts',
+  'lib/document-converter.ts',
+];
+
 function parseArgs(argv) {
   const result = { root: process.cwd() };
   for (let index = 0; index < argv.length; index += 1) {
@@ -60,6 +66,14 @@ function main() {
   }
   if (!binary.includes('ArrayBuffer.isView')) {
     failures.push('lib/onlyoffice-compat/binary.ts: must use cross-realm ArrayBuffer view detection');
+  }
+
+  for (const relativePath of CROSS_REALM_BINARY_FILES) {
+    const source = readText(root, relativePath);
+    const unsafeMatches = source.match(/instanceof\s+(?:Uint8Array|ArrayBuffer)/g) || [];
+    if (unsafeMatches.length > 0) {
+      failures.push(`${relativePath}: binary acceptance must use onlyoffice-compat/binary helpers, not ${unsafeMatches.join(', ')}`);
+    }
   }
 
   const save = readText(root, 'lib/onlyoffice-compat/save.ts');

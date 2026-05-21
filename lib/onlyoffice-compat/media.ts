@@ -1,5 +1,6 @@
 import { createObjectURL } from 'ranuts/utils';
 import { getMimeTypeFromExtension } from '../document-utils';
+import { toUint8Array } from './binary';
 
 export type MediaMap = Record<string, string>;
 
@@ -17,7 +18,8 @@ export async function writeImageToMediaMap(event: WriteFileEvent, media: MediaMa
   if (!eventData) throw new Error('No data provided in writeFile event');
 
   const { data: imageData, file: fileName } = eventData;
-  if (!imageData || !(imageData instanceof Uint8Array)) {
+  const imageBytes = toUint8Array(imageData);
+  if (!imageBytes) {
     throw new Error('Invalid image data: expected Uint8Array');
   }
   if (!fileName || typeof fileName !== 'string') {
@@ -26,7 +28,7 @@ export async function writeImageToMediaMap(event: WriteFileEvent, media: MediaMa
 
   const fileExtension = fileName.split('.').pop()?.toLowerCase() || 'png';
   const mimeType = getMimeTypeFromExtension(fileExtension);
-  const blob = new Blob([imageData as unknown as BlobPart], { type: mimeType });
+  const blob = new Blob([imageBytes as unknown as BlobPart], { type: mimeType });
   const objectUrl = await createObjectURL(blob);
   media[`media/${fileName}`] = objectUrl;
   return { objectUrl, fileName };

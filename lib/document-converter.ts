@@ -3,6 +3,7 @@ import 'ranui/message';
 import { t } from './i18n';
 import type { BinConversionResult, ConversionResult, DocumentType, EmscriptenModule } from './document-types';
 import { BASE_PATH, DOCUMENT_TYPE_MAP } from './document-utils';
+import { toStandaloneArrayBuffer, toUint8Array } from './onlyoffice-compat/binary';
 import { assertValidPdfOutput } from './onlyoffice-compat/pdf';
 
 export class X2TConverter {
@@ -156,8 +157,9 @@ export class X2TConverter {
       try {
         const paramsContent = this.x2tModule.FS.readFile(paramsPath, { encoding: 'binary' });
         // Convert binary to string for logging
-        if (paramsContent instanceof Uint8Array) {
-          const paramsText = new TextDecoder('utf-8').decode(paramsContent);
+        const paramsBytes = toUint8Array(paramsContent);
+        if (paramsBytes) {
+          const paramsText = new TextDecoder('utf-8').decode(paramsBytes);
           console.error('Conversion failed. Parameters XML:', paramsText);
         } else {
           console.error('Conversion failed. Parameters XML:', paramsContent);
@@ -172,10 +174,7 @@ export class X2TConverter {
 
   private readBinaryFile(path: string): ArrayBuffer | Uint8Array {
     const result = this.x2tModule!.FS.readFile(path);
-    if (result instanceof ArrayBuffer || result instanceof Uint8Array) {
-      return result;
-    }
-    throw new Error(`Expected binary x2t output at ${path}`);
+    return toStandaloneArrayBuffer(result as ArrayBuffer | ArrayBufferView);
   }
 
   /**
@@ -472,7 +471,8 @@ export class X2TConverter {
 
         // Read XLSX file
         const xlsxResult = this.x2tModule!.FS.readFile(`/working/${xlsxFileName}`);
-        const xlsxArray = xlsxResult instanceof Uint8Array ? xlsxResult : new Uint8Array(xlsxResult as ArrayBuffer);
+        const xlsxArray = toUint8Array(xlsxResult);
+        if (!xlsxArray) throw new Error(`Expected binary x2t output at /working/${xlsxFileName}`);
 
         // Convert XLSX to CSV using SheetJS
         const XLSX = await this.loadXlsxLibrary();
@@ -526,7 +526,8 @@ export class X2TConverter {
       const result = this.x2tModule!.FS.readFile(`/working/${outputFileName}`);
 
       // Ensure result is Uint8Array type
-      const resultArray = result instanceof Uint8Array ? result : new Uint8Array(result as ArrayBuffer);
+      const resultArray = toUint8Array(result);
+      if (!resultArray) throw new Error(`Expected binary x2t output at /working/${outputFileName}`);
       if (targetExt === 'PDF') {
         assertValidPdfOutput(resultArray, outputFileName);
       }

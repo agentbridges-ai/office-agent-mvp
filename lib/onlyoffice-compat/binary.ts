@@ -32,6 +32,21 @@ export function prepareOnlyOfficeBuffer(binData: OnlyOfficeBinData): ArrayBuffer
   return new TextEncoder().encode(binData).buffer;
 }
 
+export function toStandaloneArrayBuffer(value: ArrayBuffer | ArrayBufferView): ArrayBuffer {
+  if (isArrayBufferView(value)) {
+    const bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+    return bytes.slice().buffer;
+  }
+  if (isArrayBuffer(value)) return value;
+  throw new Error('Expected binary ArrayBuffer or ArrayBufferView');
+}
+
+export function toUint8Array(value: unknown): Uint8Array | null {
+  if (isArrayBuffer(value)) return new Uint8Array(value);
+  if (isArrayBufferView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  return null;
+}
+
 function isArrayBuffer(value: unknown): value is ArrayBuffer {
   return Object.prototype.toString.call(value) === '[object ArrayBuffer]';
 }
