@@ -11,14 +11,16 @@
 ## 当前状态
 
 - Overall: `in_progress`
-- 当前阶段: 准备 T7 隔离 worktree 资源替换与补丁重放
-- 当前工作目录: `/mnt/z/projects/document`
-- 基线提交: `796f77c`
+- 当前阶段: T12 最大公约数 adapter 规划
+- 当前工作目录: `/tmp/document-onlyoffice-9-3-gcd-adapter`
+- 当前实施分支: `feat/onlyoffice-9-3-gcd-adapter`
+- 基线提交: `96b2a9e2`
 - 目标版本: ONLYOFFICE 9.3 系列，默认 `v9.3.1`
-- 计划文档: `docs/superpowers/plans/2026-05-20-onlyoffice-9-3-adaptation.md`
+- 计划文档: `docs/superpowers/plans/2026-05-21-onlyoffice-9.3-gcd-adapter.md`
+- 设计文档: `docs/superpowers/specs/2026-05-21-onlyoffice-9.3-gcd-adapter-design.md`
 - 影响边界文档: `docs/onlyoffice-9.3-impact-boundary.md`
 - Goal contract: `docs/onlyoffice-9.3-goal-contract.md`
-- 主风险: 当前工作树存在 CRLF 噪声，不能直接覆盖 vendored 资源
+- 主风险: 不能把旧 runtime-patch 路线与新 adapter 路线直接 merge；本轮只抽取最大公约数逻辑和验证证据
 
 ## 任务状态
 
@@ -37,6 +39,11 @@
 | T9 | L0/L1 验证 | pending | `pnpm run lint:ts`、`pnpm run build` |
 | T10 | L2 浏览器 smoke | pending | DOCX/XLSX/PPTX/CSV open-save matrix |
 | T11 | 集成或 handoff | pending | 根据主工作树状态选择 patch/cherry-pick |
+| T12 | 最大公约数 adapter 规划 | completed | 从 `96b2a9e2` 新建 `/tmp/document-onlyoffice-9-3-gcd-adapter`；不 merge `cec52b4f`/`1526ddc2`；已创建设计和实施计划 |
+| T13 | GCD adapter RED gates | pending | 计划以风险脚本和 bridge-contract 脚本阻止 broad vendor、默认 minified patch、`/downloadas` 成功路径和 false x2t 9.3 claim |
+| T14 | GCD first-party adapter 实现 | pending | 目标是 `lib/onlyoffice-compat/**` 承载 binary/runtime/save/media/pdf/fonts 边界 |
+| T15 | 最小 9.3 runtime manifest | pending | 只迁入浏览器 smoke 证实需要的 official 9.3 desktop runtime 资源 |
+| T16 | GCD browser smoke verification | pending | new-docx/new-xlsx/open-docx/open-xlsx/open-csv/input-save-docx/pdf-block-docx |
 
 ## 检查点日志
 
@@ -54,13 +61,18 @@
 | 2026-05-20T12:37:14Z | CHECKPOINT | 确认 `web-apps` 源码 `api.js` 仍含 `{{PRODUCT_VERSION}}`；需要从 DocumentServer 9.3.1 `.deb` 提取最终 runtime |
 | 2026-05-20T12:40:17Z | CHECKPOINT | T5 完成；`.deb` sha256 校验通过，已提取 9.3.1 runtime；确认 `web-apps`/`sdkjs` 为 `9.3.1 (build:10)`，`api.js.tpl` 可生成 `return '9.3.1'`，x2t WASM 不随 DocumentServer 包提供 |
 | 2026-05-20T12:41:25Z | CHECKPOINT | T6 完成；官方 9.3.1 runtime 缺少当前项目保存/写图/图片 URL bridge 补丁，T7 需先做失败检查再重放补丁 |
+| 2026-05-21T02:08:10Z | REPLAN | 新建第三条分支 `feat/onlyoffice-9-3-gcd-adapter`，worktree `/tmp/document-onlyoffice-9-3-gcd-adapter`，基于共同源头 `96b2a9e2`。本轮不直接 merge `feat/onlyoffice-9-3-runtime` 或 `feat/onlyoffice-9-3-adapter-layer`，而是抽取两者最大公约数：official/minimal 9.3 runtime + first-party adapter + browser smoke gates。 |
+| 2026-05-21T02:08:10Z | DESIGN | 创建 `docs/superpowers/specs/2026-05-21-onlyoffice-9.3-gcd-adapter-design.md`，记录 issue #1 空正文约束、两条既有路线关系、第一性原理、CSE control contract、三轮自辩论和 Done criteria。 |
+| 2026-05-21T02:08:10Z | PLAN | 创建 `docs/superpowers/plans/2026-05-21-onlyoffice-9.3-gcd-adapter.md`，规划 GCD adapter 的 RED gates、adapter 模块、最小 runtime manifest、browser smoke 和 handoff 验证。 |
 
 ## 最近观测
 
 - `gh issue view 1 --repo agentbridges-ai/document`: issue 正文为空，标题是升级到 9.3。
+- GitHub issue 页面显示 PR #2 关联该 issue；PR #2 方向是整包替换 `public/sdkjs` 与 `public/web-apps` 为 DocumentServer 9.3.1，并保留 `AllFonts.js`，这与旧 runtime 路线一致，只作为反例和 provenance 证据，不作为本轮 merge 来源。
 - `gh release view v9.3.1 --repo ONLYOFFICE/DocumentServer`: 存在 `ONLYOFFICE-DocumentServer-9.3.1`。
 - `git status --short --branch`: 当前主工作树存在大量 `M`。
 - `git ls-files --eol`: 文本文件呈现 `i/lf w/crlf`，说明大量 diff 主要由行尾转换造成。
+- `git merge-base cec52b4f 1526ddc2`: 两条旧 feat 的共同基线为 `96b2a9e2`，互不是父子关系。
 
 ## 阻塞与风险
 
@@ -71,10 +83,13 @@
 | sdkjs 9.3 编译产物来源不明确 | resolved | DocumentServer `.deb` 中存在已构建 `sdkjs/{word,cell,slide}/sdk-all.js` |
 | x2t 9.3 产物来源不明确 | active | DocumentServer 包只含服务端 `server/FileConverter/bin/x2t`；浏览器 WASM 不确认则不替换 |
 | 当前资源可能有本地定制 | confirmed | 当前三类 editor app 都有保存、写图、图片 URL bridge 补丁；资源替换必须重放 |
+| 旧 runtime 分支 vendor 过宽 | active | 不整分支 merge；只抽取 source provenance、风险清单和 smoke 证据 |
+| 旧 adapter 分支虽方向正确但仍需重做为 GCD 规划 | active | 以 adapter-first 作为结构参考，但新分支从 `96b2a9e2` 独立规划，避免继承未审查实现细节 |
+| 后续 ONLYOFFICE 更新造成 adapter 失效 | active | 把兼容逻辑集中在 `lib/onlyoffice-compat/**`，并用 bridge/risk/smoke gates 捕捉上游契约漂移 |
 
 ## 下一步
 
-1. 提交 T4-T6 provenance/progress 文档更新。
-2. 创建 `/tmp/document-onlyoffice-9-3-worktree` 隔离 worktree。
-3. 在隔离 worktree 中先加入/运行 bridge 契约失败检查，证明纯 9.3.1 runtime 缺本地补丁。
-4. 复制 9.3.1 runtime，并重放当前项目的 bridge 补丁。
+1. 提交 GCD adapter 设计和规划文档。
+2. 按计划先建立 RED gates，再迁移 first-party adapter。
+3. 只通过 manifest 引入最小 official 9.3 runtime。
+4. 用 fresh browser smoke 证明单用户本地编辑闭环，不宣称完整协作或 x2t 9.3 对齐。
