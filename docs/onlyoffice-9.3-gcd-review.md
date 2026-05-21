@@ -129,11 +129,27 @@
 2. Should fix before handoff: F4, F5, F6.
 3. Cleanup/documentation: F7, F8, F9, F10, F11, F12.
 
+## Resolution Status
+
+| Finding | Status | Evidence |
+| --- | --- | --- |
+| F1 | fixed | Commit `88c5d41b`; smoke records `input-save-docx` download callback `status="ok"` and `pdf-block-docx` callback `status="error"` with no PDF download anchor. |
+| F2 | fixed | Commit `ede1a1a4`; `lib/document.ts` removes `.ppt/.pptx` from file input and blocks presentation names before x2t; `lib/ui.ts` no longer calls `onCreateNew('.pptx')`. Legacy PPTX empty bin remains unreachable and not claimed. |
+| F3 | fixed | Commit `6a041b16`; `toStandaloneArrayBuffer()` / `toUint8Array()` centralize cross-realm binary handling; bridge contract rejects `instanceof Uint8Array/ArrayBuffer` outside the helper. |
+| F4 | fixed | Commit `6204f3c7`; `docs/onlyoffice-9.3-upgrade-notes.md` contains `Local Runtime Shim Contract` documenting `AscCommon.T7c`, RED symptom, and `/downloadas/{documentId}` avoidance; risk gate enforces this provenance. |
+| F5 | fixed | Commit `6204f3c7`; ready hook aliases are named in `LOCAL_BINARY_READY_HOOK_CANDIDATES`, error output lists checked names, and risk gate requires documentation for `asyncServerIdEndLoaded`, `n1f`, `Mmg`, `NOf`. |
+| F6 | fixed | Commit `3c4a5862`; `startViteAppServer()` uses PID-derived bounded candidates with retry and no `Math.random()` strictPort; full smoke completed with dynamic app/sample ports. |
+| F7 | fixed | Commit `88c5d41b`; `lib/onlyoffice-compat/save.ts` no longer calls `alert()` directly and receives `onError` from `lib/onlyoffice-editor.ts`. |
+| F8 | fixed | Commit `0eadcc56`; cleanup timing uses named constants and `getEditorCleanupDelayMs()`. |
+| F9 | fixed | Commit `0eadcc56`; `prepareOnlyOfficeBuffer()` documents the header-preserving string path for `DOCY/XLSY/PPTY;vX;len;base64`. |
+| F10 | fixed | Commit `0eadcc56`; adapter `postMessage()` calls use `window.location.origin`, and risk gate rejects default `'*'` target origins in adapter modules. |
+| F11 | fixed | Commit `0eadcc56`; `fonts.ts` owns `ONLYOFFICE_INVALID_FONT_PATH_NEEDLES`, and risk gate requires that contract instead of only checking file existence. |
+| F12 | fixed | Commit `6204f3c7`; `asc_getBuildVersion/asc_getBuildNumber` are documented as a simulated local permission shim, not a real DocumentServer backend. |
+
 ## Gate Gaps
 
-- Current smoke does not exercise paste/writeFile, so F3 is not covered.
-- Current PDF block smoke checks alert/no PDF download, but not the internal download callback status, so F1 is not covered.
-- Current risk gate checks broad strings but does not require shim provenance for `T7c` or minified hook names, so F4/F5 are not covered.
-- Current risk gate rejects `new-pptx` smoke scenarios but does not reject runtime/UI PPTX entry points, so F2 is not covered.
-- Current smoke claims dynamic ports but Vite uses random strict ports, so F6 is not covered.
-
+- F3 is covered by a static bridge contract for unsafe realm-sensitive binary checks; paste/writeFile browser smoke remains outside the 7-scenario matrix.
+- F1 is covered by browser smoke callback status diagnostics.
+- F4/F5 are covered by the local runtime shim provenance risk gate.
+- F2 is covered by product-boundary risk checks and non-PPT browser smoke regression.
+- F6 is covered by risk gate and full browser smoke with bounded Vite port retry.

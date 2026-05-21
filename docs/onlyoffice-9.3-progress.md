@@ -10,8 +10,8 @@
 
 ## 当前状态
 
-- Overall: `in_progress`
-- 当前阶段: T24 Task 6 adapter cleanup completed
+- Overall: `completed`
+- 当前阶段: T25 final verification completed
 - 当前工作目录: `/tmp/document-onlyoffice-9-3-gcd-adapter`
 - 当前实施分支: `feat/onlyoffice-9-3-gcd-adapter`
 - 基线提交: `96b2a9e2`
@@ -52,6 +52,7 @@
 | T22 | Review Task 4 local runtime shim contract | completed | `AscCommon.T7c`、ready hook aliases、fake permission version 已写入 upgrade notes；risk gate 要求 shim provenance；ready hook 候选常量化 |
 | T23 | Review Task 5 smoke Vite port allocation | completed | risk gate 拒绝 `Math.random()` strictPort；Vite app server 使用 PID 派生候选端口和有界 retry；完整 smoke 7/7 PASS |
 | T24 | Review Task 6 adapter smell cleanup | completed | binary header-preserving 注释、cleanup delay helper、same-origin postMessage、fonts boundary owner、service worker aggregate gate 均完成；build 和完整 smoke 通过 |
+| T25 | Final review fixes verification | completed | F1-F12 已在 `docs/onlyoffice-9.3-gcd-review.md` 标记 fixed；fresh bridge/risk/lint/build/full smoke 全部退出 0 |
 
 ## 检查点日志
 
@@ -118,6 +119,9 @@
 | 2026-05-21T05:53:51Z | T24 RED | Task 6 新增 bridge/risk gates：`binary.ts` 必须说明 header-preserving；`onlyoffice-editor.ts` 必须集中 cleanup delay；adapter postMessage 不得默认 `'*'`；`fonts.ts` 必须拥有 invalid font path needles。`timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` 和 `timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 均按预期失败。 |
 | 2026-05-21T05:53:51Z | T24 GREEN | `binary.ts` 补 header-preserving 注释；`onlyoffice-editor.ts` 抽取 `getEditorCleanupDelayMs()` 和具名 delay 常量；`save.ts`、`runtime.ts`、`local-binary.ts` 使用 `window.location.origin` 作为 same-origin target；`fonts.ts` 新增 `ONLYOFFICE_INVALID_FONT_PATH_NEEDLES`；smoke service worker gate 改为整次 smoke 至少一次观测，避免 per-page 注册缓存扰动。 |
 | 2026-05-21T05:53:51Z | T24 VERIFY | `timeout 60 node bin/check_onlyoffice_bridge_contract.mjs`、`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs`、`timeout 60 pnpm run lint:ts` 退出 0；`timeout 60 pnpm run build` 退出 0，保留既有 Vite/chunk/shell warning；完整 smoke 首轮因 `new-xlsx` 单场景未观测 service worker 失败，根因是 SW 为 app-origin 共享注册，改为整次 smoke 聚合 gate 后重新执行完整 smoke 7/7 PASS，`failures=[]`。 |
+| 2026-05-21T05:56:35Z | T25 VERIFY | Final fresh `timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` 退出 0；`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 0；`timeout 60 pnpm run lint:ts` 退出 0 且仅既有 `bin/bundle_single_html.js:36 no-unused-expressions` warning。 |
+| 2026-05-21T05:56:35Z | T25 VERIFY | Final fresh `timeout 60 pnpm run build` 退出 0；保留 Vite external script/chunk size warning 与既有 shell 方言 warning `./bin/build.sh: 17: [[: Permission denied`，构建输出 `Build completed successfully!`。 |
+| 2026-05-21T05:56:35Z | T25 SMOKE | Final fresh `timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,new-xlsx,open-docx,open-xlsx,open-csv,input-save-docx,pdf-block-docx --timeout-ms 90000` 退出 0；7/7 PASS，`failures=[]`，app/sample 端口 `30775`/`34129`；所有场景 `version=9.3.1`、`documentReady=true`、无 failed responses、无 `/downloadas/`、无 `/fonts//fonts`、无 browser exception；DOCX save callback `ok`，PDF block callback `error`。 |
 
 ## 最近观测
 

@@ -103,7 +103,7 @@ The browser-local adapter has no DocumentServer process. These shims are allowed
 | open-xlsx | PASS | generated XLSX opens through adapter binary bridge |
 | open-csv | PASS | generated CSV converts/opens through adapter binary bridge |
 | input-save-docx | PASS | `modified=true`, local `.docx` download anchor, `onlyofficeLocalDownloadBridge outputformat=65`, `asc_onEndAction [1,6]`; no `/downloadas/` request |
-| pdf-block-docx | PASS | alert contains `server-side conversion`, no `.pdf` download anchor, `onlyofficeLocalDownloadBridge outputformat=513`, `asc_onEndAction [1,6]` |
+| pdf-block-docx | PASS | alert contains `server-side conversion`, no `.pdf` download anchor, `onlyofficeLocalDownloadBridge outputformat=513`, internal download callback `status="error"`, `asc_onEndAction [1,6]` |
 | PPTX open/save | NOT CLAIMED | no trusted 9.3 PPTX empty bin source in scope; not part of final smoke matrix |
 | Collaboration | NOT CLAIMED | current browser adapter supports single-user local editing only |
 
@@ -113,7 +113,7 @@ Fresh full smoke command:
 timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,new-xlsx,open-docx,open-xlsx,open-csv,input-save-docx,pdf-block-docx --timeout-ms 90000
 ```
 
-Fresh result summary: 7/7 PASS, `failures=[]`, no failed responses, no `/downloadas/`, no `/fonts//fonts`, no browser exceptions.
+Fresh result summary after review fixes: 7/7 PASS, `failures=[]`, app/sample ports `30775`/`34129`, no failed responses, no `/downloadas/`, no `/fonts//fonts`, no browser exceptions. `input-save-docx` reports internal download callback `status="ok"`; `pdf-block-docx` reports `status="error"`.
 
 Fresh final verification commands:
 
