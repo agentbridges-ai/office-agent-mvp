@@ -184,6 +184,30 @@ function checkEmptyBins(root, failures) {
   );
 }
 
+function checkSmokeHarness(root, failures) {
+  const relativePath = 'bin/smoke_onlyoffice_9_3_browser.mjs';
+  const smoke = readText(root, relativePath);
+  if (!smoke) {
+    failures.push(`${relativePath}: browser smoke harness is missing`);
+    return;
+  }
+
+  requireNeedle(smoke, 'server.listen(0', `${relativePath}: sample server must use a dynamic port`, failures);
+  requireNeedle(smoke, 'scenarioDiagnostics', `${relativePath}: output must include per-scenario diagnostics`, failures);
+  requireNeedle(smoke, 'createGeneratedSamples', `${relativePath}: samples must be generated or repo-local`, failures);
+  requireNeedle(smoke, 'startViteAppServer', `${relativePath}: app server must use a dynamic port helper`, failures);
+  rejectNeedle(smoke, '/Users/', `${relativePath}: must not depend on machine-specific /Users paths`, failures);
+  rejectNeedle(smoke, '/mnt/z/', `${relativePath}: must not depend on machine-specific /mnt/z paths`, failures);
+  rejectNeedle(smoke, '127.0.0.1:5174', `${relativePath}: must not hard-code Vite port 5174`, failures);
+  rejectNeedle(smoke, '127.0.0.1:5184', `${relativePath}: must not hard-code Vite port 5184`, failures);
+  rejectNeedle(smoke, 'new-pptx', `${relativePath}: PPTX is not in the claimed final smoke matrix`, failures);
+}
+
+function checkRuntimeRootResources(root, failures) {
+  const themes = readText(root, 'public/themes.json');
+  requireNeedle(themes, '"themes"', 'public/themes.json: 9.3 editor root theme config must be served', failures);
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const root = resolve(args.root);
@@ -198,6 +222,8 @@ function main() {
   checkDownloadAs(root, failures);
   checkBrowserFonts(root, failures);
   checkEmptyBins(root, failures);
+  checkSmokeHarness(root, failures);
+  checkRuntimeRootResources(root, failures);
 
   if (failures.length > 0) {
     console.error('ONLYOFFICE 9.3 GCD risk check failed');

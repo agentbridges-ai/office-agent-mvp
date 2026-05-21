@@ -43,7 +43,7 @@
 | T13 | GCD adapter RED gates | completed | `check_onlyoffice_9_3_risks` 和 `check_onlyoffice_bridge_contract` 已按预期 RED，失败项覆盖缺 adapter、旧 editor 直连兼容、非 9.3 runtime、x2t 风险声明、PDF/save/font 边界 |
 | T14 | GCD first-party adapter 实现 | completed | adapter 相关文件已落地；bridge contract 退出 0；`lint:ts` 退出 0 且仅既有 warning；risk check 只剩 9.3 runtime/font 资源误差 |
 | T15 | 最小 9.3 runtime manifest | completed | official 9.3.1 minimal runtime manifest、browser-local `AllFonts.js`、可信 9.3 DOCX/XLSX empty bin 已落地；risk/bridge/lint fresh 退出 0 |
-| T16 | GCD browser smoke verification | pending | new-docx/new-xlsx/open-docx/open-xlsx/open-csv/input-save-docx/pdf-block-docx |
+| T16 | GCD browser smoke verification | completed | dynamic-port smoke harness 已落地；完整矩阵 7/7 PASS；`failures=[]`、无 4xx、无 `/downloadas/`、无坏字体、无 browser exception |
 
 ## 检查点日志
 
@@ -74,6 +74,12 @@
 | 2026-05-21T02:34:22Z | T15 VERIFY | `timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 0，输出 `ONLYOFFICE 9.3 GCD risk check passed for /tmp/document-onlyoffice-9-3-gcd-adapter`。 |
 | 2026-05-21T02:34:22Z | T15 VERIFY | `timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` 退出 0，输出 `ONLYOFFICE GCD bridge contract passed for /tmp/document-onlyoffice-9-3-gcd-adapter`。 |
 | 2026-05-21T02:34:22Z | T15 VERIFY | `timeout 60 pnpm run lint:ts` 退出 0；仅保留既有 warning `bin/bundle_single_html.js:36 no-unused-expressions`，未新增 warning。 |
+| 2026-05-21T02:37:01Z | T16 RED | risk gate 新增 smoke harness 约束；缺少 `bin/smoke_onlyoffice_9_3_browser.mjs` 时 `timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 1，明确要求动态端口、生成样本、结构化 diagnostics、无机器路径、无 PPTX claim。 |
+| 2026-05-21T02:37:01Z | T16 GREEN | 新增 browser smoke harness：sample server 使用 `server.listen(0)`，Vite app 使用随机动态端口，DOCX/XLSX/CSV 样本由脚本生成，输出 `scenarioDiagnostics`，无 `/Users/`、`/mnt/z/`、固定 `5174/5184` 或 `new-pptx`。`node --check`、局部 `oxlint` 与 risk gate 均退出 0。 |
+| 2026-05-21T02:37:34Z | T16 SMOKE | `timeout 180 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx --timeout-ms 90000` 退出 0；结构化结果显示 `version=9.3.1`、`documentReady=true`、iframe `765x493`、无 4xx、无 `/downloadas/`、无 `/fonts//fonts`、无 browser exception。 |
+| 2026-05-21T02:39:52Z | T16 DEBUG | 完整矩阵首轮功能结果 7/7 PASS，但 harness 失败，因为 9.3 app 通过 `Common.Utils.loadConfig` 请求根路径 `/themes.json` 返回 404；根因是只保留了 `web-apps/apps/common/main/resources/themes/themes.json`，Vite 根路径未暴露该资源。 |
+| 2026-05-21T02:39:52Z | T16 FIX | 新增 `public/themes.json`，内容为官方空 theme config `{ "themes": [] }`，并在 risk gate 中要求根路径 theme config 存在，防止后续回退。 |
+| 2026-05-21T02:39:52Z | T16 SMOKE | `timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,new-xlsx,open-docx,open-xlsx,open-csv,input-save-docx,pdf-block-docx --timeout-ms 90000` 退出 0；7/7 PASS，`failures=[]`，全部场景 `version=9.3.1`、`documentReady=true`，无 failed responses、无 `/downloadas/`、无 `/fonts//fonts`、无 browser exception。`input-save-docx` 观测 `modified=true`、`.docx` download anchor、`onlyofficeLocalDownloadBridge outputformat=65`、`asc_onEndAction [1,6]`；`pdf-block-docx` 观测 server-side conversion alert、无 `.pdf` download anchor、`onlyofficeLocalDownloadBridge outputformat=513`、`asc_onEndAction [1,6]`。 |
 
 ## 最近观测
 
@@ -99,6 +105,6 @@
 
 ## 下一步
 
-1. 提交 T15 minimal runtime 闭环。
-2. 进入 T16：实现动态端口、结构化 JSON、per-scenario diagnostics 的 browser smoke harness。
-3. 用 fresh browser smoke 证明单用户本地编辑闭环，不宣称完整协作或 x2t 9.3 对齐。
+1. 提交 T16 browser smoke harness 闭环。
+2. 进入 T17/T6 final verification：fresh 执行 risk、bridge、lint、build、完整 smoke。
+3. 用 review 视角确认不宣称 x2t 9.3、PPTX、完整协作或坏 PDF 成功。

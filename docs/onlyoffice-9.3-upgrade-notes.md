@@ -49,6 +49,7 @@ Copied from `/tmp/onlyoffice-9.3-sources/documentserver-extract/var/www/onlyoffi
 - `public/sdkjs/cell/css/{main.css,main-mobile.css}`.
 - `public/sdkjs/common/{Native,Charts,Drawings/Format,hash,spell,zlib,libfont}` runtime files required by the 9.3 desktop editor load chain.
 - `public/document_editor_service_worker.js` from `sdkjs/common/serviceworker/document_editor_service_worker.js`.
+- `public/themes.json`, retained because 9.3 editor apps request root `/themes.json` through `Common.Utils.loadConfig`; the value matches the official empty theme config.
 
 Explicitly not copied unless browser smoke later proves they are loaded by the accepted single-user matrix:
 
@@ -86,9 +87,24 @@ Earlier runtime-patch exploration proved that browser-local flows can work, but 
 | risk check | PASS | `timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` exits 0 after T15 runtime and empty bin changes |
 | TypeScript check | PASS | `timeout 60 pnpm run lint:ts` exits 0; only existing warning `bin/bundle_single_html.js:36 no-unused-expressions` |
 | Production build | pending | not run yet in final verification phase |
-| DOCX open/save | pending | browser smoke harness not complete yet |
-| XLSX open/save | pending | browser smoke harness not complete yet |
-| CSV conversion/open/save | pending | browser smoke harness not complete yet |
+| Browser smoke harness | PASS | dynamic Vite port, sample server `listen(0)`, generated DOCX/XLSX/CSV samples, structured JSON and per-scenario diagnostics |
+| new-docx | PASS | full smoke matrix reports `documentReady=true`, version `9.3.1`, no 4xx, no bad font URLs |
+| new-xlsx | PASS | full smoke matrix reports `documentReady=true`, `onlyofficeLocalBinaryOpen`, `onlyofficeLocalBinaryBridge` |
+| open-docx | PASS | generated DOCX opens through adapter binary bridge |
+| open-xlsx | PASS | generated XLSX opens through adapter binary bridge |
+| open-csv | PASS | generated CSV converts/opens through adapter binary bridge |
+| input-save-docx | PASS | `modified=true`, local `.docx` download anchor, `onlyofficeLocalDownloadBridge outputformat=65`, `asc_onEndAction [1,6]`; no `/downloadas/` request |
+| pdf-block-docx | PASS | alert contains `server-side conversion`, no `.pdf` download anchor, `onlyofficeLocalDownloadBridge outputformat=513`, `asc_onEndAction [1,6]` |
+| PPTX open/save | NOT CLAIMED | no trusted 9.3 PPTX empty bin source in scope; not part of final smoke matrix |
+| Collaboration | NOT CLAIMED | current browser adapter supports single-user local editing only |
+
+Fresh full smoke command:
+
+```bash
+timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,new-xlsx,open-docx,open-xlsx,open-csv,input-save-docx,pdf-block-docx --timeout-ms 90000
+```
+
+Fresh result summary: 7/7 PASS, `failures=[]`, no failed responses, no `/downloadas/`, no `/fonts//fonts`, no browser exceptions.
 
 ## Rollback
 
