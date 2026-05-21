@@ -11,7 +11,7 @@
 ## 当前状态
 
 - Overall: `in_progress`
-- 当前阶段: T21 Task 3 PPTX entry boundary completed
+- 当前阶段: T22 Task 4 runtime shim contract completed
 - 当前工作目录: `/tmp/document-onlyoffice-9-3-gcd-adapter`
 - 当前实施分支: `feat/onlyoffice-9-3-gcd-adapter`
 - 基线提交: `96b2a9e2`
@@ -49,6 +49,7 @@
 | T19 | Review Task 1 cross-realm binary handling | completed | `binary.ts` 新增 realm-safe helpers；`media.ts`、`converter.ts`、`document-converter.ts` 不再直接使用 `instanceof Uint8Array/ArrayBuffer`；bridge/risk/lint fresh 通过 |
 | T20 | Review Task 2 save/PDF failure semantics | completed | smoke 已观测 PDF 阻断内部 download callback 从 `status: ok` 修正为 `status: error`；adapter 不再直接 `alert()`，由 editor orchestration 注入错误显示 |
 | T21 | Review Task 3 unsupported PPT/PPTX entry boundary | completed | risk gate 阻止 PPT/PPTX create/open 可达入口；file picker 移除 `.ppt/.pptx`，UI PowerPoint 动作显式 unsupported；非 PPT smoke 5/5 PASS |
+| T22 | Review Task 4 local runtime shim contract | completed | `AscCommon.T7c`、ready hook aliases、fake permission version 已写入 upgrade notes；risk gate 要求 shim provenance；ready hook 候选常量化 |
 
 ## 检查点日志
 
@@ -106,6 +107,9 @@
 | 2026-05-21T05:43:22Z | T21 RED | Task 3 新增 risk gate：当 notes 记录 PPTX not claimed 时，`lib/document.ts` 不得接受 `.ppt/.pptx`，`lib/ui.ts` 不得调用 `onCreateNew('.pptx')`，且 document open path 必须有显式 presentation blocker。`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 1，命中上述四项。 |
 | 2026-05-21T05:43:22Z | T21 GREEN | `fileInput.accept` 收敛为 `.docx,.xlsx,.doc,.xls,.csv`；新增 `isUnsupportedPresentationFileName()` 并在 new/open-url/file-input 进入 x2t 前阻断；PowerPoint UI 动作改为显式 unsupported 提示，不再调用 `.pptx` 新建路径。 |
 | 2026-05-21T05:43:22Z | T21 VERIFY | `timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 0；`timeout 60 pnpm run lint:ts` 退出 0，仅既有 warning；`timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,new-xlsx,open-docx,open-xlsx,open-csv --timeout-ms 90000` 退出 0，5/5 PASS，`failures=[]`。 |
+| 2026-05-21T05:46:12Z | T22 RED | Task 4 新增 risk gate：代码出现 `AscCommon.T7c`、`asyncServerIdEndLoaded`、`n1f`、`Mmg`、`NOf` 或 `asc_getBuildVersion` 时，`docs/onlyoffice-9.3-upgrade-notes.md` 必须有 `Local Runtime Shim Contract` provenance。`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 1，命中 6 个未文档化 shim。 |
+| 2026-05-21T05:46:12Z | T22 GREEN | `docs/onlyoffice-9.3-upgrade-notes.md` 新增 `Local Runtime Shim Contract`，记录 `AscCommon.T7c`、ready hook aliases、`asc_getBuildVersion/asc_getBuildNumber` 的 RED 症状、最小锚点和非 DocumentServer 边界；`LOCAL_BINARY_READY_HOOK_CANDIDATES` 替代内联 alias fallback，错误信息列出候选。 |
+| 2026-05-21T05:46:12Z | T22 VERIFY | `timeout 60 node bin/check_onlyoffice_9_3_risks.mjs`、`timeout 60 node bin/check_onlyoffice_bridge_contract.mjs`、`timeout 60 pnpm run lint:ts` 均退出 0；`timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,input-save-docx,pdf-block-docx --timeout-ms 90000` 退出 0，3/3 PASS，binary bridge、DOCX save ok、PDF block error 均保持。 |
 
 ## 最近观测
 
@@ -131,7 +135,7 @@
 | cross-realm 二进制值未覆盖 | resolved | T19 已用 bridge contract 阻止 adapter/converter 中的 `instanceof Uint8Array/ArrayBuffer`，并集中到 `onlyoffice-compat/binary.ts` helper |
 | save/PDF 失败内部 callback 可能 fake success | resolved | T20 已用 smoke 覆盖内部 callback status；PDF 阻断返回 `status: error`，DOCX 保存仍返回 `status: ok` |
 | PPTX 不 claim 但入口仍可达 | resolved | T21 已关闭 `.ppt/.pptx` file input 和 `.pptx` 新建成功路径；PowerPoint UI 只显示 unsupported 提示 |
-| minified shim 缺少 provenance gate | active | T18 计划 Task 4：文档化 `T7c`、ready hook aliases 和 fake server version，并增加 risk gate |
+| minified shim 缺少 provenance gate | resolved | T22 已由 `Local Runtime Shim Contract` 和 risk gate 覆盖 `T7c`、ready hook aliases、fake permission version |
 
 ## 收口结论
 

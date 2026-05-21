@@ -161,6 +161,27 @@ function checkDownloadAs(root, failures) {
   }
 }
 
+function checkLocalRuntimeShimContract(root, failures) {
+  const notes = readText(root, 'docs/onlyoffice-9.3-upgrade-notes.md');
+  const save = readText(root, 'lib/onlyoffice-compat/save.ts');
+  const localBinary = readText(root, 'lib/onlyoffice-compat/local-binary.ts');
+  const shimCode = `${save}\n${localBinary}`;
+  const shimNeedles = ['AscCommon.T7c', 'asyncServerIdEndLoaded', 'n1f', 'Mmg', 'NOf'];
+
+  for (const needle of shimNeedles) {
+    if (shimCode.includes(needle) && !notes.includes(needle)) {
+      failures.push(`docs/onlyoffice-9.3-upgrade-notes.md: Local Runtime Shim Contract must document ${needle}`);
+    }
+  }
+
+  if (
+    shimCode.includes('asc_getBuildVersion') &&
+    (!notes.includes('asc_getBuildVersion/asc_getBuildNumber') || !notes.includes('not a real DocumentServer'))
+  ) {
+    failures.push('docs/onlyoffice-9.3-upgrade-notes.md: must document fake 9.3.1 permission version as a local shim, not a real DocumentServer');
+  }
+}
+
 function checkBrowserFonts(root, failures) {
   const allFonts = readText(root, 'public/sdkjs/common/AllFonts.js');
   for (const needle of ['C:\\\\Windows\\\\Fonts', 'core-fonts', '/fonts//fonts']) {
@@ -246,6 +267,7 @@ function main() {
   checkX2tHonesty(root, failures);
   checkPdfGuard(root, failures);
   checkDownloadAs(root, failures);
+  checkLocalRuntimeShimContract(root, failures);
   checkBrowserFonts(root, failures);
   checkEmptyBins(root, failures);
   checkUnsupportedPresentationBoundary(root, failures);

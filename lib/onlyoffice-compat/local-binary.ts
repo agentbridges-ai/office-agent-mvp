@@ -1,4 +1,10 @@
 const LOCAL_BINARY_BRIDGE_FLAG = '__onlyofficeLocalBinaryBridgeInstalled';
+const LOCAL_BINARY_READY_HOOK_CANDIDATES = [
+  'asyncServerIdEndLoaded',
+  'n1f',
+  'Mmg',
+  'NOf',
+] as const;
 
 type OnlyOfficeFrameWindow = Window & {
   Asc?: any;
@@ -76,11 +82,11 @@ function getMainController(frame: OnlyOfficeFrameWindow): any | null {
 }
 
 function getLocalBinaryReadyHook(api: any): Function {
-  const ready = api.asyncServerIdEndLoaded || api.n1f || api.Mmg || api.NOf;
-  if (typeof ready !== 'function') {
-    throw new Error('ONLYOFFICE local binary ready hook not found');
+  for (const hookName of LOCAL_BINARY_READY_HOOK_CANDIDATES) {
+    const ready = api[hookName];
+    if (typeof ready === 'function') return ready;
   }
-  return ready;
+  throw new Error(`ONLYOFFICE local binary ready hook not found. Checked: ${LOCAL_BINARY_READY_HOOK_CANDIDATES.join(', ')}`);
 }
 
 function createLocalBinaryPermissions(frame: OnlyOfficeFrameWindow) {

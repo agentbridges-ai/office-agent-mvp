@@ -71,6 +71,14 @@ Earlier runtime-patch exploration proved that browser-local flows can work, but 
 2. `lib/onlyoffice-editor.ts` stays an orchestration layer,
 3. vendored runtime bundles are kept as official/minimal 9.3 inputs unless a real browser RED proves a narrow shim is unavoidable.
 
+## Local Runtime Shim Contract
+
+The browser-local adapter has no DocumentServer process. These shims are allowed because real browser smoke proves the 9.3.1 editor otherwise falls back to server-style paths, but each shim must stay small, documented, and covered by risk gates.
+
+- `AscCommon.T7c`: observed in the 9.3.1 download-as path after `asc_DownloadAs()`. The adapter intercepts this anchor in `lib/onlyoffice-compat/save.ts` so local save/download uses browser x2t instead of `/downloadas/{documentId}`. The RED evidence is the local-only browser smoke path that emits `onlyofficeLocalDownloadBridge`; PDF block previously also reported `frame:downloadCallback status="ok"` until Task 2 made failures return `status="error"`.
+- `asyncServerIdEndLoaded`, `n1f`, `Mmg`, `NOf`: observed readiness hook candidates for the 9.3.1 local binary open path. They are kept in `LOCAL_BINARY_READY_HOOK_CANDIDATES`; if none exists, the adapter must fail with the checked candidate names and the runtime must be re-audited before updating this list.
+- `asc_getBuildVersion/asc_getBuildNumber`: simulated `9.3.1` / `10` permission response used only to let the local 9.3.1 editor accept browser-local binary open. This is not a real DocumentServer backend and must not be described as x2t 9.3 alignment or collaboration support.
+
 ## Validation Matrix
 
 | Gate | Status | Evidence |
