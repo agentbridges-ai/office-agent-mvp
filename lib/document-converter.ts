@@ -3,6 +3,7 @@ import 'ranui/message';
 import { t } from './i18n';
 import type { BinConversionResult, ConversionResult, DocumentType, EmscriptenModule } from './document-types';
 import { BASE_PATH, DOCUMENT_TYPE_MAP } from './document-utils';
+import { assertValidPdfOutput } from './onlyoffice-compat/pdf';
 
 export class X2TConverter {
   private x2tModule: EmscriptenModule | null = null;
@@ -167,6 +168,14 @@ export class X2TConverter {
       }
       throw new Error(`Conversion failed with code: ${result}`);
     }
+  }
+
+  private readBinaryFile(path: string): ArrayBuffer | Uint8Array {
+    const result = this.x2tModule!.FS.readFile(path);
+    if (result instanceof ArrayBuffer || result instanceof Uint8Array) {
+      return result;
+    }
+    throw new Error(`Expected binary x2t output at ${path}`);
   }
 
   /**
@@ -340,7 +349,7 @@ export class X2TConverter {
           this.executeConversion('/working/params.xml');
 
           // Read conversion result
-          const result = this.x2tModule!.FS.readFile(outputPath);
+          const result = this.readBinaryFile(outputPath);
           const media = await this.readMediaFiles();
 
           // Return original CSV fileName, not the XLSX one
@@ -375,7 +384,7 @@ export class X2TConverter {
       this.executeConversion('/working/params.xml');
 
       // Read conversion result
-      const result = this.x2tModule!.FS.readFile(outputPath);
+      const result = this.readBinaryFile(outputPath);
       const media = await this.readMediaFiles();
 
       return {
@@ -424,7 +433,7 @@ export class X2TConverter {
     this.executeConversion('/working/params.xml');
 
     // If we get here, conversion succeeded (unlikely for CSV)
-    const result = this.x2tModule!.FS.readFile(outputPath);
+    const result = this.readBinaryFile(outputPath);
     const media = await this.readMediaFiles();
 
     return {
@@ -518,6 +527,9 @@ export class X2TConverter {
 
       // Ensure result is Uint8Array type
       const resultArray = result instanceof Uint8Array ? result : new Uint8Array(result as ArrayBuffer);
+      if (targetExt === 'PDF') {
+        assertValidPdfOutput(resultArray, outputFileName);
+      }
 
       // Download file
       // TODO: Improve print functionality

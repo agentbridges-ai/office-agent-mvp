@@ -5,6 +5,7 @@ import { X2TConverter } from './document-converter';
 import { createEditorInstance, loadEditorApi, setConverterCallback } from './onlyoffice-editor';
 import { getDocumentType } from './document-utils';
 import type { BinConversionResult, ConversionResult, EmscriptenModule } from './document-types';
+import type { OnlyOfficeBinData } from './onlyoffice-compat/binary';
 
 // Export types
 export type {
@@ -40,6 +41,19 @@ export { createEditorInstance, loadEditorApi };
 // Set up converter callback for editor
 setConverterCallback(convertBinToDocumentAndDownload);
 
+type NewDocumentData = { bin: string; media?: Record<string, string> };
+type DocumentOperationData = ConversionResult | NewDocumentData;
+
+function isConversionResult(data: DocumentOperationData): data is ConversionResult {
+  return 'fileName' in data && 'type' in data;
+}
+
+function getOnlyOfficeBinData(data: DocumentOperationData): OnlyOfficeBinData {
+  if (!isConversionResult(data)) return data.bin;
+  if (data.bin instanceof ArrayBuffer || data.bin instanceof Uint8Array) return data.bin;
+  throw new Error('Unsupported x2t binary output type');
+}
+
 // Merged file operation method
 export async function handleDocumentOperation(options: {
   isNew: boolean;
@@ -52,10 +66,7 @@ export async function handleDocumentOperation(options: {
     const _docType = getDocumentType(fileType);
 
     // Get document content
-    let documentData: {
-      bin: ArrayBuffer | string;
-      media?: any;
-    };
+    let documentData: DocumentOperationData;
 
     if (isNew) {
       // New document uses empty template
@@ -67,7 +78,6 @@ export async function handleDocumentOperation(options: {
     } else {
       // Opening existing document requires conversion
       if (!file) throw new Error(t('invalidFileObject'));
-      // @ts-expect-error convertDocument handles the file type conversion
       documentData = await convertDocument(file);
     }
 
@@ -75,7 +85,7 @@ export async function handleDocumentOperation(options: {
     await createEditorInstance({
       fileName,
       fileType,
-      binData: documentData.bin,
+      binData: getOnlyOfficeBinData(documentData),
       media: documentData.media,
     });
   } catch (error: any) {

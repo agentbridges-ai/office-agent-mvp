@@ -1,10 +1,21 @@
 import 'ranui/message';
-import { createObjectURL } from 'ranuts/utils';
-import { getDocmentObj } from '../store';
 import { getOnlyOfficeLang, t } from './i18n';
-import { c_oAscFileType2 } from './file-types';
 import type { SaveEvent } from './document-types';
-import { getMimeTypeFromExtension } from './document-utils';
+import { prepareOnlyOfficeBuffer, type OnlyOfficeBinData } from './onlyoffice-compat/binary';
+import {
+  createLocalOnlyOfficeDocument,
+  createSingleUserEditorConfig,
+  ensureOnlyOfficeHostSizing,
+  openLocalDocument,
+} from './onlyoffice-compat/runtime';
+import { installLocalBinaryBridge } from './onlyoffice-compat/local-binary';
+import { handleLocalSaveDocument, installLocalDownloadBridge } from './onlyoffice-compat/save';
+import {
+  sendOnlyOfficeImageUrlsAfterReady,
+  sendWriteFileCallback,
+  sendWriteFileFailure,
+  writeImageToMediaMap,
+} from './onlyoffice-compat/media';
 
 // Import converter function to avoid circular dependency
 let convertBinToDocumentAndDownloadFn:
@@ -22,6 +33,9 @@ const media: Record<string, string> = {};
 
 // Editor operation queue to prevent concurrent operations
 let editorOperationQueue: Promise<void> = Promise.resolve();
+
+const DOWNLOAD_BRIDGE_INSTALL_TIMEOUT_MS = 10000;
+const DOWNLOAD_BRIDGE_INSTALL_INTERVAL_MS = 50;
 
 /**
  * Queue editor operations to prevent concurrent editor creation/destruction
@@ -72,121 +86,50 @@ async function queueEditorOperation<T>(operation: () => Promise<T>): Promise<T> 
 async function handleWriteFile(event: any) {
   try {
     console.log('Write file event:', event);
-
-    const { data: eventData } = event;
-    if (!eventData) {
-      console.warn('No data provided in writeFile event');
-      return;
-    }
-
-    const {
-      data: imageData, // Uint8Array image data
-      file: fileName, // File name, e.g., "display8image-174799443357-0.png"
-      _target, // Target object containing frameOrigin and other info
-    } = eventData;
-
-    // Validate data
-    if (!imageData || !(imageData instanceof Uint8Array)) {
-      throw new Error('Invalid image data: expected Uint8Array');
-    }
-
-    if (!fileName || typeof fileName !== 'string') {
-      throw new Error('Invalid file name');
-    }
-
-    // Extract extension from file name
-    const fileExtension = fileName.split('.').pop()?.toLowerCase() || 'png';
-    const mimeType = getMimeTypeFromExtension(fileExtension);
-
-    // Create Blob object
-    const blob = new Blob([imageData as unknown as BlobPart], { type: mimeType });
-
-    // Create object URL
-    const objectUrl = await createObjectURL(blob);
-    // Add image URL to media mapping using original file name as key
-    media[`media/${fileName}`] = objectUrl;
-    window.editor?.sendCommand({
-      command: 'asc_setImageUrls',
-      data: {
-        urls: media,
-      },
-    });
-
-    window.editor?.sendCommand({
-      command: 'asc_writeFileCallback',
-      data: {
-        // Image base64
-        path: objectUrl,
-        imgName: fileName,
-      },
-    });
-    console.log(`Successfully processed image: ${fileName}, URL: ${media}`);
-  } catch (error: any) {
+    const result = await writeImageToMediaMap(event, media);
+    sendOnlyOfficeImageUrlsAfterReady(window.editor, media);
+    sendWriteFileCallback(window.editor, result);
+    console.log(`Successfully processed image: ${result.fileName}, URL: ${media}`);
+  } catch (error) {
+    const normalizedError = error instanceof Error ? error : new Error('Unknown writeFile error');
     console.error('Error handling writeFile:', error);
-
-    // Notify editor that file processing failed
-    if (window.editor && typeof window.editor.sendCommand === 'function') {
-      window.editor.sendCommand({
-        command: 'asc_writeFileCallback',
-        data: {
-          success: false,
-          error: error.message,
-        },
-      });
-    }
-
-    if (event.callback && typeof event.callback === 'function') {
-      event.callback({
-        success: false,
-        error: error.message,
-      });
-    }
+    sendWriteFileFailure(window.editor, event, normalizedError);
   }
 }
 
 async function handleSaveDocument(event: SaveEvent) {
   console.log('Save document event:', event);
-
-  if (event.data && event.data.data) {
-    const { data, option } = event.data;
-    const { fileName } = getDocmentObj() || {};
-
-    // Determine target format from editor's output format
-    let targetFormat = c_oAscFileType2[option.outputformat];
-
-    // Only force CSV format if the original file is CSV
-    // This check ensures XLSX and other file types are not affected
-    // CSV files are converted to XLSX internally, so editor may return XLSX format
-    if (fileName && fileName.toLowerCase().endsWith('.csv')) {
-      targetFormat = 'CSV';
-      console.log('Original file is CSV, forcing save as CSV format');
-    } else {
-      // For non-CSV files (XLSX, DOCX, PPTX, etc.), use the format returned by editor
-      // This ensures XLSX files are saved as XLSX, not CSV
-      console.log(`Saving as ${targetFormat} format (original file: ${fileName})`);
-    }
-
-    // Create download
-    if (convertBinToDocumentAndDownloadFn) {
-      await convertBinToDocumentAndDownloadFn(data.data, fileName, targetFormat);
-    } else {
-      throw new Error('Converter callback not set');
-    }
-  }
-
-  // Notify editor that save is complete
-  window.editor?.sendCommand({
-    command: 'asc_onSaveCallback',
-    data: { err_code: 0 },
+  await handleLocalSaveDocument({
+    event,
+    editor: window.editor,
+    convert: convertBinToDocumentAndDownloadFn,
   });
+}
+
+function installLocalDownloadBridgeWhenReady(): void {
+  const started = Date.now();
+  const tryInstall = () => {
+    try {
+      installLocalDownloadBridge({
+        editor: window.editor,
+        convert: convertBinToDocumentAndDownloadFn,
+      });
+    } catch (error) {
+      if (Date.now() - started >= DOWNLOAD_BRIDGE_INSTALL_TIMEOUT_MS) {
+        throw error;
+      }
+      window.setTimeout(tryInstall, DOWNLOAD_BRIDGE_INSTALL_INTERVAL_MS);
+    }
+  };
+  tryInstall();
 }
 
 // Public editor creation method
 export function createEditorInstance(config: {
   fileName: string;
   fileType: string;
-  binData: ArrayBuffer | string;
-  media?: any;
+  binData: OnlyOfficeBinData;
+  media?: Record<string, string>;
 }): Promise<void> {
   return queueEditorOperation(async () => {
     const { fileName, fileType, binData, media: mediaUrls } = config;
@@ -234,57 +177,24 @@ export function createEditorInstance(config: {
     console.log('Creating new editor instance for:', fileName, 'type:', fileType);
 
     try {
+      ensureOnlyOfficeHostSizing();
       window.editor = new window.DocsAPI.DocEditor('iframe', {
-        document: {
-          title: fileName,
-          url: fileName, // Use file name as identifier
-          fileType: fileType,
-          permissions: {
-            edit: true,
-            chat: false,
-            protect: false,
-          },
-        },
-        editorConfig: {
-          lang: editorLang,
-          customization: {
-            help: false,
-            about: false,
-            hideRightMenu: true,
-            features: {
-              spellcheck: {
-                change: false,
-              },
-            },
-            anonymous: {
-              request: false,
-              label: 'Guest',
-            },
-          },
-        },
+        document: createLocalOnlyOfficeDocument(fileName, fileType),
+        editorConfig: createSingleUserEditorConfig(editorLang),
         events: {
           onAppReady: () => {
-            // Set media resources
-            if (mediaUrls) {
-              window.editor?.sendCommand({
-                command: 'asc_setImageUrls',
-                data: { urls: mediaUrls },
-              });
-            }
-
-            // Load document content
-            window.editor?.sendCommand({
-              command: 'asc_openDocument',
-              // @ts-expect-error binData type is handled by the editor
-              data: { buf: binData },
-            });
+            installLocalBinaryBridge();
+            openLocalDocument(window.editor, prepareOnlyOfficeBuffer(binData));
+            installLocalDownloadBridgeWhenReady();
           },
           onDocumentReady: () => {
             console.log(`${t('documentLoaded')}${fileName}`);
             // Note: For CSV files, the save dialog may show XLSX format,
             // but the actual save will be forced to CSV format in handleSaveDocument
+            sendOnlyOfficeImageUrlsAfterReady(window.editor, mediaUrls);
           },
           onSave: handleSaveDocument,
+          onSaveDocument: handleSaveDocument,
           // writeFile
           // TODO: writeFile - handle when pasting images from external sources
           writeFile: handleWriteFile,

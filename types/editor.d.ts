@@ -14,9 +14,17 @@ interface DocEditorConfig {
       chat: boolean;
       protect: boolean;
     };
+    options?: {
+      onlyofficeLocalBinary?: boolean;
+    };
   };
   editorConfig: {
     lang: string;
+    canCoAuthoring?: boolean;
+    coEditing?: {
+      mode: string;
+      change: boolean;
+    };
     customization: {
       help: boolean;
       about: boolean;
@@ -42,6 +50,7 @@ interface DocEditorConfig {
     onAppReady: () => void;
     onDocumentReady: () => void;
     onSave: (event: SaveEvent) => void;
+    onSaveDocument?: (event: SaveEvent) => void;
     writeFile: (event: WriteFileEvent) => void;
     /** Handle external messages from plugins */
     onExternalPluginMessage?: (event: { type: string; data: any; pluginName?: string }) => void;
@@ -51,7 +60,7 @@ interface DocEditorConfig {
 interface SaveEvent {
   data: {
     data: {
-      data: ArrayBuffer;
+      data: ArrayBuffer | Uint8Array;
     };
     option: {
       outputformat: number;
@@ -71,7 +80,7 @@ interface WriteFileEvent {
 }
 
 interface DocEditor {
-  sendCommand: (params: {
+  sendCommand?: (params: {
     command: string;
     data: {
       err_code?: number;
@@ -83,6 +92,7 @@ interface DocEditor {
       error?: string;
     };
   }) => void;
+  openDocument: (document: { buffer: ArrayBuffer }) => void;
   destroyEditor: () => void;
 }
 

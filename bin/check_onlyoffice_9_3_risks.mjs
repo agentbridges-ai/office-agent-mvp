@@ -77,7 +77,7 @@ function checkEditorBoundary(root, failures) {
   );
   rejectNeedle(
     editor,
-    'convertBinToDocumentAndDownloadFn',
+    'await convertBinToDocumentAndDownloadFn(',
     'lib/onlyoffice-editor.ts: save/download conversion must live in lib/onlyoffice-compat/save.ts',
     failures,
   );

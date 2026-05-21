@@ -11,7 +11,7 @@
 ## 当前状态
 
 - Overall: `in_progress`
-- 当前阶段: T13 GCD adapter RED gates
+- 当前阶段: T14 GCD first-party adapter 实现
 - 当前工作目录: `/tmp/document-onlyoffice-9-3-gcd-adapter`
 - 当前实施分支: `feat/onlyoffice-9-3-gcd-adapter`
 - 基线提交: `96b2a9e2`
@@ -41,7 +41,7 @@
 | T11 | 集成或 handoff | pending | 根据主工作树状态选择 patch/cherry-pick |
 | T12 | 最大公约数 adapter 规划 | completed | 从 `96b2a9e2` 新建 `/tmp/document-onlyoffice-9-3-gcd-adapter`；不 merge `cec52b4f`/`1526ddc2`；已创建设计和实施计划 |
 | T13 | GCD adapter RED gates | completed | `check_onlyoffice_9_3_risks` 和 `check_onlyoffice_bridge_contract` 已按预期 RED，失败项覆盖缺 adapter、旧 editor 直连兼容、非 9.3 runtime、x2t 风险声明、PDF/save/font 边界 |
-| T14 | GCD first-party adapter 实现 | pending | 目标是 `lib/onlyoffice-compat/**` 承载 binary/runtime/save/media/pdf/fonts 边界 |
+| T14 | GCD first-party adapter 实现 | completed | adapter 相关文件已落地；bridge contract 退出 0；`lint:ts` 退出 0 且仅既有 warning；risk check 只剩 9.3 runtime/font 资源误差 |
 | T15 | 最小 9.3 runtime manifest | pending | 只迁入浏览器 smoke 证实需要的 official 9.3 desktop runtime 资源 |
 | T16 | GCD browser smoke verification | pending | new-docx/new-xlsx/open-docx/open-xlsx/open-csv/input-save-docx/pdf-block-docx |
 
@@ -66,6 +66,8 @@
 | 2026-05-21T02:08:10Z | PLAN | 创建 `docs/superpowers/plans/2026-05-21-onlyoffice-9.3-gcd-adapter.md`，规划 GCD adapter 的 RED gates、adapter 模块、最小 runtime manifest、browser smoke 和 handoff 验证。 |
 | 2026-05-21T02:16:55Z | RED | 新增 `bin/check_onlyoffice_9_3_risks.mjs` 与 `bin/check_onlyoffice_bridge_contract.mjs`。`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 1，预期失败项包括缺少 7 个 `lib/onlyoffice-compat/**` adapter、`lib/onlyoffice-editor.ts` 仍直接处理 binary/media/save、runtime 非 9.3.1、x2t 风险未声明、PDF/save/font 边界未满足。 |
 | 2026-05-21T02:16:55Z | RED | `timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` 退出 1，预期失败项包括 editor 缺少 adapter imports、仍包含 save/media/open 兼容逻辑、binary adapter/save adapter 尚不存在。 |
+| 2026-05-21T02:20:06Z | GREEN | first-party adapter 层落地：`lib/onlyoffice-compat/**` 承载 binary/runtime/local-binary/save/media/pdf/fonts 边界；`lib/onlyoffice-editor.ts` 转为编排层；`timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` 退出 0。 |
+| 2026-05-21T02:20:06Z | VERIFY | `timeout 60 pnpm run lint:ts` 退出 0，仅既有 `bin/bundle_single_html.js:36 no-unused-expressions` warning；`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 1，失败项只剩 9.3.1 runtime version 和 `AllFonts.js` 旧 Windows 字体路径，符合 T15 输入误差。 |
 
 ## 最近观测
 
@@ -91,7 +93,7 @@
 
 ## 下一步
 
-1. 提交 T13 RED gates。
-2. 进入 T14 first-party adapter 实现，先让 bridge contract 变绿，再处理 runtime 版本资源误差。
-3. 只通过 manifest 引入最小 official 9.3 runtime。
+1. 提交 T14 first-party adapter 实现。
+2. 进入 T15：只通过 manifest 引入最小 official 9.3 runtime，并修正浏览器字体边界。
+3. 用 risk/bridge gates 验证 runtime 迁入不回退到 broad vendor/minified patch。
 4. 用 fresh browser smoke 证明单用户本地编辑闭环，不宣称完整协作或 x2t 9.3 对齐。

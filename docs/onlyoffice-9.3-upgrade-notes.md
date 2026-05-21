@@ -52,7 +52,7 @@ Therefore the 9.3.1 upgrade cannot be a pure runtime overwrite. T7 must:
 | Debian package digest | PASS | `sha256sum` matched GitHub digest |
 | web-apps version signal | PASS | extracted editor app headers show `9.3.1 (build:10)` |
 | sdkjs version signal | PASS | extracted `sdk-all.js` headers show `9.3.1 (build:10)` |
-| x2t browser WASM source | OPEN | not present in DocumentServer package; keep existing converter until verified |
+| x2t browser WASM source | CONTROLLED RISK | not present in DocumentServer package; keep existing browser x2t converter under adapter/smoke coverage; do not claim x2t 9.3 alignment |
 | bridge contract on official runtime | FAIL EXPECTED | official runtime lacks current local save/write/image bridge strings |
 | TypeScript check | pending | not run yet |
 | Production build | pending | not run yet |

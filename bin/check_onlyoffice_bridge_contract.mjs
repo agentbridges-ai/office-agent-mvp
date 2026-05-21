@@ -42,7 +42,7 @@ function main() {
   }
 
   const forbiddenEditorNeedles = [
-    ['convertBinToDocumentAndDownloadFn', 'save/download conversion must be delegated to save adapter'],
+    ['await convertBinToDocumentAndDownloadFn(', 'save/download conversion must be delegated to save adapter'],
     ['new Blob([imageData as unknown as BlobPart]', 'media URL creation must be delegated to media adapter'],
     ["command: 'asc_openDocument'", 'binary open must use 9.3 openDocument/local-binary adapter path'],
     ["command: 'asc_setImageUrls'", 'image URL injection must be delegated to media adapter'],

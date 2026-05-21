@@ -16,7 +16,7 @@ export interface EmscriptenModule {
 export interface ConversionResult {
   fileName: string;
   type: DocumentType;
-  bin: BlobPart;
+  bin: ArrayBuffer | Uint8Array;
   media: Record<string, string>;
 }
 
@@ -42,7 +42,7 @@ declare global {
   interface Window {
     Module: EmscriptenModule;
     editor?: {
-      sendCommand: ({
+      sendCommand?: ({
         command,
         data,
       }: {
@@ -57,6 +57,7 @@ declare global {
           error?: string;
         };
       }) => void;
+      openDocument: (document: { buffer: ArrayBuffer }) => void;
       destroyEditor: () => void;
     };
   }
