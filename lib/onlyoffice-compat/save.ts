@@ -1,6 +1,7 @@
 import { getDocmentObj } from '../../store';
 import { c_oAscFileType2 } from '../file-types';
 import type { SaveEvent } from '../document-types';
+import { toUint8Array } from './binary';
 
 export type ConvertBinAndDownload = (bin: Uint8Array, fileName: string, targetExt?: string) => Promise<unknown>;
 type LocalSaveResult = { ok: true } | { ok: false; error: string };
@@ -183,18 +184,4 @@ function endFrameDownloadAction(frame: OnlyOfficeFrameWindow): void {
   const api = frame.Asc?.editor || frame.editor;
   if (typeof api?.sync_EndAction !== 'function') return;
   api.sync_EndAction(BLOCKING_ACTION_TYPE, DOWNLOAD_ACTION_ID);
-}
-
-function toUint8Array(value: unknown): Uint8Array | null {
-  if (!value) return null;
-  if (isArrayBuffer(value)) return new Uint8Array(value as ArrayBuffer);
-  if (ArrayBuffer.isView(value as ArrayBufferView)) {
-    const view = value as ArrayBufferView;
-    return new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
-  }
-  return null;
-}
-
-function isArrayBuffer(value: unknown): boolean {
-  return Object.prototype.toString.call(value) === '[object ArrayBuffer]';
 }

@@ -86,6 +86,9 @@ function main() {
   if (!save.includes('sync_EndAction')) {
     failures.push('lib/onlyoffice-compat/save.ts: must end 9.3 download action overlay');
   }
+  if (save.includes('function toUint8Array(') || save.includes('function isArrayBuffer(')) {
+    failures.push('lib/onlyoffice-compat/save.ts: must reuse onlyoffice-compat/binary toUint8Array helper');
+  }
 
   if (failures.length > 0) {
     console.error('ONLYOFFICE GCD bridge contract failed');

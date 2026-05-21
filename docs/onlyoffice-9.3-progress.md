@@ -122,6 +122,10 @@
 | 2026-05-21T05:56:35Z | T25 VERIFY | Final fresh `timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` 退出 0；`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 0；`timeout 60 pnpm run lint:ts` 退出 0 且仅既有 `bin/bundle_single_html.js:36 no-unused-expressions` warning。 |
 | 2026-05-21T05:56:35Z | T25 VERIFY | Final fresh `timeout 60 pnpm run build` 退出 0；保留 Vite external script/chunk size warning 与既有 shell 方言 warning `./bin/build.sh: 17: [[: Permission denied`，构建输出 `Build completed successfully!`。 |
 | 2026-05-21T05:56:35Z | T25 SMOKE | Final fresh `timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario new-docx,new-xlsx,open-docx,open-xlsx,open-csv,input-save-docx,pdf-block-docx --timeout-ms 90000` 退出 0；7/7 PASS，`failures=[]`，app/sample 端口 `30775`/`34129`；所有场景 `version=9.3.1`、`documentReady=true`、无 failed responses、无 `/downloadas/`、无 `/fonts//fonts`、无 browser exception；DOCX save callback `ok`，PDF block callback `error`。 |
+| 2026-05-21T11:35:46Z | T26 RED | final minor review 指出 `lib/onlyoffice-compat/save.ts` 仍维护私有 `toUint8Array/isArrayBuffer` 副本。新增 bridge contract 门禁，`timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` 退出 1，预期失败项为 save adapter 必须复用 `onlyoffice-compat/binary` helper。 |
+| 2026-05-21T11:35:46Z | T26 GREEN | `save.ts` 改为 `import { toUint8Array } from './binary'`，删除本地 `toUint8Array()` 和 `isArrayBuffer()`，cross-realm byte view 识别只保留 `binary.ts` 一个 canonical 实现。 |
+| 2026-05-21T11:35:46Z | T26 VERIFY | `timeout 60 node bin/check_onlyoffice_bridge_contract.mjs`、`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs`、`timeout 60 pnpm run lint:ts` 均退出 0；lint 仅保留既有 `bin/bundle_single_html.js:36 no-unused-expressions` warning。 |
+| 2026-05-21T11:35:46Z | T26 SMOKE | `timeout 360 node bin/smoke_onlyoffice_9_3_browser.mjs --scenario input-save-docx,pdf-block-docx --timeout-ms 90000` 退出 0；2/2 PASS，DOCX save callback `ok`，PDF block callback `error`，无 failed responses、无 `/downloadas/`、无 `/fonts//fonts`、无 browser exception。 |
 
 ## 最近观测
 
