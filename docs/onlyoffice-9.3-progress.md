@@ -11,7 +11,7 @@
 ## 当前状态
 
 - Overall: `in_progress`
-- 当前阶段: T14 GCD first-party adapter 实现
+- 当前阶段: T15 最小 9.3 runtime manifest
 - 当前工作目录: `/tmp/document-onlyoffice-9-3-gcd-adapter`
 - 当前实施分支: `feat/onlyoffice-9-3-gcd-adapter`
 - 基线提交: `96b2a9e2`
@@ -42,7 +42,7 @@
 | T12 | 最大公约数 adapter 规划 | completed | 从 `96b2a9e2` 新建 `/tmp/document-onlyoffice-9-3-gcd-adapter`；不 merge `cec52b4f`/`1526ddc2`；已创建设计和实施计划 |
 | T13 | GCD adapter RED gates | completed | `check_onlyoffice_9_3_risks` 和 `check_onlyoffice_bridge_contract` 已按预期 RED，失败项覆盖缺 adapter、旧 editor 直连兼容、非 9.3 runtime、x2t 风险声明、PDF/save/font 边界 |
 | T14 | GCD first-party adapter 实现 | completed | adapter 相关文件已落地；bridge contract 退出 0；`lint:ts` 退出 0 且仅既有 warning；risk check 只剩 9.3 runtime/font 资源误差 |
-| T15 | 最小 9.3 runtime manifest | pending | 只迁入浏览器 smoke 证实需要的 official 9.3 desktop runtime 资源 |
+| T15 | 最小 9.3 runtime manifest | completed | official 9.3.1 minimal runtime manifest、browser-local `AllFonts.js`、可信 9.3 DOCX/XLSX empty bin 已落地；risk/bridge/lint fresh 退出 0 |
 | T16 | GCD browser smoke verification | pending | new-docx/new-xlsx/open-docx/open-xlsx/open-csv/input-save-docx/pdf-block-docx |
 
 ## 检查点日志
@@ -68,6 +68,12 @@
 | 2026-05-21T02:16:55Z | RED | `timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` 退出 1，预期失败项包括 editor 缺少 adapter imports、仍包含 save/media/open 兼容逻辑、binary adapter/save adapter 尚不存在。 |
 | 2026-05-21T02:20:06Z | GREEN | first-party adapter 层落地：`lib/onlyoffice-compat/**` 承载 binary/runtime/local-binary/save/media/pdf/fonts 边界；`lib/onlyoffice-editor.ts` 转为编排层；`timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` 退出 0。 |
 | 2026-05-21T02:20:06Z | VERIFY | `timeout 60 pnpm run lint:ts` 退出 0，仅既有 `bin/bundle_single_html.js:36 no-unused-expressions` warning；`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 1，失败项只剩 9.3.1 runtime version 和 `AllFonts.js` 旧 Windows 字体路径，符合 T15 输入误差。 |
+| 2026-05-21T02:32:47Z | T15 RED | risk gate 新增 empty bin provenance 检查；`timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 1，预期失败项为旧 DOCX/XLSX empty bin 仍存在、缺少可信 9.3 DOCX/XLSX empty bin、缺少 PPTX not claimed 文档声明。 |
+| 2026-05-21T02:32:47Z | T15 GREEN | 从 `/tmp/onlyoffice-9.3-sources/sdkjs/word/document/empty.js` 提取 `DOCY;v4;8985`，从 `/tmp/onlyoffice-9.3-sources/sdkjs/cell/document/empty.js` 提取 `XLSY;v2;5958`，替换 `lib/empty_bin.ts` 的 DOCX/XLSX；未找到可信 9.3 PPTX empty bin，保留旧值但不纳入 claim/smoke。 |
+| 2026-05-21T02:32:47Z | T15 DOCS | `docs/onlyoffice-9.3-upgrade-notes.md` 补充 minimal runtime manifest、browser-local font boundary、DOCX/XLSX empty bin provenance、PPTX not claimed，并将尚未 fresh 执行的 build/smoke 状态保持为 pending。 |
+| 2026-05-21T02:34:22Z | T15 VERIFY | `timeout 60 node bin/check_onlyoffice_9_3_risks.mjs` 退出 0，输出 `ONLYOFFICE 9.3 GCD risk check passed for /tmp/document-onlyoffice-9-3-gcd-adapter`。 |
+| 2026-05-21T02:34:22Z | T15 VERIFY | `timeout 60 node bin/check_onlyoffice_bridge_contract.mjs` 退出 0，输出 `ONLYOFFICE GCD bridge contract passed for /tmp/document-onlyoffice-9-3-gcd-adapter`。 |
+| 2026-05-21T02:34:22Z | T15 VERIFY | `timeout 60 pnpm run lint:ts` 退出 0；仅保留既有 warning `bin/bundle_single_html.js:36 no-unused-expressions`，未新增 warning。 |
 
 ## 最近观测
 
@@ -93,7 +99,6 @@
 
 ## 下一步
 
-1. 提交 T14 first-party adapter 实现。
-2. 进入 T15：只通过 manifest 引入最小 official 9.3 runtime，并修正浏览器字体边界。
-3. 用 risk/bridge gates 验证 runtime 迁入不回退到 broad vendor/minified patch。
-4. 用 fresh browser smoke 证明单用户本地编辑闭环，不宣称完整协作或 x2t 9.3 对齐。
+1. 提交 T15 minimal runtime 闭环。
+2. 进入 T16：实现动态端口、结构化 JSON、per-scenario diagnostics 的 browser smoke harness。
+3. 用 fresh browser smoke 证明单用户本地编辑闭环，不宣称完整协作或 x2t 9.3 对齐。

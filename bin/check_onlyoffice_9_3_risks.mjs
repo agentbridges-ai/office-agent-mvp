@@ -168,6 +168,22 @@ function checkBrowserFonts(root, failures) {
   }
 }
 
+function checkEmptyBins(root, failures) {
+  const emptyBins = readText(root, 'lib/empty_bin.ts');
+  requireNeedle(emptyBins, 'DOCY;v4;8985;', 'lib/empty_bin.ts: DOCX empty bin must come from trusted 9.3 word empty.js', failures);
+  requireNeedle(emptyBins, 'XLSY;v2;5958;', 'lib/empty_bin.ts: XLSX empty bin must come from trusted 9.3 cell empty.js', failures);
+  rejectNeedle(emptyBins, 'DOCY;v5;7372;', 'lib/empty_bin.ts: must not keep old DOCX empty bin', failures);
+  rejectNeedle(emptyBins, 'XLSY;v2;6160;', 'lib/empty_bin.ts: must not keep old XLSX empty bin', failures);
+
+  const notes = readText(root, 'docs/onlyoffice-9.3-upgrade-notes.md');
+  requireNeedle(
+    notes,
+    'PPTX empty bin is not claimed',
+    'docs/onlyoffice-9.3-upgrade-notes.md: must state PPTX empty bin is not claimed',
+    failures,
+  );
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const root = resolve(args.root);
@@ -181,6 +197,7 @@ function main() {
   checkPdfGuard(root, failures);
   checkDownloadAs(root, failures);
   checkBrowserFonts(root, failures);
+  checkEmptyBins(root, failures);
 
   if (failures.length > 0) {
     console.error('ONLYOFFICE 9.3 GCD risk check failed');
