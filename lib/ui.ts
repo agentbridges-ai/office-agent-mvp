@@ -3,10 +3,6 @@ import { t } from './i18n';
 import { showLoading } from './loading';
 import { onCreateNew, onOpenDocument } from './document';
 
-function showUnsupportedPresentationMessage(): void {
-  alert(`${t('unsupportedFileType')}pptx`);
-}
-
 // Hide control panel and show top floating bar
 export const hideControlPanel = (): void => {
   const container = document.querySelector('#control-panel-container') as HTMLElement;
@@ -130,8 +126,7 @@ export const createFixedActionButton = (): HTMLElement => {
   );
   menuPanel.appendChild(
     createMenuButton(t('newPowerPoint'), async () => {
-      showUnsupportedPresentationMessage();
-      showControlPanel();
+      await onCreateNew('.pptx');
     }),
   );
 
@@ -361,8 +356,7 @@ export const createControlPanel = (): void => {
     hideControlPanel();
     const { removeLoading } = showLoading();
     try {
-      showUnsupportedPresentationMessage();
-      showControlPanel();
+      await onCreateNew('.pptx');
     } catch (error) {
       console.error('Error creating new PowerPoint document:', error);
       showControlPanel();

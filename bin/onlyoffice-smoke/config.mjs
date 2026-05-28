@@ -45,6 +45,14 @@ export const DEFAULT_SCENARIOS = [
     fileName: 'generated-smoke.csv',
     expectDocumentReady: true,
   },
+  { name: 'new-pptx', kind: 'new', ext: '.pptx', expectDocumentReady: true },
+  {
+    name: 'open-pptx',
+    kind: 'generated',
+    ext: '.pptx',
+    fileName: 'generated-smoke.pptx',
+    expectDocumentReady: true,
+  },
 ];
 
 export function parseArgs(argv) {
