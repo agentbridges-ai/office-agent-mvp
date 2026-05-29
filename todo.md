@@ -73,8 +73,11 @@
 
 ### Phase 5+6: Improvement Tickets (非核心)
 - [ ] P5-3: 密码 doc smoke (x2t-api.ts supports m_sPassword, needs encrypted sample)
-- [x] P5-5: CSV native x2t — `tryNativeCsvConvert()` with format 260, SheetJS fallback (`bcd17600`)
-- [ ] P5-3/5-4/5-6/5-7: 密码/大文件/保真度/并发 → needs external assets
+- [x] P5-5: CSV native x2t — `tryNativeCsvConvert()` (`bcd17600`)
+- [x] P5-3: 密码 doc 基础设施 — `officecrypto-tool` + encrypted sample + scenario (`03ddc1ff`)
+- [x] P5-4: 大文件 — `createLargeDocxSample` 1000 paragraphs (`861598eb`)
+- [ ] P5-6: 保真度 → text extraction comparison after save
+- [ ] P5-7: 并发 → multi-instance X2TConverter stress test
 - [ ] P6-3: 跟进 PR (after PR #4 merged)
 
 ---
