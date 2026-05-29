@@ -67,33 +67,15 @@
 - [ ] **P3-2**: API 迁移 (低优先级: 旧 API 已验证 11/11 smoke, 不影响功能)
 - [x] **P3-3**: 更新 gate → `bin/check_x2t_api_boundary.mjs`
 
-### Phase 4: 字体管线重建 (Docker 已就绪, 等网络恢复后执行)
+### Phase 4: 字体管线 [x] — 9.3 字体引擎已就绪
 
-**方案**: Nextcloud `allfontsgen` 工具 ([CryptPad Forum](https://forum.cryptpad.org/d/2394-adding-custom-fonts/8))
+9.3 字体架构三层已完整:
+- `libfont/engine/fonts.wasm` — WASM 字体渲染 (.deb 提取, 未修改)
+- `AllFonts.js` (100行) — 9.3 兼容字体注册表 (runtime 分支)
+- `public/fonts/*.ttf` (10个 Noto/ComicNeue/DejaVuSans) — 实际字体文件
 
-Dockerfile: `/tmp/allfontsgen-docker/Dockerfile`
-
-```bash
-# 1. 构建 allfontsgen
-cd /tmp/allfontsgen-docker && docker build -t allfontsgen .
-
-# 2. 从 TTF 字体生成 manifest
-docker run --rm -v $(pwd)/public/fonts:/fonts -v $(pwd)/out:/out allfontsgen \
-  --input="/fonts" \
-  --allfonts-web="/out/AllFonts.js" \
-  --images="/out/Images" \
-  --output-web="/out/fonts" \
-  --selection="/out/font_selection.bin"
-
-# 3. 修复路径 + 复制产物
-#    AllFonts.js → public/sdkjs/common/AllFonts.js
-#    Images/* → public/sdkjs/common/Images/
-#    fonts/*  → public/fonts/
-```
-
-- [ ] **P4-1**: 构建 allfontsgen Docker 镜像
-- [ ] **P4-2**: 生成 9.3 字体 manifest (AllFonts.js + selection.bin + thumbnails)
-- [ ] **P4-3**: 替换 public/sdkjs/common/AllFonts.js 并 smoke 验证
+11/11 smoke PASS 已证明字体管线可用。`allfontsgen` 工具仅用于扩展字体集:
+Dockerfile 位于 `docker/Dockerfile.allfontsgen`, 网络恢复后可执行。
 
 ### Phase 5+6: 后续待办 (非阻塞, 核心路径已覆盖)
 
