@@ -76,7 +76,10 @@
 
 ### Phase 5: 测试矩阵扩展
 
-- [ ] **P5-1/P5-2**: XLSX/PPTX 内容编辑 smoke — defer: `asc_setCellInfo`/`asc_AddText` 在 Cell/Slide 编辑器中不可用, save bridge 已验证
+- [x] **P5-1/P5-2**: XLSX/PPTX 内容编辑 smoke → `839f3c82`
+  - XLSX: `frame.Api.GetActiveSheet().GetRange("A1").SetValue(...)` via iframe-scoped Api
+  - PPTX: `frame.Api.GetPresentation().CreateShape() + paragraph.AddText(...)` via iframe-scoped Api
+  - save bridge verified (Iid 257/zWc 129, callback ok, download anchor)
 - [ ] **P5-3~P5-7**: 扩展测试矩阵 (密码/大文件/CSV native/保真度/并发) — defer: 当前 11-smoke 覆盖核心路径, 扩展测试为非阻塞项
 
 ### Phase 6: 文档与 Provenance
