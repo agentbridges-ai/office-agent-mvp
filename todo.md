@@ -64,14 +64,11 @@
 
 ### Phase 3: API Wrapper 收敛
 
-- [ ] **P3-1**: 设计受控 `X2TConvertOptions` / `X2TConvertResult` 接口
-  - 不暴露裸 `FS.writeFile` / `ccall("main1")`
-  - 支持 password/codePage/delimiter/thumbnail/layout
-- [ ] **P3-2**: 实现 `convertLocal()` 入口
-  - 输入: `{inputName, inputBytes, outputType, ...options}`
-  - 输出: `{outputBytes, outputType, engineVersion, warnings}`
-- [ ] **P3-3**: 实现 `initX2T()` 选项化
-  - `{fontsManifestPath, fontsDir, tempDir, maxInputBytes}`
+- [x] **P3-1**: 设计受控 `X2TConvertOptions` / `X2TConvertResult` 接口 → `lib/x2t-api.ts` (`bc01dbdf`)
+  - `initX2T(options?)` + `convertLocal(request)` — 无裸 FS/ccall 暴露
+  - 支持: password/codePage/delimiter/formatFrom/formatTo/fontsManifestPath/fontsDir
+- [ ] **P3-2**: 将现有调用链路 (converter.ts/document.ts) 迁移到 x2t-api.ts
+- [ ] **P3-3**: 更新 gate 验证 x2t-api 不被绕过
 
 ### Phase 4: 字体管线重建
 
