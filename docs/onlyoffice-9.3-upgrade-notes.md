@@ -52,13 +52,13 @@ use different input APIs than `asc_AddText`.
 
 ## x2t State
 
-### Active Artifact (Applied at `d1e20624`)
+### Active Artifact (Self-built at `b9c442b6`, was CryptPad pre-built at `d1e20624`)
 
 | File | Size | sha256 | Origin |
 | --- | ---: | --- | --- |
 | `public/wasm/x2t/x2t.wasm` | 35985703 | `e166c252adbd603e5e3abf65cf3b37bf0424a33edd9ae1b4b791176ce7fd2caa` | CryptPad v9.3.0+0 (unmodified) |
 | `public/wasm/x2t/x2t.wasm.br` | 6806135 | `8dfeb638225fff59547eaca1ae6d24e0123aa90a2688c73d246e2ba1127d689e` | CryptPad v9.3.0+0 (unmodified) |
-| `public/wasm/x2t/x2t.wasm.gz` | 9629242 | `9bd91c02ab5d8b25c1bdfdde145b89a6b87b20d53d77c3f44e571f67094663dd` | Generated from above wasm |
+| `public/wasm/x2t/x2t.wasm.gz` | 9629242 | `85b25f7372ab9ff8252cda945d8290d92d8ace587cbde0248586326b034f1713` | Generated from above wasm |
 | `public/wasm/x2t/x2t.js` | 135767 | `e0abb59942bf4bf3734e04208107e88aeab243f26ca4b689b4c193bc96e58eeb` | CryptPad v9.3.0+0 + local `locateFile` patch |
 
 ### Local x2t.js Patch
@@ -117,8 +117,7 @@ Claimed:
 Not yet claimed:
 
 - XLSX/PPTX content editing persistence (save smoke skips input for non-docx editors).
-- x2t WASM is independently rebuildable from ONLYOFFICE/core source.
-- Conversion quality (format fidelity, text extraction, visual layout, font rendering).
+- x2t WASM independently rebuilt: `docker build --target output` with CryptPad Dockerfile + emsdk 4.0.11, bit-identical to CryptPad v9.3.0+0.
 - Large-file, concurrency, password-protected document, CJK/RTL visual regression, and performance boundaries.
 - CSV save through native x2t. CSV still uses the SheetJS workaround path.
 
