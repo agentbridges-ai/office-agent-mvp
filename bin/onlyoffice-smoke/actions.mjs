@@ -81,7 +81,8 @@ export async function runInputSaveAction(page, scenario, timeoutMs, state) {
     { timeoutMs: Math.min(timeoutMs, 60_000), message: `${scenario.name}: save/download completion was not observed` },
   );
 
-  return { modified: true, saveCompleted: true, selectedEvents: summarizeSelectedEvents(events) };
+  const hadInput = ext === '.docx';
+  return { modified: hadInput, saveCompleted: true, selectedEvents: summarizeSelectedEvents(events) };
 }
 
 export async function runPdfBlockAction(page, scenario, timeoutMs, state) {
