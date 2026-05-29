@@ -175,17 +175,28 @@ function checkLocalRuntimeShimContract(root, failures) {
   const save = readText(root, 'lib/onlyoffice-compat/save.ts');
   const localBinary = readText(root, 'lib/onlyoffice-compat/local-binary.ts');
   const shimCode = `${save}\n${localBinary}`;
-  const shimNeedles = ['AscCommon.T7c', 'AscCommon.Iid', 'AscCommon.zWc', 'asyncServerIdEndLoaded', 'n1f', 'Mmg', 'NOf'];
+  const shimNeedles = [
+    { codeTest: "name: 'T7c'", docNeedle: 'AscCommon.T7c' },
+    { codeTest: "name: 'Iid'", docNeedle: 'AscCommon.Iid' },
+    { codeTest: "name: 'zWc'", docNeedle: 'AscCommon.zWc' },
+    { codeTest: 'asyncServerIdEndLoaded', docNeedle: 'asyncServerIdEndLoaded' },
+    { codeTest: 'n1f', docNeedle: 'n1f' },
+    { codeTest: 'Mmg', docNeedle: 'Mmg' },
+    { codeTest: 'NOf', docNeedle: 'NOf' },
+  ];
 
-  for (const needle of shimNeedles) {
-    if (shimCode.includes(needle) && !notes.includes(needle)) {
-      failures.push(`docs/onlyoffice-9.3-upgrade-notes.md: Local Runtime Shim Contract must document ${needle}`);
+  for (const { codeTest, docNeedle } of shimNeedles) {
+    if (shimCode.includes(codeTest) && !notes.includes(docNeedle)) {
+      failures.push(`docs/onlyoffice-9.3-upgrade-notes.md: Local Runtime Shim Contract must document ${docNeedle}`);
     }
   }
 
-  for (const needle of ['AscCommon.Iid', 'AscCommon.zWc']) {
-    if (notes.includes(needle) && !save.includes(needle)) {
-      failures.push(`docs/onlyoffice-9.3-upgrade-notes.md claims ${needle} is implemented but lib/onlyoffice-compat/save.ts does not contain it`);
+  for (const { needle, hookName } of [
+    { needle: 'AscCommon.Iid', hookName: 'Iid' },
+    { needle: 'AscCommon.zWc', hookName: 'zWc' },
+  ]) {
+    if (notes.includes(needle) && !save.includes(hookName)) {
+      failures.push(`docs/onlyoffice-9.3-upgrade-notes.md documents ${needle} but lib/onlyoffice-compat/save.ts does not reference ${hookName}`);
     }
   }
 

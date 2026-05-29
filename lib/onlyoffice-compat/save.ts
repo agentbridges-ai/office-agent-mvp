@@ -11,13 +11,19 @@ const BLOCKING_ACTION_TYPE = 1;
 const DOWNLOAD_ACTION_ID = 6;
 const SAME_ORIGIN_TARGET = window.location.origin;
 
+const SAVE_HOOKS = [
+  { name: 'T7c', label: 'word' },
+  { name: 'Iid', label: 'cell' },
+  { name: 'zWc', label: 'slide' },
+] as const;
+
+type SaveHookName = (typeof SAVE_HOOKS)[number]['name'];
+
 type OnlyOfficeFrameWindow = Window & {
   Asc?: {
     editor?: LocalExportApi;
   };
-  AscCommon?: {
-    T7c?: Function;
-  };
+  AscCommon?: Record<string, Function | undefined>;
   editor?: LocalExportApi;
 };
 
@@ -78,13 +84,25 @@ export async function handleLocalSaveDocument(options: {
   }
 }
 
+function findAvailableSaveHook(frame: OnlyOfficeFrameWindow): SaveHookName | null {
+  for (const hook of SAVE_HOOKS) {
+    if (typeof frame.AscCommon?.[hook.name] === 'function') {
+      return hook.name;
+    }
+  }
+  return null;
+}
+
 export function installLocalDownloadBridge(options: {
   editor: DocEditor | undefined;
   convert: ConvertBinAndDownload | null;
   onError?: (message: string) => void;
 }): void {
   const frame = getEditorFrameWindow();
-  if (!frame?.AscCommon?.T7c) throw new Error('ONLYOFFICE download bridge target is unavailable');
+  if (!frame) throw new Error('ONLYOFFICE editor iframe is unavailable for download bridge');
+
+  const hookName = findAvailableSaveHook(frame);
+  if (!hookName) throw new Error('ONLYOFFICE download bridge target is unavailable: no T7c/Iid/zWc hook found');
 
   (window as any)[LOCAL_DOWNLOAD_HANDLER] = (event: SaveEvent) =>
     handleLocalSaveDocument({
@@ -97,8 +115,8 @@ export function installLocalDownloadBridge(options: {
   const state = frame as unknown as Record<string, unknown>;
   if (state[LOCAL_DOWNLOAD_BRIDGE_FLAG]) return;
 
-  const original = frame.AscCommon.T7c;
-  frame.AscCommon.T7c = function localDownloadAsBridge(...args: unknown[]) {
+  const original = frame.AscCommon![hookName];
+  frame.AscCommon![hookName] = function localDownloadAsBridge(...args: unknown[]) {
     const callback = findCallback(args);
     const event = createSaveEvent(frame, args);
     frame.parent?.postMessage(
@@ -121,7 +139,7 @@ export function installLocalDownloadBridge(options: {
         callback?.({ status: 'error', error: message }, true, message);
       });
   };
-  state[LOCAL_DOWNLOAD_BRIDGE_FLAG] = { original };
+  state[LOCAL_DOWNLOAD_BRIDGE_FLAG] = { original, hookName };
 }
 
 function getEditorFrameWindow(): OnlyOfficeFrameWindow | null {

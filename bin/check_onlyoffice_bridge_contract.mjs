@@ -89,6 +89,11 @@ function main() {
   if (save.includes('function toUint8Array(') || save.includes('function isArrayBuffer(')) {
     failures.push('lib/onlyoffice-compat/save.ts: must reuse onlyoffice-compat/binary toUint8Array helper');
   }
+  for (const hookName of ['T7c', 'Iid', 'zWc']) {
+    if (!save.includes(hookName)) {
+      failures.push(`lib/onlyoffice-compat/save.ts: save hook table must reference ${hookName}`);
+    }
+  }
 
   if (failures.length > 0) {
     console.error('ONLYOFFICE GCD bridge contract failed');
