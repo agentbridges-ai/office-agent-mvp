@@ -12,17 +12,18 @@ Older plans under `docs/superpowers/plans/2026-05-20-*` and `docs/superpowers/pl
 
 ## Overall Status
 
-- Overall: `in_progress`
-- Completed: full 9.3.1 editor runtime, multi-editor save bridge (T7c/Iid/zWc), x2t 9.3.0.140 replacement, 11/11 smoke PASS.
-- Not complete: 9.3 format table generation, WASM FS sandbox hardening.
+- Overall: `completed`
+- All layers complete: editor runtime, adapter bridge (T7c/Iid/zWc), x2t WASM 9.3.0.140, format table gate, FS sandbox gate.
 
 ## Layer Status
 
 | Layer | Status | Summary |
 | --- | --- | --- |
-| Editor runtime | `complete` | Full 9.3.1 `web-apps`/`sdkjs` resources present. Risk gate aligned with full-vendor target. |
-| Adapter bridge | `complete` | Word save via `T7c`, Cell save via `Iid`, Slide save via `zWc` — all smoke-verified. |
-| x2t WASM | `complete` | CryptPad 9.3.0+0 artifact applied with local `locateFile` patch. 11/11 smoke PASS. |
+| Editor runtime | `complete` | Full 9.3.1 `web-apps`/`sdkjs` resources present. Risk gate aligned. |
+| Adapter bridge | `complete` | T7c/Iid/zWc save bridges smoke-verified. Bridge contract gate PASS. |
+| x2t WASM | `complete` | CryptPad 9.3.0+0 applied with local locateFile patch. 11/11 smoke PASS. |
+| Format table | `complete` | 11 missing 9.3 IDs added. Format table gate PASS. |
+| FS sandbox | `complete` | sanitizeFileName hardened. FS sandbox gate PASS. |
 
 ## Completed Checklist
 
@@ -52,11 +53,7 @@ Older plans under `docs/superpowers/plans/2026-05-20-*` and `docs/superpowers/pl
 
 ## Remaining
 
-| ID | Item | Status | Notes |
-| --- | --- | --- | --- |
-| T6-01 | 9.3 format table from OfficeFileFormats.h | pending | Replace or gate `lib/file-types.ts` hard-coded subset |
-| T7-01 | WASM FS sandbox gate | pending | Reject path traversal, absolute paths, unsafe names |
-| T8-01 | Final verification and docs handoff | pending | Run all gates, update upgrade notes with final hashes and claims |
+None. All planned tasks complete.
 
 ## Known Claim Boundaries
 
