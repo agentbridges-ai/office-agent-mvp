@@ -64,8 +64,25 @@
 - [x] **P3-1**: 设计受控 `X2TConvertOptions` / `X2TConvertResult` 接口 → `lib/x2t-api.ts` (`bc01dbdf`)
   - `initX2T(options?)` + `convertLocal(request)` — 无裸 FS/ccall 暴露
   - 支持: password/codePage/delimiter/formatFrom/formatTo/fontsManifestPath/fontsDir
-- [ ] **P3-2**: API 迁移 → `lib/x2t-api.ts` ready, Playwright E2E validates convertLocal(), production callers still use old X2TConverter path
 - [x] **P3-3**: 更新 gate → `bin/check_x2t_api_boundary.mjs`
+- [x] **P0-API**: x2t-api.ts boundary → maxInputBytes enforced, font path validated (`37b86f57`)
+
+### P1: 生产路径迁移 (P3-2)
+- [ ] 让 `lib/converter.ts` / `lib/document-converter.ts` 主链走 `x2t-api.ts`
+- [ ] Gate：不再允许业务边界直接 FS.writeFile 或 ccall('main1')
+
+### P2: Repo-owned x2t build
+- [ ] 把 `/tmp/cryptpad-x2t` 构建上下文变成 `tools/x2t-wasm/`
+- [ ] Dockerfile + patch series + artifact hash/provenance 入库
+- [ ] CryptPad diff 分类: must-port / trim / risk / local-patch
+
+### P3: 字体管线补齐
+- [ ] 9.3 同源工具生成 AllFonts.js + manifest.json + hash-lock.json
+- [ ] WOFF2 策略 + CJK/RTL/emoji 验证 (9.0.4 已加入 WOFF2)
+
+### P4: 扩展格式与转换 API
+- [ ] Conversion API 兼容层 (/converter, shardkey, 错误码 -1..-10)
+- [ ] 密码文档 E2E, CSV native hard-fail 模式
 
 ### Phase 4: 字体管线 [x] — 9.3 字体引擎已就绪
 - `libfont/engine/fonts.wasm` + `AllFonts.js`(100行) + 24 TTF

@@ -12,7 +12,11 @@
     "format": "prettier --write .",
     "lint:ts": "oxlint && tsc --noEmit",
     "lint:docker": "docker compose -f docker-compose.yaml config --quiet",
-    "lint": "pnpm run lint:ts && pnpm run lint:docker"
+    "lint": "pnpm run lint:ts && pnpm run lint:docker",
+    "gate:onlyoffice": "node bin/check_onlyoffice_bridge_contract.mjs --root . && node bin/check_onlyoffice_9_3_risks.mjs --root . && node bin/check_onlyoffice_format_table.mjs --root . && node bin/check_x2t_fs_sandbox.mjs --root . && node bin/check_x2t_path_behavior.mjs --root . && node bin/check_onlyoffice_9_3_docs_consistency.mjs --root . && node bin/check_x2t_api_boundary.mjs --root .",
+    "smoke:onlyoffice": "node bin/smoke_onlyoffice_9_3_browser.mjs --chrome /snap/bin/chromium --timeout-ms 240000",
+    "test:e2e": "npx playwright test --reporter=list",
+    "verify:onlyoffice9": "pnpm run lint:ts && pnpm run gate:onlyoffice && pnpm run build && pnpm run smoke:onlyoffice"
   },
   "engines": {
     "node": ">=20.19.0"
