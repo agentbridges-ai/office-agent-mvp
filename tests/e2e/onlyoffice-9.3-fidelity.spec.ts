@@ -1,3 +1,4 @@
+// @ts-nocheck — Playwright E2E test, Vite module resolution in browser
 import { test, expect } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
