@@ -10,7 +10,7 @@ const REQUIRED_ADAPTER_FILES = [
   'lib/onlyoffice-compat/pdf.ts',
 ];
 
-const UNCLAIMED_VENDOR_PATHS = [
+const FULL_VENDOR_PATHS = [
   'public/sdkjs/pdf',
   'public/sdkjs/visio',
   'public/web-apps/apps/pdfeditor',
@@ -112,20 +112,30 @@ function checkRuntimeVersion(root, failures) {
   }
 }
 
-function checkVendorMinimization(root, failures) {
+function checkVendorFullPresence(root, failures) {
   const notes = readText(root, 'docs/onlyoffice-9.3-upgrade-notes.md');
-  for (const relativePath of UNCLAIMED_VENDOR_PATHS) {
-    const documented = notes.includes(`${relativePath}: loaded`);
+  const documented = notes.includes('full-vendor') || notes.includes('Full-vendor presence');
+  for (const relativePath of FULL_VENDOR_PATHS) {
     if (existsSync(join(root, relativePath)) && !documented) {
-      failures.push(`${relativePath}: unclaimed vendor subtree must not be present without browser load evidence`);
+      failures.push(`${relativePath}: full-vendor path must be documented as intentional in upgrade notes`);
     }
+  }
+  if (!documented) {
+    failures.push('docs/onlyoffice-9.3-upgrade-notes.md: must document that full-vendor presence is intentional');
   }
 }
 
 function checkX2tHonesty(root, failures) {
   const notes = readText(root, 'docs/onlyoffice-9.3-upgrade-notes.md');
-  if (!notes.includes('existing browser x2t') || !notes.includes('CONTROLLED RISK')) {
-    failures.push('docs/onlyoffice-9.3-upgrade-notes.md: must state existing browser x2t is a CONTROLLED RISK');
+  const newHashes = notes.includes('c209894d10d96fe1c4912e21fe518dca1bcdc0b4bc40778b4e6886e7227ef001');
+  if (!notes.includes('x2t target') || !notes.includes('CryptPad') || !notes.includes('v9.3.0+0')) {
+    failures.push('docs/onlyoffice-9.3-upgrade-notes.md: must state x2t target as CryptPad onlyoffice-x2t-wasm v9.3.0+0');
+  }
+  if (!notes.includes('Still active') && !notes.includes('old x2t')) {
+    failures.push('docs/onlyoffice-9.3-upgrade-notes.md: must state current x2t artifact status before replacement');
+  }
+  if (!newHashes) {
+    failures.push('docs/onlyoffice-9.3-upgrade-notes.md: must record staged CryptPad x2t artifact sha256');
   }
 }
 
@@ -165,11 +175,17 @@ function checkLocalRuntimeShimContract(root, failures) {
   const save = readText(root, 'lib/onlyoffice-compat/save.ts');
   const localBinary = readText(root, 'lib/onlyoffice-compat/local-binary.ts');
   const shimCode = `${save}\n${localBinary}`;
-  const shimNeedles = ['AscCommon.T7c', 'asyncServerIdEndLoaded', 'n1f', 'Mmg', 'NOf'];
+  const shimNeedles = ['AscCommon.T7c', 'AscCommon.Iid', 'AscCommon.zWc', 'asyncServerIdEndLoaded', 'n1f', 'Mmg', 'NOf'];
 
   for (const needle of shimNeedles) {
     if (shimCode.includes(needle) && !notes.includes(needle)) {
       failures.push(`docs/onlyoffice-9.3-upgrade-notes.md: Local Runtime Shim Contract must document ${needle}`);
+    }
+  }
+
+  for (const needle of ['AscCommon.Iid', 'AscCommon.zWc']) {
+    if (notes.includes(needle) && !save.includes(needle)) {
+      failures.push(`docs/onlyoffice-9.3-upgrade-notes.md claims ${needle} is implemented but lib/onlyoffice-compat/save.ts does not contain it`);
     }
   }
 
@@ -219,33 +235,30 @@ function checkEmptyBins(root, failures) {
   requireNeedle(emptyBins, 'XLSY;v2;5958;', 'lib/empty_bin.ts: XLSX empty bin must come from trusted 9.3 cell empty.js', failures);
   rejectNeedle(emptyBins, 'DOCY;v5;7372;', 'lib/empty_bin.ts: must not keep old DOCX empty bin', failures);
   rejectNeedle(emptyBins, 'XLSY;v2;6160;', 'lib/empty_bin.ts: must not keep old XLSX empty bin', failures);
+  requireNeedle(emptyBins, '.pptx', 'lib/empty_bin.ts: PPTX empty bin must be present for create-new flow', failures);
+}
 
+function checkPptxScope(root, failures) {
   const notes = readText(root, 'docs/onlyoffice-9.3-upgrade-notes.md');
   requireNeedle(
     notes,
-    'PPTX empty bin is not claimed',
-    'docs/onlyoffice-9.3-upgrade-notes.md: must state PPTX empty bin is not claimed',
+    'PPTX create/open is in scope',
+    'docs/onlyoffice-9.3-upgrade-notes.md: must state PPTX create/open is in scope',
     failures,
   );
-}
-
-function checkUnsupportedPresentationBoundary(root, failures) {
+  requireNeedle(
+    notes,
+    'PPTX save',
+    'docs/onlyoffice-9.3-upgrade-notes.md: must document PPTX save status',
+    failures,
+  );
   const documentSource = readText(root, 'lib/document.ts');
+  if (!documentSource.includes('.pptx')) {
+    failures.push('lib/document.ts: must accept .pptx in file input since PPTX create/open is in scope');
+  }
   const uiSource = readText(root, 'lib/ui.ts');
-  const notes = readText(root, 'docs/onlyoffice-9.3-upgrade-notes.md');
-
-  if (notes.includes('PPTX empty bin is not claimed')) {
-    for (const needle of ['.pptx', '.ppt']) {
-      if (documentSource.includes(`fileInput.accept =`) && documentSource.includes(needle)) {
-        failures.push(`lib/document.ts: ${needle} must not be accepted while PPTX is not claimed`);
-      }
-    }
-    if (uiSource.includes("onCreateNew('.pptx')")) {
-      failures.push('lib/ui.ts: new PPTX UI action must not be reachable while PPTX is not claimed');
-    }
-    if (!documentSource.includes('isUnsupportedPresentationFileName')) {
-      failures.push('lib/document.ts: PPT/PPTX open paths must be explicitly blocked before x2t initialization');
-    }
+  if (!uiSource.includes("onCreateNew('.pptx')")) {
+    failures.push('lib/ui.ts: PPTX new button must exist since PPTX create/open is in scope');
   }
 }
 
@@ -273,7 +286,8 @@ function checkSmokeHarness(root, failures) {
   rejectNeedle(combined, '/mnt/z/', `${relativePath}: must not depend on machine-specific /mnt/z paths`, failures);
   rejectNeedle(combined, '127.0.0.1:5174', `${relativePath}: must not hard-code Vite port 5174`, failures);
   rejectNeedle(combined, '127.0.0.1:5184', `${relativePath}: must not hard-code Vite port 5184`, failures);
-  rejectNeedle(combined, 'new-pptx', `${relativePath}: PPTX is not in the claimed final smoke matrix`, failures);
+  requireNeedle(combined, 'input-save-xlsx', `${relativePath}: XLSX save scenario must be in smoke matrix`, failures);
+  requireNeedle(combined, 'input-save-pptx', `${relativePath}: PPTX save scenario must be in smoke matrix`, failures);
 }
 
 function checkRuntimeRootResources(root, failures) {
@@ -289,7 +303,7 @@ function main() {
   checkAdapterFiles(root, failures);
   checkEditorBoundary(root, failures);
   checkRuntimeVersion(root, failures);
-  checkVendorMinimization(root, failures);
+  checkVendorFullPresence(root, failures);
   checkX2tHonesty(root, failures);
   checkPdfGuard(root, failures);
   checkDownloadAs(root, failures);
@@ -297,7 +311,7 @@ function main() {
   checkBrowserFonts(root, failures);
   checkAdapterCleanupSmells(root, failures);
   checkEmptyBins(root, failures);
-  checkUnsupportedPresentationBoundary(root, failures);
+  checkPptxScope(root, failures);
   checkSmokeHarness(root, failures);
   checkRuntimeRootResources(root, failures);
 
