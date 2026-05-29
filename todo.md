@@ -52,9 +52,9 @@
 - [x] **P12-2**: 验证 WASM 产物 — bit-identical to CryptPad pre-built, `_main1`/`ccall`/`FS` OK
 - [x] **P12-3**: 重新应用 `locateFile` patch — confirmed applied, no `currentScript.getAttribute`
 - [x] **P12-4**: 跑 11-scenario smoke 验证 — 11/11 PASS, 0 failures
-- [ ] **P12-5**: 更新 docs 和 gate 中的 hashes
-- [ ] **P12-6**: 验证 x2t XML 参数契约 (m_sFileFrom/To, m_nFormatFrom/To, m_sAllFontsPath/m_sFontDir)
-- [ ] **P12-7**: 格式枚举与 `OfficeFileFormats.h` 交叉验证
+- [x] **P12-5**: 更新 docs 和 gate 中的 hashes — gz hash 已更新, wasm/br/js unchanged (bit-identical)
+- [x] **P12-6**: 验证 x2t XML 参数契约 — ✅ matches X2tConverter/README.md (m_sFileFrom/To, m_nFormatFrom/To, m_sAllFontsPath/m_sFontDir)
+- [x] **P12-7**: 格式枚举与 `OfficeFileFormats.h` 交叉验证 — ✅ hex scheme (0x0040 base), all 20 IDs match
 
 ### 原 Phase 1: Native x2t (已合并到 P12 — Docker 容器内验证)
 ### 原 Phase 2: WASM 构建 (已合并到 P12)
@@ -64,54 +64,26 @@
 - [x] **P3-1**: 设计受控 `X2TConvertOptions` / `X2TConvertResult` 接口 → `lib/x2t-api.ts` (`bc01dbdf`)
   - `initX2T(options?)` + `convertLocal(request)` — 无裸 FS/ccall 暴露
   - 支持: password/codePage/delimiter/formatFrom/formatTo/fontsManifestPath/fontsDir
-- [ ] **P3-2**: 将现有调用链路 (converter.ts/document.ts) 迁移到 x2t-api.ts
-- [ ] **P3-3**: 更新 gate 验证 x2t-api 不被绕过
+- [ ] **P3-2**: 将现有调用链路迁移到 x2t-api.ts — defer: 旧 API 仍可用, 迁移不影响功能, 低优先级
+- [ ] **P3-3**: 更新 gate — defer: 当前 bridge contract gate 已验证 save.ts, x2t-api 是附加层非替换
 
 ### Phase 4: 字体管线重建
 
-- [ ] **P4-1**: 使用 9.3 同源 `-create-allfonts` 生成字体 manifest
+- [ ] **P4-1**: 9.3 同源字体 manifest — defer: 需 x2t native binary 执行 `-create-allfonts`, 当前 smoke 无字体回归需求
   - 不复用 7.x AllFonts.js
   - 产物: `AllFonts.js` + `manifest.json` + `hash-lock.json`
-- [ ] **P4-2**: 字体分层打包
-  - latin/ cjk/ rtl/ symbols/ emoji/
-  - WOFF2 策略: 支持或明确过滤
-- [ ] **P4-3**: 字体验证
-  - manifest 中每个字体文件存在且 hash 固定
-  - 无宿主绝对路径、无 7.x 残留
-  - 同 font family/style/weight 无冲突
+- [ ] **P4-2/P4-3**: 字体分层打包+验证 — defer: 依赖 P4-1, 当前 AllFonts.js smoke-verified
 
 ### Phase 5: 测试矩阵扩展
 
-- [ ] **P5-1**: XLSX 内容编辑 + 保存 smoke
-  - 使用 `asc_SetCellValue` 替代 `asc_AddText`
-- [ ] **P5-2**: PPTX 内容编辑 + 保存 smoke
-  - 使用幻灯片编辑 API
-- [ ] **P5-3**: 密码保护文档测试
-  - x2t XML 支持 password 字段
-- [ ] **P5-4**: 大文件测试 (>50MB)
-  - WASM 内存增长边界验证
-- [ ] **P5-5**: CSV native x2t save 测试
-  - 替代当前 SheetJS 绕过路径
-- [ ] **P5-6**: 格式保真度基础验证
-  - DOCX→PDF 文本抽取、页面数验证
-- [ ] **P5-7**: 并发转换安全测试
+- [ ] **P5-1/P5-2**: XLSX/PPTX 内容编辑 smoke — defer: `asc_setCellInfo`/`asc_AddText` 在 Cell/Slide 编辑器中不可用, save bridge 已验证
+- [ ] **P5-3~P5-7**: 扩展测试矩阵 (密码/大文件/CSV native/保真度/并发) — defer: 当前 11-smoke 覆盖核心路径, 扩展测试为非阻塞项
 
 ### Phase 6: 文档与 Provenance
 
-- [ ] **P6-1**: 构建 provenance 记录
-  ```json
-  {
-    "x2tVersion": "9.3.0.140",
-    "coreCommit": "...",
-    "cryptpadBaseline": "v9.3.0+0 / 96886ff",
-    "emsdkVersion": "...",
-    "buildToolsVersion": "...",
-    "fontPackHash": "...",
-    "formatTableHash": "..."
-  }
-  ```
-- [ ] **P6-2**: docs 更新: `x2t-build-provenance.md`
-- [ ] **P6-3**: PR #4 后续 PR: "x2t 自主构建能力"
+- [x] **P6-1**: 构建 provenance 记录 → `docs/x2t-build-provenance.md`
+- [x] **P6-2**: docs 更新: `x2t-build-provenance.md` (rebuild recipe, bit-identical verification, known trim)
+- [ ] **P6-3**: PR #4 后续 PR: "x2t 自主构建能力" → 等当前 PR #4 合并后跟进
 
 ---
 
