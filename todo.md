@@ -65,7 +65,7 @@
   - `initX2T(options?)` + `convertLocal(request)` — 无裸 FS/ccall 暴露
   - 支持: password/codePage/delimiter/formatFrom/formatTo/fontsManifestPath/fontsDir
 - [ ] **P3-2**: 将现有调用链路迁移到 x2t-api.ts — defer: 旧 API 仍可用, 迁移不影响功能, 低优先级
-- [ ] **P3-3**: 更新 gate — defer: 当前 bridge contract gate 已验证 save.ts, x2t-api 是附加层非替换
+- [x] **P3-3**: 更新 gate → `bin/check_x2t_api_boundary.mjs` — 验证 x2t-api 导出、路径控制、边界文件无裸 FS/ccall
 
 ### Phase 4: 字体管线重建
 
