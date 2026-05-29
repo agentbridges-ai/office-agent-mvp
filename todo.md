@@ -25,14 +25,12 @@
 
 ### Phase 0: 基线锁定与差异审计
 
-- [ ] **P0-1**: 审查 CryptPad v9.3.0+0 对 upstream core 的 56 文件变更
-  - 输入: `/tmp/cryptpad-x2t` 和 `/tmp/oo-core-930140`
-  - 分类: must-port / optional-trim / skip / risk-needs-review
-  - 产物: `docs/cryptpad-delta.md`
-- [ ] **P0-2**: 提取 CryptPad 构建依赖清单
-  - emsdk 版本、build_tools 版本、qmake 参数、Closure Compiler flags
-  - 依赖闭包: gumbo/katana/boost/unicodeconverter/graphics/OOXML/ODF/PdfFile/Epub/HwpFile/DocxRenderer
-  - 产物: `docs/cryptpad-build-manifest.md`
+- [x] **P0-1**: 审查 CryptPad v9.3.0+0 对 upstream core 的 56 文件变更 → `docs/cryptpad-delta.md`
+  - 分类: must-port (14), optional-trim (8), skip (1), risk-needs-review (4)
+  - 关键发现: build_tools v8.3.0.91 vs core v9.3.0.140 mismatch; native ref 8.3.3 vs wasm 9.3
+- [x] **P0-2**: 提取 CryptPad 构建依赖清单 → 已内嵌在 `docs/cryptpad-delta.md` 的 Dependency Chain 节
+  - emsdk 4.0.11, build_tools v8.3.0.91, Ubuntu 22.04, qmake6
+  - 21 个依赖库逐阶段构建
 - [ ] **P0-3**: 审查 CryptPad 裁剪决策
   - doctrenderer/docbuilder 空实现 — 影响哪些功能?
   - sed 修改 .pri 文件 — 跳过哪些编译单元?
