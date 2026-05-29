@@ -73,7 +73,8 @@
 
 ### Phase 5+6: Improvement Tickets (非核心)
 - [ ] P5-3: 密码 doc smoke (x2t-api.ts supports m_sPassword, needs encrypted sample)
-- [ ] P5-4~P5-7: 扩展测试 (大文件/CSV native/保真度/并发)
+- [x] P5-5: CSV native x2t — `tryNativeCsvConvert()` with format 260, SheetJS fallback (`bcd17600`)
+- [ ] P5-3/5-4/5-6/5-7: 密码/大文件/保真度/并发 → needs external assets
 - [ ] P6-3: 跟进 PR (after PR #4 merged)
 
 ---
