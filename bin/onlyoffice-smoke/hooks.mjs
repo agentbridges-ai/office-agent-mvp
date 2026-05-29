@@ -200,8 +200,19 @@ export function hookSource() {
       };
       const installFrameDownloadHook = () => {
         const ascCommon = window.AscCommon;
-        const current = ascCommon && ascCommon.T7c;
-        if (typeof current !== 'function' || current.__ooSmokeWrapped) return false;
+        if (!ascCommon) return false;
+        const hookNames = ['T7c', 'Iid', 'zWc'];
+        let current = null;
+        let hookName = '';
+        for (const name of hookNames) {
+          const candidate = ascCommon[name];
+          if (typeof candidate === 'function') {
+            current = candidate;
+            hookName = name;
+            break;
+          }
+        }
+        if (!current || current.__ooSmokeWrapped) return false;
         const wrappedDownload = function() {
           const args = Array.from(arguments).map((arg) => {
             if (typeof arg !== 'function') return arg;
@@ -220,9 +231,9 @@ export function hookSource() {
         };
         wrappedDownload.__ooSmokeWrapped = true;
         wrappedDownload.__ooSmokeOriginal = current;
-        ascCommon.T7c = wrappedDownload;
+        ascCommon[hookName] = wrappedDownload;
         window.__ooSmokeState.downloadHookInstalled = true;
-        emit({ type: 'frame:downloadHook' });
+        emit({ type: 'frame:downloadHook', hookName });
         return true;
       };
       const timer = setInterval(() => {
