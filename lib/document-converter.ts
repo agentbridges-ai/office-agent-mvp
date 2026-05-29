@@ -5,6 +5,7 @@ import type { BinConversionResult, ConversionResult, DocumentType, EmscriptenMod
 import { BASE_PATH, DOCUMENT_TYPE_MAP } from './document-utils';
 import { toStandaloneArrayBuffer, toUint8Array } from './onlyoffice-compat/binary';
 import { assertValidPdfOutput } from './onlyoffice-compat/pdf';
+import { sanitizeX2TFileName } from './x2t-paths';
 
 export class X2TConverter {
   private x2tModule: EmscriptenModule | null = null;
@@ -123,49 +124,7 @@ export class X2TConverter {
    * benign filename that happens to contain a slash.
    */
   private sanitizeFileName(input: string): string {
-    if (typeof input !== 'string' || !input.trim()) {
-      return 'file.bin';
-    }
-
-    const normalized = input.trim();
-
-    // Path-semantic violations: hard-reject, not silently strip
-    if (normalized.includes('..')) {
-      throw new Error(`x2t filename rejected: path traversal "${normalized}"`);
-    }
-    if (normalized.startsWith('/') || normalized.startsWith('\\')) {
-      throw new Error(`x2t filename rejected: absolute path "${normalized}"`);
-    }
-    // eslint-disable-next-line no-control-regex
-    if (/^[a-zA-Z]:[/\\]/.test(normalized)) {
-      throw new Error(`x2t filename rejected: Windows drive prefix "${normalized}"`);
-    }
-    if (/^(file|https?|data|ftp):\/\//i.test(normalized)) {
-      throw new Error(`x2t filename rejected: protocol prefix "${normalized}"`);
-    }
-    // eslint-disable-next-line no-control-regex
-    if (/[\x00]/.test(normalized)) {
-      throw new Error('x2t filename rejected: NUL byte');
-    }
-
-    const parts = normalized.split('.');
-    const ext = parts.pop() || 'bin';
-    const name = parts.join('.');
-
-    const illegalChars = /[/?<>\\:*|"]/g;
-    // eslint-disable-next-line no-control-regex
-    const controlChars = /[\x01-\x1f\x80-\x9f]/g;
-    const reservedPattern = /^\.+$/;
-    const unsafeChars = /[&'%!"{}[\]]/g;
-
-    let sanitized = name
-      .replace(illegalChars, '')
-      .replace(controlChars, '')
-      .replace(reservedPattern, '')
-      .replace(unsafeChars, '');
-
-    sanitized = sanitized.trim() || 'file';
-    return `${sanitized.slice(0, 200)}.${ext}`;
+    return sanitizeX2TFileName(input);
   }
 
   /**

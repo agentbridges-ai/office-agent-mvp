@@ -128,11 +128,11 @@ function checkVendorFullPresence(root, failures) {
 function checkX2tHonesty(root, failures) {
   const notes = readText(root, 'docs/onlyoffice-9.3-upgrade-notes.md');
   const newHashes = notes.includes('c209894d10d96fe1c4912e21fe518dca1bcdc0b4bc40778b4e6886e7227ef001');
-  if (!notes.includes('x2t target') || !notes.includes('CryptPad') || !notes.includes('v9.3.0+0')) {
-    failures.push('docs/onlyoffice-9.3-upgrade-notes.md: must state x2t target as CryptPad onlyoffice-x2t-wasm v9.3.0+0');
+  if (!notes.includes('CryptPad') || !notes.includes('v9.3.0+0')) {
+    failures.push('docs/onlyoffice-9.3-upgrade-notes.md: must reference CryptPad onlyoffice-x2t-wasm v9.3.0+0 as x2t source');
   }
-  if (!notes.includes('Still active') && !notes.includes('old x2t')) {
-    failures.push('docs/onlyoffice-9.3-upgrade-notes.md: must state current x2t artifact status before replacement');
+  if (!notes.includes('Applied')) {
+    failures.push('docs/onlyoffice-9.3-upgrade-notes.md: x2t status must reflect Applied state');
   }
   if (!newHashes) {
     failures.push('docs/onlyoffice-9.3-upgrade-notes.md: must record staged CryptPad x2t artifact sha256');

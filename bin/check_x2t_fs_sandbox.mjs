@@ -36,14 +36,16 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   const root = resolve(args.root);
   const converter = readText(root, 'lib/document-converter.ts');
+  const paths = readText(root, 'lib/x2t-paths.ts');
   const failures = [];
 
   if (!converter) {
     failures.push('lib/document-converter.ts: missing');
     console.error('ONLYOFFICE x2t FS sandbox check failed');
     for (const f of failures) console.error(`- ${f}`);
-    process.exit(1);
+      process.exit(1);
   }
+  if (!paths) failures.push('lib/x2t-paths.ts: missing');
 
   // 1. No unsafe path constructs in converter
   for (const { pattern, label } of REJECTED_CONSTRUCTS) {
@@ -53,9 +55,12 @@ function main() {
   }
 
   // 2. sanitizeFileName must have rejection rules
+  if (!converter.includes('sanitizeX2TFileName')) {
+    failures.push('lib/document-converter.ts: converter must use sanitizeX2TFileName helper');
+  }
   for (const { needle, label } of REQUIRED_CONSTRUCTS) {
-    if (!converter.includes(needle)) {
-      failures.push(`lib/document-converter.ts: ${label}`);
+    if (!paths.includes(needle)) {
+      failures.push(`lib/x2t-paths.ts: ${label}`);
     }
   }
 

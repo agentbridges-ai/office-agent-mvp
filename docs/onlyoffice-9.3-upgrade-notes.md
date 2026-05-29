@@ -17,8 +17,8 @@ The target is not merely version strings. The target is a browser-local 9.3 edit
 | `web-apps` | Extracted from `.deb` | Applied full-vendor |
 | `sdkjs` | Extracted from `.deb` | Applied full-vendor |
 | `api.js` | Generated from `api.js.tpl`, `PRODUCT_VERSION=9.3.1`, `HASH_POSTFIX=10` | Applied |
-| x2t current | Existing old browser artifact in `public/wasm/x2t/**` | Still active |
-| x2t target | CryptPad `onlyoffice-x2t-wasm v9.3.0+0`, upstream `ONLYOFFICE/core v9.3.0.140` | Staged in `/tmp`, not applied |
+| x2t current | CryptPad `onlyoffice-x2t-wasm v9.3.0+0`, upstream `ONLYOFFICE/core v9.3.0.140` | Applied with local `locateFile` patch |
+| x2t artifact (old) | Existing old browser artifact in `public/wasm/x2t/**` | Replaced, hashes recorded for rollback |
 
 ## Runtime Findings
 
@@ -58,8 +58,8 @@ use different input APIs than `asc_AddText`.
 | --- | ---: | --- | --- |
 | `public/wasm/x2t/x2t.wasm` | 35985703 | `e166c252adbd603e5e3abf65cf3b37bf0424a33edd9ae1b4b791176ce7fd2caa` | CryptPad v9.3.0+0 (unmodified) |
 | `public/wasm/x2t/x2t.wasm.br` | 6806135 | `8dfeb638225fff59547eaca1ae6d24e0123aa90a2688c73d246e2ba1127d689e` | CryptPad v9.3.0+0 (unmodified) |
-| `public/wasm/x2t/x2t.wasm.gz` | 9651554 | `9bd91c02ab5d8b25c1bdfdde145b89a6b87b20d53d77c3f44e571f67094663dd` | Generated from above wasm |
-| `public/wasm/x2t/x2t.js` | 135890 | `e0abb59942bf4bf3734e04208107e88aeab243f26ca4b689b4c193bc96e58eeb` | CryptPad v9.3.0+0 + local `locateFile` patch |
+| `public/wasm/x2t/x2t.wasm.gz` | 9629242 | `9bd91c02ab5d8b25c1bdfdde145b89a6b87b20d53d77c3f44e571f67094663dd` | Generated from above wasm |
+| `public/wasm/x2t/x2t.js` | 135767 | `e0abb59942bf4bf3734e04208107e88aeab243f26ca4b689b4c193bc96e58eeb` | CryptPad v9.3.0+0 + local `locateFile` patch |
 
 ### Local x2t.js Patch
 
@@ -113,8 +113,8 @@ Claimed:
 Not yet claimed:
 
 - XLSX/PPTX content editing persistence (save smoke skips input for non-docx editors).
-- Format ID coverage is complete for 9.3.
-- WASM FS paths are fully sandboxed.
+- x2t WASM is independently rebuildable from ONLYOFFICE/core source.
+- Conversion quality (format fidelity, text extraction, visual layout, font rendering).
 
 ## Required Fresh Verification
 
