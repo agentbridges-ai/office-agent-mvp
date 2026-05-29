@@ -10,4 +10,4 @@ cache
 # vite
 vite.config.ts.timestamp*
 config.ts.timestamp*
-dist
+disttest-results/
