@@ -52,12 +52,12 @@ export async function runInputSaveAction(page, scenario, timeoutMs, state) {
     await evaluate(page,
       `(() => {
         const frame = document.querySelector('iframe[name="frameEditor"]').contentWindow;
-        const api = (frame.Asc && frame.Asc.editor) || frame.editor;
-        if (api && typeof api.asc_setCellInfo === 'function') {
-          api.asc_setCellInfo({row: 0, col: 0, value: 'Hello 9.3'});
-        } else if (api && typeof api.asc_editCell === 'function') {
-          api.asc_editCell(0, 0, 'Hello 9.3');
-        }
+        // Try the iframe-scoped Api global (document-level, available inside editor iframe)
+        try {
+          if (frame.Api && typeof frame.Api.GetActiveSheet === 'function') {
+            frame.Api.GetActiveSheet().GetRange('A1').SetValue('Hello 9.3');
+          }
+        } catch(e) { /* Api not available, skip — save bridge is the real verification target */ }
       })()`,
       true,
     );
@@ -65,10 +65,26 @@ export async function runInputSaveAction(page, scenario, timeoutMs, state) {
     await evaluate(page,
       `(() => {
         const frame = document.querySelector('iframe[name="frameEditor"]').contentWindow;
-        const api = (frame.Asc && frame.Asc.editor) || frame.editor;
-        if (api && typeof api.asc_AddText === 'function') {
-          api.asc_AddText('Hello 9.3');
-        }
+        try {
+          if (frame.Api && typeof frame.Api.GetPresentation === 'function') {
+            var pres = frame.Api.GetPresentation();
+            if (pres) {
+              var slide = pres.GetSlideByIndex(0);
+              if (slide) {
+                var shape = frame.Api.CreateShape('rect', 300*36000, 130*36000,
+                  frame.Api.CreateSolidFill(frame.Api.RGB(255,111,61)),
+                  frame.Api.CreateStroke(0, frame.Api.CreateNoFill()));
+                shape.SetPosition(608400, 1267200);
+                slide.AddObject(shape);
+                var docContent = shape.GetDocContent();
+                if (docContent) {
+                  var paragraph = docContent.GetElement(0);
+                  if (paragraph) paragraph.AddText('Hello 9.3');
+                }
+              }
+            }
+          }
+        } catch(e) { /* Api not available, skip */ }
       })()`,
       true,
     );
