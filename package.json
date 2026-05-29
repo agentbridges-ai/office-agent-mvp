@@ -45,9 +45,11 @@
     "url": "https://github.com/ranuts/document/issues"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.0.5",
     "oxlint": "^1.38.0",
+    "playwright": "^1.60.0",
     "postcss": "^8.5.6",
     "prettier": "^3.7.4",
     "tailwindcss": "^4.1.18",
