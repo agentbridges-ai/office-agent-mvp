@@ -23,7 +23,7 @@
 
 ## 后续: x2t 自主构建 Pipeline (独立立项)
 
-### Phase 0: 基线锁定与差异审计
+### Phase 0: 基线锁定与差异审计 [x] `6443117b`
 
 - [x] **P0-1**: 审查 CryptPad v9.3.0+0 对 upstream core 的 56 文件变更 → `docs/cryptpad-delta.md`
   - 分类: must-port (14), optional-trim (8), skip (1), risk-needs-review (4)
