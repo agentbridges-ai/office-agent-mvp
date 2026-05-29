@@ -244,8 +244,41 @@ export class X2TConverter {
   }
 
   /**
+   * Try native x2t CSV conversion (9.3 x2t format ID 260).
+   * Returns the result on success, null if x2t does not support CSV natively.
+   */
+  private async tryNativeCsvConvert(
+    data: Uint8Array,
+    fileName: string,
+    documentType: DocumentType,
+  ): Promise<ConversionResult | null> {
+    try {
+      const sanitizedName = this.sanitizeFileName(fileName);
+      const inputPath = `/working/${sanitizedName}`;
+      const outputPath = `${inputPath}.bin`;
+
+      this.x2tModule!.FS.writeFile(inputPath, data);
+      const params = this.createConversionParams(
+        inputPath,
+        outputPath,
+        '<m_nFormatFrom>260</m_nFormatFrom>\n',
+      );
+      this.x2tModule!.FS.writeFile('/working/params.xml', params);
+      this.executeConversion('/working/params.xml');
+
+      const result = this.readBinaryFile(outputPath);
+      const media = await this.readMediaFiles();
+      console.log('Native x2t CSV conversion succeeded');
+      return { fileName: sanitizedName, type: documentType, bin: result, media };
+    } catch (error) {
+      console.log('Native x2t CSV failed, falling back to SheetJS:', (error as Error).message);
+      return null;
+    }
+  }
+
+  /**
    * Convert CSV to XLSX format using SheetJS library
-   * This is a workaround since x2t may not support CSV directly
+   * Fallback workaround when x2t does not support CSV directly
    */
   private async convertCsvToXlsx(csvData: Uint8Array, fileName: string): Promise<File> {
     try {
@@ -299,15 +332,20 @@ export class X2TConverter {
       const arrayBuffer = await file.arrayBuffer();
       const data = new Uint8Array(arrayBuffer);
 
-      // Handle CSV files - x2t may not support them directly, so convert to XLSX first
+      // Handle CSV files — try native x2t CSV first (9.3 support), fall back to SheetJS
       if (fileExt.toLowerCase() === 'csv') {
         if (data.length === 0) {
           throw new Error('CSV file is empty');
         }
+
+        // Try native x2t CSV conversion first
+        const csvResult = await this.tryNativeCsvConvert(data, fileName, documentType);
+        if (csvResult) return csvResult;
+
+        // Fall back to SheetJS → XLSX → x2t
         console.log('CSV file detected. Converting to XLSX format...');
         console.log('CSV file size:', data.length, 'bytes');
 
-        // Convert CSV to XLSX first
         try {
           const xlsxFile = await this.convertCsvToXlsx(data, fileName);
           console.log('CSV converted to XLSX, now converting with x2t...');
