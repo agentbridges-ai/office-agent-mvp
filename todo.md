@@ -38,29 +38,26 @@
   - `main1(char* xmlPath)` → `main(2, argv)`，无错误处理/生命周期/FS 清理
   - 当前 `lib/document-converter.ts` 已处理 JS 侧关注点
 
-### Phase 1: Native x2t 编译验证
+### Phase 1+2 合并: Docker 构建 x2t WASM (进行中)
 
-- [ ] **P1-1**: 在 Linux native 编译 ONLYOFFICE/core v9.3.0.140 的 x2t
-  - 参考: CryptPad Dockerfile 依赖链
-  - 验证: `./x2t /tmp/convert.xml` 对 DOCX→PDF/XLSX→PDF 退出 0
-- [ ] **P1-2**: 验证 x2t XML 参数契约
-  - m_sFileFrom/m_sFileTo/m_nFormatFrom/m_nFormatTo 必填
-  - m_sAllFontsPath/m_sFontDir/m_bDontSaveAdditional 可选
-  - 格式枚举与 OfficeFileFormats.h 一致
+**策略**: CryptPad Dockerfile 的 `fb2file`/`log-symbols` 损坏引用不在 `build→output` 链上，直接 `docker build --target output` 可跳过。28 个库阶段全部在依赖链中。Native 和 WASM 编译共享同一 Dockerfile 前几个阶段。
 
-### Phase 2: WASM 构建
+- [ ] **P12-1**: 执行 `docker build --target output -o build .`
+  - 工作目录: `/tmp/cryptpad-x2t`
+  - 预计耗时: 1-2h (28 个静态库 + Emscripten 链接)
+  - 产物: `x2t.js`, `x2t.wasm`, `x2t.wasm.br`, `x2t.zip`
+- [ ] **P12-2**: 验证 WASM 产物
+  - `_main1`/`ccall`/`FS` 导出确认
+  - x2t.wasm 尺寸与当前 artifact 对比
+  - 替换 `public/wasm/x2t/` 文件
+- [ ] **P12-3**: 重新应用 `locateFile` patch 到自建 x2t.js
+- [ ] **P12-4**: 跑 11-scenario smoke 验证
+- [ ] **P12-5**: 更新 docs 和 gate 中的 hashes
+- [ ] **P12-6**: 验证 x2t XML 参数契约 (m_sFileFrom/To, m_nFormatFrom/To, m_sAllFontsPath/m_sFontDir)
+- [ ] **P12-7**: 格式枚举与 `OfficeFileFormats.h` 交叉验证
 
-- [ ] **P2-1**: 基于 CryptPad Dockerfile 重建 Emscripten 构建
-  - 固定 emsdk 版本并记录
-  - 确认 build_tools 版本 (CryptPad 用 v8.3.0.91 vs core v9.3.0.140 可能有 mismatch)
-  - 编译参数: USE_ICU, ALLOW_MEMORY_GROWTH, Closure Compiler, ERROR_ON_UNDEFINED_SYMBOLS=0
-- [ ] **P2-2**: 验证 WASM 产物
-  - `_main1` 导出、`ccall`、`FS` 可用
-  - x2t.wasm 尺寸对比、Brotli 压缩
-- [ ] **P2-3**: 替换当前 CryptPad artifact 为自建产物
-  - 更新 `public/wasm/x2t/` 文件
-  - `locateFile` patch 重新应用
-  - 更新 docs 和 gate 中的 hashes
+### 原 Phase 1: Native x2t (已合并到 P12 — Docker 容器内验证)
+### 原 Phase 2: WASM 构建 (已合并到 P12)
 
 ### Phase 3: API Wrapper 收敛
 
