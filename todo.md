@@ -42,7 +42,10 @@
 
 **策略**: CryptPad Dockerfile 的 `fb2file`/`log-symbols` 损坏引用不在 `build→output` 链上，直接 `docker build --target output` 可跳过。28 个库阶段全部在依赖链中。Native 和 WASM 编译共享同一 Dockerfile 前几个阶段。
 
-- [~] **P12-1**: 执行 `docker build --target output -o build .` — 构建中 (mirror `docker.1ms.run` 就绪，ubuntu:22.04 pull OK)
+- [~] **P12-1**: 执行 `docker build --target output -o build .` — 构建中 (#168 openssl 阶段)
+  - 修复: Dockerfile 用预构建 `emscripten/emsdk:4.0.11` 替代 git clone + `./emsdk install`
+  - mirror `docker.1ms.run` 就绪; ubuntu:22.04 + emsdk 镜像成功拉取
+  - 现场: /tmp/docker-build.log 696KB, 28 库阶段进行中
   - 工作目录: `/tmp/cryptpad-x2t`
   - 预计耗时: 1-2h (28 个静态库 + Emscripten 链接)
   - 产物: `x2t.js`, `x2t.wasm`, `x2t.wasm.br`, `x2t.zip`
