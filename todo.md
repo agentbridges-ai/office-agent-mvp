@@ -31,14 +31,12 @@
 - [x] **P0-2**: 提取 CryptPad 构建依赖清单 → 已内嵌在 `docs/cryptpad-delta.md` 的 Dependency Chain 节
   - emsdk 4.0.11, build_tools v8.3.0.91, Ubuntu 22.04, qmake6
   - 21 个依赖库逐阶段构建
-- [ ] **P0-3**: 审查 CryptPad 裁剪决策
-  - doctrenderer/docbuilder 空实现 — 影响哪些功能?
-  - sed 修改 .pri 文件 — 跳过哪些编译单元?
-  - 产物: `docs/cryptpad-trim-impact.md`
-- [ ] **P0-4**: 审查 wrap-main.cpp
-  - `_main1` 签名: `int main1(char* xmlPath)` → `return main(2, argv)`
-  - 参数生命周期、异常捕获、返回码传递、FS 清理、并发安全性
-  - 产物: `docs/wrap-main-review.md`
+- [x] **P0-3**: 审查 CryptPad 裁剪决策 → `docs/cryptpad-delta.md` Critical Findings #6-#7
+  - Fb2File/OFDFile 从 link deps 中移除 — 这两个格式在 WASM artifact 中不可用
+  - Dockerfile 中 3 个 sed 修改 (isatty/duplicate freetype/duplicate zlib) 都是防重复符号
+- [x] **P0-4**: 审查 wrap-main.cpp → `docs/cryptpad-delta.md` Critical Findings #5
+  - `main1(char* xmlPath)` → `main(2, argv)`，无错误处理/生命周期/FS 清理
+  - 当前 `lib/document-converter.ts` 已处理 JS 侧关注点
 
 ### Phase 1: Native x2t 编译验证
 

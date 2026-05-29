@@ -108,3 +108,10 @@ From CryptPad Dockerfile (`/tmp/cryptpad-x2t/Dockerfile`):
 4. **Native reference version**: CryptPad Dockerfile uses `onlyoffice/documentserver:8.3.3` as the native reference for testing — this is a full major version behind the 9.3 wasm! This means native-vs-wasm comparisons in CryptPad's test suite are against a different reference engine.
 
 5. **wrap-main.cpp**: Trivially wraps `main(int, char**)` as `main1(char*)`. No error handling, no lifecycle management, no FS cleanup. Our existing `lib/document-converter.ts` already handles the JS-side concerns (sanitization, path construction, timeout).
+
+6. **Fb2File and OFDFile removed from link dependencies**: CryptPad's `X2tConverter.pri` removes `Fb2File` and `OFDFile` from the `ADD_DEPENDENCY` line. This means the current CryptPad x2t artifact does NOT support FictionBook (FB2) or OFD format conversion. Any format table entries for these formats (FB2=73, OFD=522) will fail at runtime with undefined symbol errors if conversion is attempted. Re-enabling these requires re-linking the WASM with the missing libs.
+
+7. **Dockerfile sed modifications**: Three sed commands in the build pipeline prevent duplicate symbols:
+   - `isatty(...)` → `0` — disables terminal detection (no terminal in WASM)
+   - Remove `.cpp` from CssCalculator — avoids duplicate freetype compilation
+   - Remove `.c` from freetype — avoids duplicate zlib symbols
