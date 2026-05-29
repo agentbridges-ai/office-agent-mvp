@@ -1,3 +1,5 @@
+// Default full matrix: new-docx,new-xlsx,new-pptx,open-docx,open-xlsx,open-pptx,open-csv,
+//   input-save-docx,input-save-xlsx,input-save-pptx,pdf-block-docx
 import { rmSync } from 'node:fs';
 import { parseArgs } from './onlyoffice-smoke/config.mjs';
 import { startSampleServer } from './onlyoffice-smoke/samples.mjs';

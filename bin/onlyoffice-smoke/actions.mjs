@@ -54,8 +54,9 @@ export async function runInputSaveAction(page, scenario, timeoutMs, state) {
     true,
   );
 
+  const expectedExt = scenario.ext || '.docx';
   const events = await waitFor(
-    () => (isDocxSaveComplete(state.events) ? state.events : false),
+    () => (isLocalSaveComplete(state.events, expectedExt) ? state.events : false),
     { timeoutMs: Math.min(timeoutMs, 60_000), message: `${scenario.name}: save/download completion was not observed` },
   );
 
@@ -111,10 +112,10 @@ export async function runPdfBlockAction(page, scenario, timeoutMs, state) {
   return { pdfBlocked: true, selectedEvents: summarizeSelectedEvents(events) };
 }
 
-function isDocxSaveComplete(events) {
+function isLocalSaveComplete(events, ext) {
   return (
     events.some((event) => event.type === 'frame:event' && event.event === 'onlyofficeLocalDownloadBridge') &&
-    events.some((event) => event.type === 'download:anchor' && String(event.download || '').endsWith('.docx')) &&
+    events.some((event) => event.type === 'download:anchor' && String(event.download || '').endsWith(ext)) &&
     events.some((event) => event.type === 'frame:downloadCallback' && event.status === 'ok') &&
     events.some((event) => event.type === 'frame:sdkCallback' && event.name === 'asc_onEndAction')
   );

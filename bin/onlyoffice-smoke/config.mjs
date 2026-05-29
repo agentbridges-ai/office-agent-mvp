@@ -45,6 +45,20 @@ export const DEFAULT_SCENARIOS = [
     fileName: 'generated-smoke.csv',
     expectDocumentReady: true,
   },
+  {
+    name: 'input-save-xlsx',
+    kind: 'new',
+    ext: '.xlsx',
+    expectDocumentReady: true,
+    action: 'input-save',
+  },
+  {
+    name: 'input-save-pptx',
+    kind: 'new',
+    ext: '.pptx',
+    expectDocumentReady: true,
+    action: 'input-save',
+  },
   { name: 'new-pptx', kind: 'new', ext: '.pptx', expectDocumentReady: true },
   {
     name: 'open-pptx',
