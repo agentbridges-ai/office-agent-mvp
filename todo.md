@@ -38,23 +38,20 @@
   - `main1(char* xmlPath)` → `main(2, argv)`，无错误处理/生命周期/FS 清理
   - 当前 `lib/document-converter.ts` 已处理 JS 侧关注点
 
-### Phase 1+2 合并: Docker 构建 x2t WASM (进行中)
+### Phase 1+2 合并: Docker 构建 x2t WASM [x] `b9c442b6`
 
 **策略**: CryptPad Dockerfile 的 `fb2file`/`log-symbols` 损坏引用不在 `build→output` 链上，直接 `docker build --target output` 可跳过。28 个库阶段全部在依赖链中。Native 和 WASM 编译共享同一 Dockerfile 前几个阶段。
 
-- [~] **P12-1**: 执行 `docker build --target output -o build .` — 构建中 (#168 openssl 阶段)
+- [x] **P12-1**: 执行 `docker build --target output -o build .` — ✅ 完成 `b9c442b6` (1h10m)
   - 修复: Dockerfile 用预构建 `emscripten/emsdk:4.0.11` 替代 git clone + `./emsdk install`
   - mirror `docker.1ms.run` 就绪; ubuntu:22.04 + emsdk 镜像成功拉取
   - 现场: /tmp/docker-build.log 696KB, 28 库阶段进行中
   - 工作目录: `/tmp/cryptpad-x2t`
   - 预计耗时: 1-2h (28 个静态库 + Emscripten 链接)
   - 产物: `x2t.js`, `x2t.wasm`, `x2t.wasm.br`, `x2t.zip`
-- [ ] **P12-2**: 验证 WASM 产物
-  - `_main1`/`ccall`/`FS` 导出确认
-  - x2t.wasm 尺寸与当前 artifact 对比
-  - 替换 `public/wasm/x2t/` 文件
-- [ ] **P12-3**: 重新应用 `locateFile` patch 到自建 x2t.js
-- [ ] **P12-4**: 跑 11-scenario smoke 验证
+- [x] **P12-2**: 验证 WASM 产物 — bit-identical to CryptPad pre-built, `_main1`/`ccall`/`FS` OK
+- [x] **P12-3**: 重新应用 `locateFile` patch — confirmed applied, no `currentScript.getAttribute`
+- [x] **P12-4**: 跑 11-scenario smoke 验证 — 11/11 PASS, 0 failures
 - [ ] **P12-5**: 更新 docs 和 gate 中的 hashes
 - [ ] **P12-6**: 验证 x2t XML 参数契约 (m_sFileFrom/To, m_nFormatFrom/To, m_sAllFontsPath/m_sFontDir)
 - [ ] **P12-7**: 格式枚举与 `OfficeFileFormats.h` 交叉验证
