@@ -37,8 +37,15 @@ function rejectPathSemanticName(name: string): void {
 function sanitizeBaseName(name: string): string {
   return name
     .replace(/[/?<>\\:*|"]/g, '')
-    .replace(/[\x01-\x1f\x80-\x9f]/g, '')
+    .split('')
+    .filter((char) => !isControlCharacter(char))
+    .join('')
     .replace(/^\.+$/, '')
     .replace(/[&'%!"{}[\]]/g, '')
     .trim();
+}
+
+function isControlCharacter(char: string): boolean {
+  const code = char.charCodeAt(0);
+  return (code >= 1 && code <= 31) || (code >= 128 && code <= 159);
 }

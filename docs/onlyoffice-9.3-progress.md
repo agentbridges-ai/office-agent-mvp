@@ -22,8 +22,8 @@ Older plans under `docs/superpowers/plans/2026-05-20-*` and `docs/superpowers/pl
 | Editor runtime | `complete` | Full 9.3.1 `web-apps`/`sdkjs` resources present. Risk gate aligned. |
 | Adapter bridge | `complete` | T7c/Iid/zWc save bridges smoke-verified. Bridge contract gate PASS. |
 | x2t WASM | `complete` | CryptPad 9.3.0+0 applied with local locateFile patch. 11/11 smoke PASS. |
-| Format table | `complete` | 11 missing 9.3 IDs added. Format table gate PASS. |
-| FS sandbox | `complete` | sanitizeFileName hardened. FS sandbox gate PASS. |
+| Format table | `complete` | Required 9.3 IDs added. Format table gate PASS. |
+| FS sandbox | `complete` | `sanitizeX2TFileName` helper added. Static sandbox and behavior gates PASS. |
 
 ## Completed Checklist
 
@@ -53,10 +53,13 @@ Older plans under `docs/superpowers/plans/2026-05-20-*` and `docs/superpowers/pl
 
 ## Remaining
 
-None. All planned tasks complete.
+None for the browser-local 9.3 adaptation scope. Residual quality and rebuild risks are tracked as known claim boundaries below.
 
 ## Known Claim Boundaries
 
 - XLSX/PPTX save smoke verifies the **download bridge** (Iid/zWc interception → callback ok), not end-to-end content editing persistence. The input step is skipped for non-docx editors because Cell/Slide use different input APIs than `asc_AddText`.
 - x2t.wasm and x2t.wasm.br are unmodified CryptPad v9.3.0+0 artifacts. x2t.js is based on CryptPad artifact with a local `locateFile` patch (removed `document.currentScript` URL parsing that fails in `scriptOnLoad` context).
 - PDF export remains blocked: x2t WASM produces 0-page PDFs; requires server-side conversion.
+- Format table coverage means the required 9.3 IDs are present in `lib/file-types.ts`; it does not claim every upstream format is product-exposed or conversion-quality verified.
+- FS sandbox coverage means filename/path semantics are rejected before writing under `/working`; it does not claim malicious archive or zip-slip payload coverage.
+- The project does not yet own a reproducible x2t source-build pipeline independent of CryptPad artifacts.

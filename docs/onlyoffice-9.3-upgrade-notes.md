@@ -6,7 +6,7 @@ This document records the current factual state of the 9.3 adaptation. The execu
 
 - `docs/superpowers/plans/2026-05-29-onlyoffice-9.3-full-adaptation.md`
 
-The target is not merely version strings. The target is a browser-local 9.3 editor runtime with working DOCX/XLSX/PPTX/CSV open and save paths, using a 9.3-aligned x2t WASM converter.
+The target is not merely version strings. The target is a browser-local 9.3 editor runtime with working DOCX/XLSX/PPTX/CSV open paths and DOCX/XLSX/PPTX save bridge paths, using a 9.3-aligned x2t WASM converter.
 
 ## Provenance
 
@@ -97,6 +97,10 @@ CryptPad tag `v9.3.0+0` (commit `96886ff`). Upstream `ONLYOFFICE/core v9.3.0.140
 | `bin/check_onlyoffice_9_3_risks.mjs` | PASS | Aligned to full-vendor + PPTX + x2t 9.3 target |
 | Browser smoke (11 scenarios) | PASS | 11/11 PASS, 0 failures, 0 exceptions |
 | x2t 9.3 WASM | PASS | CryptPad v9.3.0+0 applied with local locateFile patch |
+| `bin/check_onlyoffice_format_table.mjs` | PASS | Checks the required 9.3 ID set; not a full generated upstream format table |
+| `bin/check_x2t_fs_sandbox.mjs` | PASS | Static gate for x2t path helper wiring and `/working/params.xml` constraints |
+| `bin/check_x2t_path_behavior.mjs` | PASS | Behavior gate for traversal, absolute path, protocol, drive prefix, and NUL rejection |
+| `bin/check_onlyoffice_9_3_docs_consistency.mjs` | PASS | Checks current x2t artifact sizes/hashes and rejects stale adaptation status text |
 
 ## Current Claims
 
@@ -115,16 +119,22 @@ Not yet claimed:
 - XLSX/PPTX content editing persistence (save smoke skips input for non-docx editors).
 - x2t WASM is independently rebuildable from ONLYOFFICE/core source.
 - Conversion quality (format fidelity, text extraction, visual layout, font rendering).
+- Large-file, concurrency, password-protected document, CJK/RTL visual regression, and performance boundaries.
+- CSV save through native x2t. CSV still uses the SheetJS workaround path.
 
-## Required Fresh Verification
+## Required Fresh Verification Before Final Claim
 
-After implementing the new plan, run:
+After any code, artifact, or gate change, run:
 
 ```bash
-pnpm run lint:ts
-pnpm run build
 node bin/check_onlyoffice_bridge_contract.mjs --root .
 node bin/check_onlyoffice_9_3_risks.mjs --root .
+node bin/check_onlyoffice_format_table.mjs --root .
+node bin/check_x2t_fs_sandbox.mjs --root .
+node bin/check_x2t_path_behavior.mjs --root .
+node bin/check_onlyoffice_9_3_docs_consistency.mjs --root .
+pnpm run lint:ts
+pnpm run build
 node bin/smoke_onlyoffice_9_3_browser.mjs --chrome /snap/bin/chromium --timeout-ms 240000
 ```
 

@@ -30,7 +30,7 @@ index.ts / lib/converter.ts
 | x2t converter | CryptPad 9.3.0+0 with local locateFile patch | Applied. 11/11 smoke PASS. |
 | Format mapping | 9.3 required IDs added, format table gate active | Applied. Gate PASS. |
 | WASM FS | sanitizeX2TFileName helper, sandbox gate + behavior gate | Applied. Gates PASS. |
-| Verification | 6 gates + tsc + build + 11/11 smoke | Applied. All PASS. |
+| Verification | Static gates + lint/build + 11/11 smoke | Applied. Must be rerun after any code, artifact, or gate change. |
 
 ## Frozen Boundaries
 
@@ -42,23 +42,23 @@ Frozen:
 - No fake success callback, swallowed conversion error, or silent fallback.
 - No 9.4 resources.
 
-Unfrozen for this plan:
+Touched by the closed 9.3 adaptation plan:
 
-- `lib/document-converter.ts`, because x2t path creation, XML fields, and FS sandbox are part of the remaining target.
-- `lib/file-types.ts`, because 9.3 format IDs must not stay as an unverified hard-coded subset.
-- `bin/onlyoffice-smoke/**`, because save coverage must expand to XLSX/PPTX.
-- `bin/check_onlyoffice_9_3_risks.mjs`, because the old minimal-vendor assumptions are now wrong.
+- `lib/document-converter.ts`, because x2t path creation and FS sandbox behavior are adaptation-owned.
+- `lib/file-types.ts`, because required 9.3 format IDs are adaptation-owned.
+- `bin/onlyoffice-smoke/**`, because save coverage expanded to XLSX/PPTX.
+- `bin/check_onlyoffice_9_3_risks.mjs`, because the old minimal-vendor assumptions became incorrect.
 
 ## Data Plane Risks
 
 | Flow | Current risk | Required sensor |
 | --- | --- | --- |
-| DOCX/XLSX/PPTX/CSV open | New x2t may produce incompatible editor bin | Browser smoke must assert document ready after x2t conversion. |
-| DOCX save | Word path exists but must be retested after x2t swap | `input-save-docx` with callback and download assertions. |
-| XLSX save | `AscCommon.Iid` not installed | `input-save-xlsx` must fail before fix and pass after fix. |
-| PPTX save | `AscCommon.zWc` not installed | `input-save-pptx` must fail before fix and pass after fix. |
-| PDF export block | New x2t may change PDF output behavior | `pdf-block-docx` must still reject invalid/server-dependent PDF export visibly. |
-| CSV path | Current SheetJS workaround may mask 9.3 x2t CSV behavior | Smoke must verify open and save behavior without fake success. |
+| DOCX/XLSX/PPTX/CSV open | x2t may produce incompatible editor bin | Browser smoke asserts document ready after x2t conversion. |
+| DOCX save | Word bridge can drift with SDK internals | `input-save-docx` asserts callback and `.docx` download. |
+| XLSX save | Cell bridge can drift with SDK internals | `input-save-xlsx` asserts callback and `.xlsx` download. |
+| PPTX save | Slide bridge can drift with SDK internals | `input-save-pptx` asserts callback and `.pptx` download. |
+| PDF export block | x2t may change PDF output behavior | `pdf-block-docx` rejects invalid/server-dependent PDF export visibly. |
+| CSV path | SheetJS workaround may mask native x2t CSV behavior | Smoke verifies CSV open; native x2t CSV save is not claimed. |
 
 ## Complexity Transfer Ledger
 
@@ -67,8 +67,8 @@ Unfrozen for this plan:
 | Unclear x2t version | Artifact provenance + hash docs | Reproducible converter baseline | Must maintain separate x2t source notes |
 | Minified save internals | `lib/onlyoffice-compat/save.ts` hook table | One patch surface for Word/Cell/Slide | Future SDK updates need shim audit |
 | Full vendor resource breadth | Risk gate allowlist with evidence | Full runtime completeness | Gate must distinguish intended full vendor from accidental drift |
-| Format ID drift | Generated/checked format table | 9.3 format coverage is visible | Adds generator/check script maintenance |
-| Browser FS path assumptions | Sandbox helper/gate | Prevents traversal and hidden host/URL paths | Requires tests for path rejection |
+| Format ID drift | Required-ID format gate | Required 9.3 ID coverage is visible | Does not prove full upstream format support |
+| Browser FS path assumptions | Sandbox helper + static/behavior gates | Prevents traversal and hidden host/URL paths | Does not cover malicious archive extraction |
 
 ## Verification Layers
 
@@ -79,8 +79,8 @@ Unfrozen for this plan:
 - `main1`, `ccall`, and `FS` exports.
 - Save bridge hook table includes `T7c`, `Iid`, `zWc`.
 - Risk and bridge gates.
-- Format table generation/check.
-- WASM FS sandbox tests/gates.
+- Required-ID format table check.
+- WASM FS static and behavior gates.
 
 ### L1 Build
 
