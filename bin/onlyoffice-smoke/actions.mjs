@@ -46,7 +46,37 @@ export async function runInputSaveAction(page, scenario, timeoutMs, state) {
           })()`,
           true,
         ).catch(() => false),
-      { timeoutMs: Math.min(timeoutMs, 20_000), message: `${scenario.name}: document did not become saveable after input` },
+      { timeoutMs: Math.min(timeoutMs, 20_000), message: `${scenario.name}: document did not become saveable` },
+    );
+  } else if (ext === '.xlsx') {
+    await evaluate(page,
+      `(() => {
+        const frame = document.querySelector('iframe[name="frameEditor"]').contentWindow;
+        const api = (frame.Asc && frame.Asc.editor) || frame.editor;
+        if (!api) throw new Error('editor API unavailable');
+        if (typeof api.asc_setCellInfo === 'function') {
+          api.asc_setCellInfo({row: 0, col: 0, value: 'Hello 9.3'});
+        } else if (typeof api.asc_editCell === 'function') {
+          api.asc_editCell(0, 0, 'Hello 9.3');
+        } else {
+          throw new Error('no XLSX edit API found (tried asc_setCellInfo, asc_editCell)');
+        }
+      })()`,
+      true,
+    );
+  } else if (ext === '.pptx') {
+    await evaluate(page,
+      `(() => {
+        const frame = document.querySelector('iframe[name="frameEditor"]').contentWindow;
+        const api = (frame.Asc && frame.Asc.editor) || frame.editor;
+        if (!api) throw new Error('editor API unavailable');
+        if (typeof api.asc_AddText === 'function') {
+          api.asc_AddText('Hello 9.3');
+        } else {
+          throw new Error('asc_AddText unavailable for PPTX');
+        }
+      })()`,
+      true,
     );
   }
 
@@ -81,7 +111,7 @@ export async function runInputSaveAction(page, scenario, timeoutMs, state) {
     { timeoutMs: Math.min(timeoutMs, 60_000), message: `${scenario.name}: save/download completion was not observed` },
   );
 
-  const hadInput = ext === '.docx';
+  const hadInput = ext === '.docx' || ext === '.xlsx' || ext === '.pptx';
   return { modified: hadInput, saveCompleted: true, selectedEvents: summarizeSelectedEvents(events) };
 }
 
