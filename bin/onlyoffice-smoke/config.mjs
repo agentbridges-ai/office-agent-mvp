@@ -74,6 +74,13 @@ export const DEFAULT_SCENARIOS = [
     fileName: 'generated-smoke-password.docx',
     expectDocumentReady: false,
   },
+  {
+    name: 'open-large-docx',
+    kind: 'generated',
+    ext: '.large.docx',
+    fileName: 'generated-smoke-large.docx',
+    expectDocumentReady: true,
+  },
 ];
 
 export function parseArgs(argv) {
