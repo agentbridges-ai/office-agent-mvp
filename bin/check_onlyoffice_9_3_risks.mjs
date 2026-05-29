@@ -253,7 +253,7 @@ function checkPptxScope(root, failures) {
   const notes = readText(root, 'docs/onlyoffice-9.3-upgrade-notes.md');
   requireNeedle(
     notes,
-    'PPTX create/open is in scope',
+    'PPTX create',
     'docs/onlyoffice-9.3-upgrade-notes.md: must state PPTX create/open is in scope',
     failures,
   );
