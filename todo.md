@@ -64,36 +64,39 @@
 - [x] **P3-1**: 设计受控 `X2TConvertOptions` / `X2TConvertResult` 接口 → `lib/x2t-api.ts` (`bc01dbdf`)
   - `initX2T(options?)` + `convertLocal(request)` — 无裸 FS/ccall 暴露
   - 支持: password/codePage/delimiter/formatFrom/formatTo/fontsManifestPath/fontsDir
-- [ ] **P3-2**: 将现有调用链路迁移到 x2t-api.ts — defer: 旧 API 仍可用, 迁移不影响功能, 低优先级
-- [x] **P3-3**: 更新 gate → `bin/check_x2t_api_boundary.mjs` — 验证 x2t-api 导出、路径控制、边界文件无裸 FS/ccall
+- [ ] **P3-2**: API 迁移 (低优先级: 旧 API 已验证 11/11 smoke, 不影响功能)
+- [x] **P3-3**: 更新 gate → `bin/check_x2t_api_boundary.mjs`
 
-### Phase 4: 字体管线重建
+### Phase 4: 字体管线重建 (Docker 已就绪, 等网络恢复后执行)
 
-- [ ] **P4-1**: 9.3 同源字体 manifest — defer: 需 x2t native binary 执行 `-create-allfonts`, 当前 smoke 无字体回归需求
-  - 不复用 7.x AllFonts.js
-  - 产物: `AllFonts.js` + `manifest.json` + `hash-lock.json`
-- [ ] **P4-2/P4-3**: 字体分层打包+验证 — defer: 依赖 P4-1, 当前 AllFonts.js smoke-verified
+**方案**: Nextcloud `allfontsgen` 工具 ([CryptPad Forum](https://forum.cryptpad.org/d/2394-adding-custom-fonts/8))
 
-### Phase 5: 测试矩阵扩展
+Dockerfile: `/tmp/allfontsgen-docker/Dockerfile`
 
-- [x] **P5-1/P5-2**: XLSX/PPTX 内容编辑 smoke → `839f3c82`
-  - XLSX: `frame.Api.GetActiveSheet().GetRange("A1").SetValue(...)` via iframe-scoped Api
-  - PPTX: `frame.Api.GetPresentation().CreateShape() + paragraph.AddText(...)` via iframe-scoped Api
-  - save bridge verified (Iid 257/zWc 129, callback ok, download anchor)
-- [ ] **P5-3~P5-7**: 扩展测试矩阵 (密码/大文件/CSV native/保真度/并发) — defer: 当前 11-smoke 覆盖核心路径, 扩展测试为非阻塞项
+```bash
+# 1. 构建 allfontsgen
+cd /tmp/allfontsgen-docker && docker build -t allfontsgen .
 
-### Phase 6: 文档与 Provenance
+# 2. 从 TTF 字体生成 manifest
+docker run --rm -v $(pwd)/public/fonts:/fonts -v $(pwd)/out:/out allfontsgen \
+  --input="/fonts" \
+  --allfonts-web="/out/AllFonts.js" \
+  --images="/out/Images" \
+  --output-web="/out/fonts" \
+  --selection="/out/font_selection.bin"
 
-- [x] **P6-1**: 构建 provenance 记录 → `docs/x2t-build-provenance.md`
-- [x] **P6-2**: docs 更新: `x2t-build-provenance.md` (rebuild recipe, bit-identical verification, known trim)
-- [ ] **P6-3**: PR #4 后续 PR: "x2t 自主构建能力" → 等当前 PR #4 合并后跟进
+# 3. 修复路径 + 复制产物
+#    AllFonts.js → public/sdkjs/common/AllFonts.js
+#    Images/* → public/sdkjs/common/Images/
+#    fonts/*  → public/fonts/
+```
 
----
+- [ ] **P4-1**: 构建 allfontsgen Docker 镜像
+- [ ] **P4-2**: 生成 9.3 字体 manifest (AllFonts.js + selection.bin + thumbnails)
+- [ ] **P4-3**: 替换 public/sdkjs/common/AllFonts.js 并 smoke 验证
 
-## 已确认的非声明边界 (不进入 todo)
+### Phase 5+6: 后续待办 (非阻塞, 核心路径已覆盖)
 
-- 格式保真度视觉回归 (PDF/PNG bitwise 对比)
-- CJK/RTL/字体 fallback 完整回归
-- 多用户协同编辑
-- DocumentServer /converter /command API 兼容层
-- 灰度路由和回滚机制
+- [ ] **P5-3**: 密码保护文档 smoke (x2t-api.ts 已支持 m_sPassword, 需 P3-2 迁移后可用)
+- [ ] **P5-4~P5-7**: 大文件/CSV native/保真度/并发 smoke
+- [ ] **P6-3**: PR #4 合并后的跟进 PR
