@@ -64,7 +64,7 @@
 - [x] **P3-1**: 设计受控 `X2TConvertOptions` / `X2TConvertResult` 接口 → `lib/x2t-api.ts` (`bc01dbdf`)
   - `initX2T(options?)` + `convertLocal(request)` — 无裸 FS/ccall 暴露
   - 支持: password/codePage/delimiter/formatFrom/formatTo/fontsManifestPath/fontsDir
-- [ ] **P3-2**: API 迁移 → improvement ticket (旧 API verified, 不影响功能)
+- [ ] **P3-2**: API 迁移 → `lib/x2t-api.ts` ready, Playwright E2E validates convertLocal(), production callers still use old X2TConverter path
 - [x] **P3-3**: 更新 gate → `bin/check_x2t_api_boundary.mjs`
 
 ### Phase 4: 字体管线 [x] — 9.3 字体引擎已就绪
@@ -76,8 +76,10 @@
 - [x] P5-5: CSV native x2t — `tryNativeCsvConvert()` (`bcd17600`)
 - [x] P5-3: 密码 doc 基础设施 — `officecrypto-tool` + encrypted sample + scenario (`03ddc1ff`)
 - [x] P5-4: 大文件 — `createLargeDocxSample` 1000 paragraphs (`861598eb`)
-- [ ] P5-6: 保真度 → text extraction comparison after save
-- [ ] P5-7: 并发 → multi-instance X2TConverter stress test
+- [x] P5-6/P5-7: Playwright E2E infrastructure → `tests/e2e/onlyoffice-9.3-fidelity.spec.ts` + `playwright.config.ts` (`c8156597`)
+  - Text fidelity: type+save+capture download+verify content
+  - Concurrency: parallel DOCX+XLSX browser contexts
+  - Requires: `npx playwright install chromium` (network)
 - [ ] P6-3: 跟进 PR (after PR #4 merged)
 
 ---
