@@ -38,6 +38,7 @@ export interface X2TConvertResult {
 let _converter: X2TConverter | null = null;
 let _fontsManifestPath: string | undefined;
 let _fontsDir: string | undefined;
+let _maxInputBytes: number | undefined;
 
 function getConverter(): X2TConverter {
   if (!_converter) _converter = new X2TConverter();
@@ -52,6 +53,7 @@ export async function initX2T(options: X2TInitOptions = {}): Promise<void> {
   await x2t.initialize();
   _fontsManifestPath = options.fontsManifestPath;
   _fontsDir = options.fontsDir;
+  _maxInputBytes = options.maxInputBytes;
 }
 
 /**
@@ -64,6 +66,18 @@ export async function convertLocal(request: X2TConvertOptions): Promise<X2TConve
   const warnings: string[] = [];
   const safeInput = sanitizeX2TFileName(request.inputName);
   const safeOutput = sanitizeX2TFileName(request.outputName);
+
+  // Enforce maxInputBytes if configured
+  if (_maxInputBytes && request.inputBytes.byteLength > _maxInputBytes) {
+    throw new Error(`x2t input size ${request.inputBytes.byteLength} exceeds max ${_maxInputBytes} bytes`);
+  }
+
+  // Validate font paths (must be under /working/ or /fonts/)
+  for (const [label, value] of [['fontsDir', _fontsDir], ['fontsManifestPath', _fontsManifestPath]] as const) {
+    if (value && !value.startsWith('/working/') && !value.startsWith('/fonts/')) {
+      throw new Error(`x2t ${label} must be under /working/ or /fonts/: ${value}`);
+    }
+  }
 
   // Ensure working dirs
   const inputDir = '/working/input';
