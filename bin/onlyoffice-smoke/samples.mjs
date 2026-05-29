@@ -7,6 +7,7 @@ function createGeneratedSamples() {
     ['.xlsx', createXlsxSample()],
     ['.pptx', createPptxSample()],
     ['.csv', Buffer.from('Name,Value\nOnlyOffice 9.3,中文输入\n', 'utf8')],
+    ['.protected.docx', createPasswordProtectedDocx()],
   ]);
 }
 
@@ -54,6 +55,19 @@ export function startSampleServer(scenarios) {
       resolve({ server, files, baseUrl: `http://127.0.0.1:${address.port}` });
     });
   });
+}
+
+const SMOKE_PASSWORD = 'onlyoffice-9.3-test';
+
+function createPasswordProtectedDocx() {
+  try {
+    const { encrypt } = require('officecrypto-tool');
+    const plain = createDocxSample();
+    return encrypt(plain, { password: SMOKE_PASSWORD });
+  } catch {
+    // officecrypto-tool not available — return plain doc as fallback
+    return createDocxSample();
+  }
 }
 
 function contentType(filePath) {
