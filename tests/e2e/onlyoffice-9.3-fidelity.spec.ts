@@ -1,7 +1,13 @@
 // @ts-nocheck — Playwright E2E test, Vite module resolution in browser
 import { test, expect } from '@playwright/test';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  DOWNLOAD_CAPTURE_SCRIPT,
+  createEvidence,
+  recordConsoleAndPageErrors,
+  recordRequestFailures,
+  waitForOnlyOfficeShell,
+  waitForEditorReady,
+} from './helpers/onlyoffice';
 
 const BASE_URL = process.env.APP_URL || 'http://127.0.0.1:5173';
 
@@ -12,43 +18,23 @@ test.use({
 });
 
 test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
-  test('new-docx type and save — capture download content', async ({ page }) => {
-    test.setTimeout(360000); // 6min for WASM cold start
-    const downloads: { filename: string; data: Buffer }[] = [];
-    page.on('download', async (download) => {
-      downloads.push({
-        filename: download.suggestedFilename(),
-        data: await download.bodyAsBuffer(),
-      });
-      await download.cancel();
-    });
+  test('new-docx type and save — capture download via __ooDownloads hook', async ({ page }) => {
+    test.setTimeout(360_000);
 
-    await page.goto(BASE_URL, { timeout: 300000 });
-    await page.waitForFunction(() => (window as any).onCreateNew, {}, { timeout: 120000 });
+    // Inject download capture hook before page load
+    await page.addInitScript(DOWNLOAD_CAPTURE_SCRIPT);
+
+    const evidence = createEvidence();
+    recordConsoleAndPageErrors(page, evidence);
+    recordRequestFailures(page, evidence);
+
+    await page.goto(BASE_URL, { timeout: 300_000 });
+    await waitForOnlyOfficeShell(page);
     await page.evaluate(() => (window as any).onCreateNew('.docx'));
 
-    // Wait for editor iframe and document ready
-    await page.waitForSelector('iframe[name="frameEditor"]', { timeout: 60000 });
-    await page.waitForFunction(
-      () => !!(window as any).editor,
-      {},
-      { timeout: 60000 },
-    );
-    // Wait for document to be ready (editor may need time to load)
-    await page.waitForTimeout(3000);
-    await page.waitForFunction(
-      () => {
-        try {
-          const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement)?.contentWindow!;
-          const api = (frame as any).Asc?.editor || (frame as any).editor;
-          return api && typeof api.asc_AddText === 'function';
-        } catch { return false; }
-      },
-      {},
-      { timeout: 120000 },
-    );
+    await waitForEditorReady(page, 'word');
 
-    // Use editor API to type text (more reliable than canvas click)
+    // Type text via editor API
     await page.evaluate(() => {
       const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement).contentWindow!;
       const api = (frame as any).Asc?.editor || (frame as any).editor;
@@ -65,17 +51,91 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
       if (api && typeof api.asc_Save === 'function') api.asc_Save(false);
     });
 
-    // Wait for download (save bridge may take a few seconds)
-    await page.waitForTimeout(8000);
+    // Wait for download via __ooDownloads hook (poll, not fixed sleep)
+    await page.waitForFunction(
+      () => (window as any).__ooDownloads?.length > 0,
+      {},
+      { timeout: 30_000 },
+    );
+
+    const downloads: Array<{ filename: string; size: number }> = await page.evaluate(
+      () => (window as any).__ooDownloads,
+    );
     expect(downloads.length).toBeGreaterThan(0);
+
     const docxDownload = downloads.find((d) => d.filename.endsWith('.docx'));
     expect(docxDownload).toBeDefined();
-    console.log(`Downloaded: ${docxDownload!.filename} (${docxDownload!.data.length} bytes)`);
-    expect(docxDownload!.data.length).toBeGreaterThan(1000);
+    console.log(`Downloaded: ${docxDownload!.filename} (${docxDownload!.size} bytes)`);
+    expect(docxDownload!.size).toBeGreaterThan(1000);
+  });
+
+  test('convertLocal real conversion — TXT to DOCX via x2t-api.ts wrapper', async ({ page }) => {
+    test.setTimeout(360_000);
+
+    await page.goto(BASE_URL, { timeout: 300_000 });
+    await waitForOnlyOfficeShell(page);
+
+    const result = await page.evaluate(async () => {
+      try {
+        const { initX2T, convertLocal } = await import('/lib/x2t-api.ts');
+        await initX2T();
+
+        const inputBytes = new TextEncoder().encode('ONLYOFFICE 9.3 E2E x2t-api.ts wrapper test');
+        const output = await convertLocal({
+          inputName: 'e2e-test.txt',
+          inputBytes,
+          outputName: 'e2e-test.docx',
+          formatTo: 65, // DOCX
+        });
+
+        return {
+          ok: true,
+          outputName: output.outputName,
+          outputSize: output.outputBytes.byteLength,
+          warnings: output.warnings,
+        };
+      } catch (e: any) {
+        return { ok: false, error: e.message };
+      }
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.outputName).toBe('e2e-test.docx');
+    expect(result.outputSize).toBeGreaterThan(500);
+    console.log(`convertLocal produced: ${result.outputName} (${result.outputSize} bytes)`);
+  });
+
+  test('convertLocal rejects oversized input', async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await page.goto(BASE_URL, { timeout: 120_000 });
+    await waitForOnlyOfficeShell(page);
+
+    const result = await page.evaluate(async () => {
+      try {
+        const { initX2T, convertLocal } = await import('/lib/x2t-api.ts');
+        await initX2T({ maxInputBytes: 10 });
+
+        const bigInput = new Uint8Array(100);
+        await convertLocal({
+          inputName: 'big.txt',
+          inputBytes: bigInput,
+          outputName: 'big.docx',
+          formatTo: 65,
+        });
+        return { ok: true, rejected: false };
+      } catch (e: any) {
+        return { ok: false, rejected: true, error: e.message };
+      }
+    });
+
+    expect(result.rejected).toBe(true);
+    expect(result.error).toContain('exceeds max');
   });
 
   test('concurrent open — DOCX and XLSX in parallel contexts', async ({ browser }) => {
-    test.setTimeout(360000);
+    test.setTimeout(360_000);
+
     const docxContext = await browser.newContext();
     const xlsxContext = await browser.newContext();
     const [docxPage, xlsxPage] = await Promise.all([
@@ -83,15 +143,15 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
       xlsxContext.newPage(),
     ]);
 
-    await docxPage.goto(BASE_URL, { timeout: 300000 });
-    await docxPage.waitForFunction(() => (window as any).onCreateNew, {}, { timeout: 120000 });
+    await docxPage.goto(BASE_URL, { timeout: 300_000 });
+    await waitForOnlyOfficeShell(docxPage);
     await docxPage.evaluate(() => (window as any).onCreateNew('.docx'));
-    await docxPage.waitForSelector('iframe[name="frameEditor"]', { timeout: 60000 });
+    await waitForEditorReady(docxPage, 'word');
 
-    await xlsxPage.goto(BASE_URL, { timeout: 300000 });
-    await xlsxPage.waitForFunction(() => (window as any).onCreateNew, {}, { timeout: 120000 });
+    await xlsxPage.goto(BASE_URL, { timeout: 300_000 });
+    await waitForOnlyOfficeShell(xlsxPage);
     await xlsxPage.evaluate(() => (window as any).onCreateNew('.xlsx'));
-    await xlsxPage.waitForSelector('iframe[name="frameEditor"]', { timeout: 60000 });
+    await waitForEditorReady(xlsxPage, 'cell');
 
     const docxHasEditor = await docxPage.evaluate(() => !!(window as any).editor);
     const xlsxHasEditor = await xlsxPage.evaluate(() => !!(window as any).editor);
@@ -102,23 +162,12 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
     await xlsxContext.close();
   });
 
-  test('x2t-api.ts convertLocal through browser', async ({ page }) => {
-    test.setTimeout(360000);
-    await page.goto(BASE_URL, { timeout: 300000 });
-    await page.waitForFunction(() => (window as any).onCreateNew, {}, { timeout: 120000 });
+  test('9.3.1 version check', async ({ page }) => {
+    test.setTimeout(120_000);
 
-    const moduleAvailable = await page.evaluate(async () => {
-      try {
-        const { initX2T } = await import('/lib/x2t-api.ts');
-        await initX2T();
-        return true;
-      } catch (e) {
-        console.error('x2t init failed:', e);
-        return false;
-      }
-    });
+    await page.goto(BASE_URL, { timeout: 120_000 });
+    await waitForOnlyOfficeShell(page);
 
-    expect(moduleAvailable).toBe(true);
     const version = await page.evaluate(() => (window as any).DocsAPI?.DocEditor?.version());
     expect(version).toBe('9.3.1');
   });
