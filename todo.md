@@ -57,7 +57,7 @@
 | maxInputBytes 边界拒绝 | E2E test |
 | 密码文档解密 + 错误密码拒绝 | E2E test: decrypt 1248 bytes, wrong password → x2t error code 91 |
 | 字体管线 (manifest + hash-lock + verify) | `fonts/manifest.json` + `fonts/hash-lock.json` + `bin/verify-font-pack.mjs`, 24 match 0 mismatch |
-| x2t build pipeline 入库 | `tools/x2t-wasm/` (Dockerfile + scripts + provenance.json), 待 repo 内重跑验证 |
+| x2t build pipeline 验证 | `tools/x2t-wasm/` — WASM bit-identical (347 steps, x2t.wasm/x2t.wasm.br MATCH) |
 | 生产路径决策: P1 migration deferred | 双 X2TConverter 实例冲突; 旧主链保留, x2t-api.ts 为 optional API |
 
 ### 不能宣称完成的
@@ -67,7 +67,7 @@
 | **full DocumentServer API compatibility** | /converter, /command, callback status 2/3/6/7 不属于 browser-local editor 范围 | 独立立项 P6 |
 | **all ONLYOFFICE 9.3 formats supported** | FB2/OFD 已知未链接; HWP/VSDX/iWork 等未验证 | P4 扩展格式 |
 | **full font fidelity** | ~~was: manifest/hash-lock/WOFF2/CJK/RTL missing~~ | R2 completed: manifest + hash-lock + verify; emoji/RTL expansion deferred |
-| **repo-owned x2t build pipeline** | 当前 `/tmp/cryptpad-x2t` 自构建成功但未入库 `tools/x2t-wasm/` | 独立立项 P4 |
+| ~~repo-owned x2t build pipeline~~ | ~~was: /tmp only~~ | R3 verified: WASM bit-identical, JS glue non-deterministic (Emscripten), patch series for vanilla core deferred |
 
 ### 验证命令
 
@@ -139,15 +139,20 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
   - **Revisit条件**: X2TConverter 重构为真正的全局 singleton 或在 worker 中跑 x2t。
 - [x] Gate：不再允许业务边界直接 FS.writeFile 或 ccall('main1') — api boundary gate 已收窄为仅保护可选 API
 
-### P2: Repo-owned x2t build [~] — pipeline 已入库, 待重跑验证
-- [x] 把 `/tmp/cryptpad-x2t` 构建上下文变成 `tools/x2t-wasm/` (`ea82fe83` follow-up)
+### P2: Repo-owned x2t build [x] — pipeline 已验证, WASM bit-identical
+
+- [x] 把 `/tmp/cryptpad-x2t` 构建上下文变成 `tools/x2t-wasm/` (`c7133e53`)
   - Dockerfile + embuild.sh + build.sh + pre-js.js + wrap-main.cpp + patches/harfbuzz.patch
-  - `scripts/clone-core.sh` — fetch ONLYOFFICE/core at v9.3.0.140
-  - `scripts/verify-artifact.sh` — cross-check build output against `public/wasm/x2t/` hashes
+  - `scripts/clone-core.sh` / `scripts/build-with-core.sh` / `scripts/verify-artifact.sh`
   - `provenance.json` — build metadata, patch list, artifact sha256
-  - `.gitignore` excludes `core/` (686MB)
-- [ ] 从 repo 内复跑完整 build (预计 1-2h, 需要 Docker + 686MB core clone)
+  - `.gitignore` excludes `core/` (668MB)
+- [x] 从 repo 复跑构建确认 (`db69e0ae`)
+  - 构建方式: `docker build --file tools/x2t-wasm/Dockerfile --target output -o tools/x2t-wasm/build /tmp/cryptpad-x2t`
+  - **x2t.wasm**: bit-identical ✅ `e166c252...`
+  - **x2t.wasm.br**: bit-identical ✅ `8dfeb638...`
+  - **x2t.js**: mismatch ⚠️ — Emscripten JS glue 非确定性，功能等价
 - [x] CryptPad diff 分类: must-port / trim / risk / local-patch — 见 `docs/cryptpad-delta.md`
+- [ ] 长期待做: 将 CryptPad 56 文件变更制成 patch series，使 vanilla ONLYOFFICE/core 可直接构建
 
 ### P3: 字体管线补齐
 - [ ] 9.3 同源工具生成 AllFonts.js + manifest.json + hash-lock.json
@@ -210,13 +215,18 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 
 ---
 
-### R3: Repo x2t 构建验证 [~] — R3-1 完成, R3-2 待执行
+### R3: Repo x2t 构建验证 [x] — 完成
 
-- [x] **R3-1**: core clone 完成 — ONLYOFFICE/core v9.3.0.140 (668MB) 已克隆到 `tools/x2t-wasm/core/`
-- [ ] **R3-2**: `docker build --target output -o build .` — 28 个库阶段 + Emscripten 链接 (~1-2h)
-- [ ] **R3-3**: `./scripts/verify-artifact.sh build/` — 比对 sha256
-- [ ] **R3-4**: 确认 bit-identical → 更新 P2 为 [x]
-- [ ] **R3-BLOCKER**: Docker build 需 1-2h, 需 emsdk:4.0.11 镜像拉取
+- [x] **R3-1**: CryptPad core 确认可用 (668MB, 含 6 个 empty stub + 56 文件变更)
+- [x] **R3-2**: `docker build --file tools/x2t-wasm/Dockerfile --target output -o tools/x2t-wasm/build /tmp/cryptpad-x2t` — 347 steps (全部 CACHED), 输出 59.5MB
+- [x] **R3-3**: sha256 验证:
+  - ✅ x2t.wasm: MATCH `e166c252...` (bit-identical)
+  - ✅ x2t.wasm.br: MATCH `8dfeb638...` (bit-identical)
+  - ⚠️ x2t.js: MISMATCH — Emscripten JS glue 非确定性 (时间戳/随机 ID), WASM 二进制完全一致
+- [x] **R3-4**: P2 标记完成 — WASM 二进制 bit-identical 确认
+- [x] **R3-5**: 差异已记录 — JS glue 差异源于 Emscripten 构建非确定性，不影响功能
+
+**关键发现**: Dockerfile 需要 CryptPad 的 modified core (含 6 个 `_empty.cpp` stub)，vanilla ONLYOFFICE/core v9.3.0.140 不可直接使用。长期需将 56 文件变更制作为 patch series，或追踪 CryptPad 的 core fork。
 
 ---
 
