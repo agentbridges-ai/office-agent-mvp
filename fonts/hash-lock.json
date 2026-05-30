@@ -26,11 +26,13 @@
     "NotoSerifKR-VF.ttf": "4c6da64568466ab21d7dabe2338696aee6a5e0314d411e34b8410767e569e12d",
     "NotoSerifSC-VF.ttf": "5326cfb097e3ab26fcb39329752b5c0a439bf8d5c4649520e4b492939c352a09",
     "NotoSerifTC-VF.ttf": "c2f466b741797d917aff27089f1c2eba2fe42c46ca410e2dbd39a8e95d0e5e3a",
-    "AllFonts.js": null
+    "AllFonts.js": null,
+    "NotoColorEmoji-Regular.ttf": "be73479ba4fa277c89b85cd6c71717df30d9d0eff6da8c1e1a201e5b95459299",
+    "NotoNaskhArabic-VF.ttf": "67b5a525a661b607971fbd3f96a81b89d3a768e74534fca84f18ac97e6fab72f"
   },
   "AllFontsJs": {
     "path": "public/sdkjs/common/AllFonts.js",
     "sha256": null,
-    "note": "Hash not pre-computed — verify-font-pack.mjs computes it at check time"
+    "note": "Hash not pre-computed \u2014 verify-font-pack.mjs computes it at check time"
   }
 }

@@ -26,6 +26,8 @@
     'ComicNeue-Bold.ttf',
     'ComicNeue-Italic.ttf',
     'ComicNeue-BoldItalic.ttf',
+    'NotoColorEmoji-Regular.ttf',
+    'NotoNaskhArabic-VF.ttf',
   ]),
   (window.__fonts_infos = [
     ['Arial', 0, 0, 1, 0, 2, 0, 3, 0],
@@ -53,6 +55,8 @@
     ['SimSun', 4, 0, -1, -1, -1, -1, -1, -1],
     ['Times New Roman', 14, 0, -1, -1, -1, -1, -1, -1],
     ['Verdana', 8, 0, 9, 0, 10, 0, 11, 0],
+    ['Noto Color Emoji', 19, 0, -1, -1, -1, -1, -1, -1],
+    ['Noto Naskh Arabic', 20, 0, -1, -1, -1, -1, -1, -1],
     ['微软雅黑', 4, 0, -1, -1, 4, 0, -1, -1],
     ['宋体', 4, 0, -1, -1, -1, -1, -1, -1],
     ['黑体', 4, 0, -1, -1, -1, -1, -1, -1],
@@ -76,6 +80,8 @@
     'Noto Sans CJK KR',
     'Noto Sans CJK SC',
     'Noto Sans CJK TC',
+    'Noto Color Emoji',
+    'Noto Naskh Arabic',
     'Noto Serif CJK SC',
     'NSimSun',
     'Segoe UI',
@@ -89,6 +95,7 @@
   ]),
   (window.__fonts_ranges = [
     0x0000, 0x024f, 0,
+    0x0600, 0x06ff, 20,
     0x2000, 0x206f, 0,
     0x3000, 0x303f, 16,
     0x3040, 0x30ff, 14,
@@ -96,5 +103,6 @@
     0x3400, 0x4dbf, 16,
     0x4e00, 0x9fff, 16,
     0xac00, 0xd7af, 15,
+    0x1f300, 0x1f9ff, 19,
   ]),
   (window.g_fonts_selection_bin = ''));
