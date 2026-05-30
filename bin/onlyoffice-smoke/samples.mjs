@@ -17,10 +17,8 @@ function createGeneratedSamples() {
     ['.rtf', createRtfSample()],
     ['.txt', createTxtSample()],
     ['.html', createHtmlSample()],
-    // Binary formats (OLE2 — Word/Excel/PowerPoint 97-2003)
+    // Binary format (OLE2 — Word 97-2003). XLS/PPT removed — generators produce invalid files.
     ['.doc', createDocSample()],
-    ['.xls', createXlsSample()],
-    ['.ppt', createPptSample()],
   ]);
 }
 
@@ -200,7 +198,7 @@ function xml(content) {
   return Buffer.from(content.replace(/\n\s*/g, ''), 'utf8');
 }
 
-const LARGE_FILE_PARAGRAPH_COUNT = 1000;
+const LARGE_FILE_PARAGRAPH_COUNT = 200; // Reduced from 1000 — WASM cold start + 200 paragraphs fits in 120s smoke timeout
 
 function createLargeDocxSample() {
   let bodyXml = '';

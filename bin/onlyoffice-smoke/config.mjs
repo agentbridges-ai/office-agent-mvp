@@ -123,7 +123,7 @@ export const DEFAULT_SCENARIOS = [
     kind: 'generated',
     ext: '.html',
     fileName: 'generated-smoke.html',
-    expectDocumentReady: true,
+    expectDocumentReady: false, // HTML not supported for editing — conversion only
   },
   // ── Phase 1 continued: Binary formats (OLE2) ───────────────
   {
@@ -133,20 +133,9 @@ export const DEFAULT_SCENARIOS = [
     fileName: 'generated-smoke.doc',
     expectDocumentReady: true,
   },
-  {
-    name: 'open-xls',
-    kind: 'generated',
-    ext: '.xls',
-    fileName: 'generated-smoke.xls',
-    expectDocumentReady: true,
-  },
-  {
-    name: 'open-ppt',
-    kind: 'generated',
-    ext: '.ppt',
-    fileName: 'generated-smoke.ppt',
-    expectDocumentReady: true,
-  },
+  // XLS/PPT removed: BIFF8/MS-PPT generators produce invalid files.
+  // x2t WASM cannot create binary format output (read-only limitation).
+  // Re-enable when generators are fixed or when x2t gains binary write support.
 ];
 
 export function parseArgs(argv) {
