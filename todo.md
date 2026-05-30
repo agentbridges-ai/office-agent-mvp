@@ -625,9 +625,9 @@ S=Smoke, E=E2E. 空白 = 未覆盖.
 
 | 限制 | 影响 | 原因 | 优先级 |
 |------|------|------|:---:|
-| **二进制 DOC** | ✅ 已覆盖 | OLE2 builder 实现, CDP smoke PASS | — |
-| **二进制 XLS** | ⬜ 已研究, 待实现 | BIFF8 需要 ~40 条记录 (BOF/FONT/FORMAT/XF/STYLE/BOUNDSHEET/SST/EOF 等), 约 400 行代码 | 后续 |
-| **二进制 PPT** | ⬜ 已研究, 待实现 | MS-PPT 需要 UserEditAtom+PersistDirectoryAtom+DocumentContainer, 约 200 行代码 | 后续 |
+| **二进制 DOC** | ✅ 已覆盖 | OLE2 builder + minimal FIB, CDP smoke PASS | — |
+| **二进制 XLS** | ⚠️ 已实现, 需调试 | BIFF8 ~40 records 已实现, x2t 转换失败 (editor iframe 未创建) | 需排查 BIFF record 顺序/格式 |
+| **二进制 PPT** | ⚠️ 已实现, 需调试 | MS-PPT records 已实现, x2t 检测为 .pot 而非 .ppt | 需排查 format identifier |
 | **CSV 编辑+保存无 E2E 验证** | 用户编辑 CSV 的体验未经 Playwright 验证 | x2t WASM 不支持 CSV native 转换, 当前靠 SheetJS fallback (document-converter.ts) | 低 (smoke 已覆盖 CSV 打开) |
 | **PDF 导出无验证** | 用户点 "导出 PDF" 后的输出质量未知 | 字体管线未完整；x2t PDF 输出需要字体目录配置 | 中 |
 | **HTML 格式无法打开** | 用户拖入 .html 文件会看到 "Unsupported file format" | ONLYOFFICE 不支持 HTML 编辑（仅转换） | 低 (期望行为) |

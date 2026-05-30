@@ -17,9 +17,10 @@ function createGeneratedSamples() {
     ['.rtf', createRtfSample()],
     ['.txt', createTxtSample()],
     ['.html', createHtmlSample()],
-    // Binary format (OLE2 — Word 97-2003)
+    // Binary formats (OLE2 — Word/Excel/PowerPoint 97-2003)
     ['.doc', createDocSample()],
-    // XLS/PPT deferred: BIFF record structures need refinement
+    ['.xls', createXlsSample()],
+    ['.ppt', createPptSample()],
   ]);
 }
 
@@ -545,42 +546,177 @@ function createDocSample() {
   ]);
 }
 
-function createXlsSample() {
-  // Minimal BOF/EOF BIFF records
-  const bof = Buffer.alloc(20);
-  bof.writeUInt16LE(0x0809, 0); // BOF record
-  bof.writeUInt16LE(16, 2);      // size
-  bof.writeUInt16LE(0x0006, 4);  // BIFF version 6 (= Excel 97)
-  const eof = Buffer.alloc(4);
-  eof.writeUInt16LE(0x000A, 0);  // EOF record
-  eof.writeUInt16LE(0, 2);
+// ── BIFF8 Record Helpers ──────────────────────────────────────────
 
-  const book = Buffer.concat([bof, eof]);
+function biffRecord(type, data) {
+  const hdr = Buffer.alloc(4);
+  hdr.writeUInt16LE(type, 0);
+  hdr.writeUInt16LE(data.length, 2);
+  return Buffer.concat([hdr, data]);
+}
+
+function biffBOF(dt) {
+  const b = Buffer.alloc(16);
+  b.writeUInt16LE(0x0600, 0); // BIFF8
+  b.writeUInt16LE(dt, 2);      // substream type
+  b.writeUInt16LE(0x0DBB, 4);  // build
+  b.writeUInt16LE(0x07CC, 6);  // year
+  b.writeUInt32LE(1, 8);       // file history flags
+  b.writeUInt32LE(0x0006, 12);  // lowest BIFF version
+  return biffRecord(0x0809, b);
+}
+
+function biffEOF() { return biffRecord(0x000A, Buffer.alloc(0)); }
+
+function createXlsSample() {
+  // BIFF8 minimal workbook — ~40 records, one empty sheet
+  const parts = [];
+
+  // Workbook Globals substream
+  parts.push(biffBOF(0x0005));
+  parts.push(biffRecord(0x00E1, Buffer.from([0x00, 0x00]))); // INTERFACEHDR
+  parts.push(biffRecord(0x00C1, Buffer.alloc(6)));             // MMS
+  parts.push(biffRecord(0x00E2, Buffer.alloc(0)));             // INTERFACEEND
+  parts.push(biffRecord(0x008C, Buffer.from('ONLYOFFICE  \0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'))); // WRITEACCESS (112 bytes)
+  parts.push(biffRecord(0x0042, Buffer.from([0xB0, 0x04])));   // CODEPAGE 1200 (UTF-16)
+  parts.push(biffRecord(0x0161, Buffer.from([0x00, 0x00])));   // DSF
+  parts.push(biffRecord(0x013D, Buffer.from([0x01, 0x00])));   // TABID (1 sheet)
+  parts.push(biffRecord(0x009C, Buffer.from([0x02, 0x00])));   // FNGROUPCOUNT
+  parts.push(biffRecord(0x0019, Buffer.alloc(2)));              // WINDOWPROTECT
+  parts.push(biffRecord(0x0012, Buffer.alloc(2)));              // PROTECT
+  parts.push(biffRecord(0x0013, Buffer.alloc(2)));              // PASSWORD
+  parts.push(biffRecord(0x01AF, Buffer.alloc(2)));              // PROT4REV
+  parts.push(biffRecord(0x01BC, Buffer.alloc(2)));              // PROT4REVPASS
+  // WINDOW1
+  const w1 = Buffer.alloc(18);
+  w1.writeUInt16LE(0x0000, 0); w1.writeUInt16LE(0x0000, 2); w1.writeUInt16LE(0x0078, 4);
+  w1.writeUInt16LE(0x0000, 6); w1.writeUInt16LE(0x0000, 8); w1.writeUInt16LE(0x3FFF, 10);
+  w1.writeUInt16LE(0x0000, 12); w1.writeUInt16LE(0x0000, 14); w1.writeUInt16LE(0x0000, 16);
+  parts.push(biffRecord(0x003D, w1));
+  parts.push(biffRecord(0x0040, Buffer.from([0x00, 0x00])));   // BACKUP
+  parts.push(biffRecord(0x008D, Buffer.from([0x00, 0x00])));   // HIDEOBJ
+  parts.push(biffRecord(0x0022, Buffer.from([0x00, 0x00])));   // 1904
+  parts.push(biffRecord(0x000E, Buffer.from([0x00, 0x00])));   // PRECISION
+  parts.push(biffRecord(0x01B7, Buffer.from([0x00, 0x00])));   // REFRESHALL
+  parts.push(biffRecord(0x00DA, Buffer.from([0x00, 0x00])));   // BOOKBOOL
+  // 4 minimal fonts
+  for (let i = 0; i < 4; i++) {
+    const f = Buffer.alloc(16 + 2 + 2 + 2 + 2 + 2 + 2); // min font record
+    f.writeUInt16LE(0x00C8, 0); f.writeUInt16LE(0x0000, 2); // height 200 twips
+    f.writeUInt16LE(0x0000, 4); f.writeUInt16LE(0x0000, 6); f.writeUInt16LE(0x0000, 8);
+    f.writeUInt16LE(0x0000, 10); f.writeUInt16LE(0x0000, 12); f.writeUInt8(5, 14); // "Arial\0"
+    f.write('Arial\0', 15, 'ascii');
+    parts.push(biffRecord(0x0031, f));
+  }
+  // 4 minimal formats: "General"
+  for (let i = 0; i < 4; i++) {
+    parts.push(biffRecord(0x041E, Buffer.from([i, 0, 0x47, 0x65, 0x6E, 0x65, 0x72, 0x61, 0x6C, 0x00]))); // "General\0"
+  }
+  // 20 minimal XF records
+  for (let i = 0; i < 20; i++) {
+    parts.push(biffRecord(0x00E0, Buffer.alloc(20)));
+  }
+  // 2 STYLE records
+  const sty = Buffer.alloc(4); sty.writeUInt16LE(0x8010, 0); sty.writeUInt8(0xFF, 2); sty.writeUInt8(0xFF, 3);
+  parts.push(biffRecord(0x0293, sty));
+  parts.push(biffRecord(0x0293, sty));
+  parts.push(biffRecord(0x0160, Buffer.from([0x00, 0x00])));   // USESELFS
+  // BOUNDSHEET: offset=0, flags=0, type=0 (worksheet), name="Sheet1"
+  const bs = Buffer.alloc(6 + 7);
+  bs.writeUInt32LE(0, 0); bs.writeUInt8(0, 4); bs.writeUInt8(0, 5); bs.write('Sheet1', 6, 'ascii');
+  parts.push(biffRecord(0x0085, bs));
+  parts.push(biffRecord(0x008C, Buffer.from([0x01, 0x00, 0x01, 0x00]))); // COUNTRY
+  // Empty SST
+  parts.push(biffRecord(0x00FC, Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])));
+  parts.push(biffRecord(0x00FF, Buffer.from([0x00, 0x00])));
+  parts.push(biffEOF());
+
+  // Worksheet substream
+  parts.push(biffBOF(0x0010));
+  const idx = Buffer.alloc(16); idx.writeUInt32LE(0, 0); idx.writeUInt32LE(0, 4);
+  idx.writeUInt32LE(0, 8); idx.writeUInt32LE(0, 12);
+  parts.push(biffRecord(0x020B, idx));
+  // DIMENSIONS: firstRow=0, lastRow=0, firstCol=0, lastCol=0
+  const dim = Buffer.alloc(14);
+  dim.writeUInt32LE(0, 0); dim.writeUInt32LE(0, 4); dim.writeUInt16LE(0, 8); dim.writeUInt16LE(0, 10);
+  parts.push(biffRecord(0x0200, dim));
+  const w2 = Buffer.alloc(18);
+  w2.writeUInt16LE(0x0000, 0); w2.writeUInt16LE(0x0000, 2); w2.writeUInt16LE(0x0040, 4);
+  w2.writeUInt16LE(0x0000, 6); w2.writeUInt16LE(0x0000, 8); w2.writeUInt16LE(0x0000, 10);
+  w2.writeUInt16LE(0x0000, 12); w2.writeUInt16LE(0x0000, 14); w2.writeUInt16LE(0x0000, 16);
+  parts.push(biffRecord(0x023E, w2));
+  const sel = Buffer.alloc(15);
+  sel.writeUInt8(1, 0); sel.writeUInt16LE(0, 1); sel.writeUInt16LE(0, 3);
+  sel.writeUInt16LE(0, 5); sel.writeUInt8(0, 7); sel.writeUInt16LE(0, 8);
+  sel.writeUInt16LE(0, 10); sel.writeUInt16LE(0, 12); sel.writeUInt8(0, 14);
+  parts.push(biffRecord(0x001D, sel));
+  parts.push(biffEOF());
 
   return createOle2([
-    { name: 'Workbook', data: book },
-    { name: 'Book', data: book },
+    { name: 'Workbook', data: Buffer.concat(parts) },
   ]);
 }
 
+// ── MS-PPT Record Helpers ─────────────────────────────────────────
+
+function pptRecord(recVer, recInstance, recType, data) {
+  const hdr = Buffer.alloc(8);
+  hdr.writeUInt16LE((recVer & 0xF) | ((recInstance & 0xFFF) << 4), 0);
+  hdr.writeUInt16LE(recType, 2);
+  hdr.writeUInt32LE(data.length, 4);
+  return Buffer.concat([hdr, data]);
+}
+function pptAtom(recInstance, recType, data) { return pptRecord(0x2, recInstance, recType, data); }
+function pptContainer(recInstance, recType, data) { return pptRecord(0xF, recInstance, recType, data); }
+
 function createPptSample() {
-  // Minimal PPT: empty presentation
-  const currentUserAtom = Buffer.alloc(16);
-  currentUserAtom.writeUInt32LE(0x03E8, 0); // size
-  currentUserAtom.writeUInt32LE(0x03E9, 4); // size again
+  // PersistDirectoryAtom: maps persist ID 1 to the DocumentContainer
+  const persistEntries = Buffer.alloc(8);
+  persistEntries.writeUInt32LE(1, 0); // persist ID 1 + 0 entries
+  persistEntries.writeUInt32LE(0, 4); // offset 0 (DocumentContainer follows immediately)
+  const persistDir = pptAtom(0, 0x0FFB, persistEntries);
 
-  const userEditAtom = Buffer.alloc(50);
-  userEditAtom.writeUInt32LE(0x1000, 0); // record header
-  userEditAtom.writeUInt32LE(26, 4);     // size
+  // DocumentAtom (0x03E9): slide size + notes size
+  const docAtomData = Buffer.alloc(40);
+  docAtomData.writeInt32LE(12192000, 0); // slide width (emu)
+  docAtomData.writeInt32LE(6858000, 4);  // slide height
+  docAtomData.writeInt32LE(0, 8);        // notes master size
+  docAtomData.writeInt32LE(0, 12);       // handout master size
+  const docAtom = pptAtom(1, 0x03E9, docAtomData);
 
-  const docAtom = Buffer.alloc(48);
-  docAtom.writeUInt32LE(0x03E8, 0);
+  // SlideListWithTextContainer: empty (no slides)
+  const slideListContainer = pptContainer(0, 0x03F0, Buffer.alloc(0));
 
-  const ppDoc = Buffer.concat([currentUserAtom, userEditAtom, docAtom]);
+  // DocumentContainer: DocumentAtom + SlideListWithTextContainer
+  const docContainer = pptContainer(0, 0x03E8, Buffer.concat([docAtom, slideListContainer]));
+
+  // UserEditAtom: points to PersistDirectoryAtom
+  const userEditData = Buffer.alloc(36);
+  userEditData.writeUInt32LE(0x00000100, 0);  // lastSlideIdRef
+  userEditData.writeUInt32LE(0x000003F8, 4);  // version
+  userEditData.writeUInt32LE(1, 8);            // docPersistIdRef
+  userEditData.writeUInt32LE(0, 12);           // persistDirectoryOffset (immediately after UserEditAtom)
+  userEditData.writeUInt32LE(0, 16);           // lastPersistDirectoryOffset (first)
+  userEditData.writeUInt32LE(0, 20);           // size
+  userEditData.writeUInt32LE(0, 24);           // lastUserEditAtomOffset (first)
+  userEditData.writeUInt32LE(0, 28);           // oldPersistDirectoryOffset (first)
+  const userEditAtom = pptAtom(0, 0x0FF5, userEditData);
+
+  // PowerPoint Document stream: UserEditAtom + PersistDirectoryAtom + DocumentContainer
+  const ppDoc = Buffer.concat([userEditAtom, persistDir, docContainer]);
+
+  // Current User stream: CurrentUserAtom
+  const currentUserData = Buffer.alloc(16);
+  currentUserData.writeUInt32LE(16, 0);  // size
+  currentUserData.writeUInt32LE(0x00000014, 4); // headerToken
+  currentUserData.writeUInt32LE(0, 8);   // offsetToCurrentEdit
+  currentUserData.writeUInt16LE(0, 12);  // lenUserName (0 = no username)
+  currentUserData.writeUInt16LE(0, 14);  // docFileVersion
+  const currentUser = pptAtom(0, 0x03F6, currentUserData);
 
   return createOle2([
     { name: 'PowerPoint Document', data: ppDoc },
-    { name: 'Current User', data: Buffer.alloc(8) },
+    { name: 'Current User', data: currentUser },
     { name: 'Pictures', data: Buffer.alloc(0) },
   ]);
 }
