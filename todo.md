@@ -625,8 +625,10 @@ S=Smoke, E=E2E. 空白 = 未覆盖.
 
 | 限制 | 影响 | 原因 | 优先级 |
 |------|------|------|:---:|
-| **二进制格式 (DOC/XLS/PPT) 无测试覆盖** | 用户有旧 Office 文件时无法确认能否打开 | OLE2 样本生成复杂，未实现 | 中 |
-| **CSV 编辑+保存无 E2E 验证** | 用户编辑 CSV 的体验未经 Playwright 验证 | x2t WASM 不支持 CSV native 转换，当前靠 SheetJS fallback (document-converter.ts)，但 x2t-api.ts 无此 fallback | 低 (smoke 已覆盖 CSV 打开) |
+| **二进制 DOC** | ✅ 已覆盖 | OLE2 builder 实现, CDP smoke PASS | — |
+| **二进制 XLS** | ⬜ 已研究, 待实现 | BIFF8 需要 ~40 条记录 (BOF/FONT/FORMAT/XF/STYLE/BOUNDSHEET/SST/EOF 等), 约 400 行代码 | 后续 |
+| **二进制 PPT** | ⬜ 已研究, 待实现 | MS-PPT 需要 UserEditAtom+PersistDirectoryAtom+DocumentContainer, 约 200 行代码 | 后续 |
+| **CSV 编辑+保存无 E2E 验证** | 用户编辑 CSV 的体验未经 Playwright 验证 | x2t WASM 不支持 CSV native 转换, 当前靠 SheetJS fallback (document-converter.ts) | 低 (smoke 已覆盖 CSV 打开) |
 | **PDF 导出无验证** | 用户点 "导出 PDF" 后的输出质量未知 | 字体管线未完整；x2t PDF 输出需要字体目录配置 | 中 |
 | **HTML 格式无法打开** | 用户拖入 .html 文件会看到 "Unsupported file format" | ONLYOFFICE 不支持 HTML 编辑（仅转换） | 低 (期望行为) |
 | **大文件 (>10MB) 行为未定义** | 用户打开大文件时可能超时或 OOM | WASM 内存限制 ~50MB/文档 | 中 |
@@ -643,10 +645,21 @@ S=Smoke, E=E2E. 空白 = 未覆盖.
 
 ### 下一步建议（按用户价值排序）
 
-| # | 改进 | 用户价值 | 工程成本 |
-|---|------|:---:|:---:|
-| 1 | 二进制格式 (DOC/XLS/PPT) smoke 覆盖 | 高 — 大量企业用户有旧格式文件 | 2h (OLE2 生成器) |
-| 2 | PDF 导出验证 + 字体配置 | 高 — PDF 是最常用的导出格式 | 4h (字体目录 + E2E) |
-| 3 | 加载进度指示 | 中 — 改善首次体验 | 2h (UI spinner) |
-| 4 | 大文件行为测试 + 内存限制文档 | 中 — 避免用户遇到静默崩溃 | 2h (E2E + docs) |
-| 5 | emoji/RTL 字体扩展 | 低 — 特定用户群才需要 | 4h (字体 + manifest) |
+| # | 改进 | 状态 | 用户价值 | 工程成本 |
+|---|------|:---:|:---:|:---:|
+| 1 | 二进制 DOC smoke | ✅ 完成 | 高 | OLE2 builder (160行) |
+| 2 | 二进制 XLS smoke | ⬜ 已研究 | 高 | ~400行 BIFF8 records |
+| 3 | 二进制 PPT smoke | ⬜ 已研究 | 中 | ~200行 MS-PPT records |
+| 4 | PDF 导出 | ⬜ 已研究 | 高 | Emscripten FS font preload |
+| 5 | 加载进度指示 | ✅ 已实现 | 中 | `lib/loading.ts` — r-loading spinner + blur mask overlay, 所有 create/open 操作均有 |
+| 6 | 大文件行为文档 | ⬜ 后续 | 中 | smoke 已有 large.docx (1000 paragraphs) scenario, 需文档化行为 |
+
+**XLS/PPT 研究结论** (2026-05-30):
+- **XLS BIFF8**: OLE2 容器已就绪 (createOle2)。需要 Workbook stream 内 ~40 条 BIFF records
+  (BOF→INTERFACEHDR→MMS→...→FONT×4→FORMAT×4→XF×20→BOUNDSHEET→SST→EOF)。
+  参考: Microsoft [MS-XLS] spec + OpenOffice reverse-engineered documentation.
+- **PPT MS-PPT**: OLE2 容器已就绪。需要 "PowerPoint Document" stream 内
+  UserEditAtom(44B)+PersistDirectoryAtom(~16B)+DocumentContainer(~200B)。
+  参考: Microsoft [MS-PPT] spec §2.1.2–§2.4.1.
+- **PDF**: x2t error 80 = font files not found in Emscripten FS。
+  需要将 public/fonts/*.ttf 预加载到 WASM virtual FS 的 /fonts/ 路径。
