@@ -115,22 +115,40 @@ export async function convertLocal(request: X2TConvertOptions): Promise<X2TConve
   // Execute
   const resultCode = module.ccall('main1', 'number', ['string'], [paramsPath]);
   if (resultCode !== 0) {
-    const errMsg = `x2t conversion failed with code ${resultCode}`;
+    const errMsg = x2tErrorMessage(resultCode);
     try {
       const debugXml = module.FS.readFile(paramsPath, { encoding: 'binary' });
-      console.error(errMsg, 'params:', debugXml);
+      console.error(`x2t error ${resultCode}: ${errMsg}`, 'params:', debugXml);
     } catch { /* debug read failed */ }
-    throw new Error(errMsg);
+    throw new Error(`[x2t:${resultCode}] ${errMsg}`);
   }
 
   // Read output
   const rawOutput = module.FS.readFile(outputFile);
   const outputBytes = toUint8Array(rawOutput);
   if (!outputBytes) {
-    throw new Error('x2t conversion produced unexpected output type');
+    throw new Error('x2t conversion produced no output — the document may be empty or in an unsupported format');
   }
 
   return { outputName: safeOutput, outputBytes, warnings };
+}
+
+// ── Error code mapping ────────────────────────────────────────────
+
+/**
+ * Map x2t return codes to human-readable messages.
+ * ONLYOFFICE x2t uses non-zero codes for specific failure modes.
+ * These are NOT DocumentServer's -1..-10 error codes — they're x2t binary exit codes.
+ */
+function x2tErrorMessage(code: number): string {
+  const map: Record<number, string> = {
+    0: 'Success',
+    // Known x2t exit codes (observed in testing)
+    88: 'This file format is not supported. The document may be in a format that cannot be opened.',
+    89: 'The file could not be converted. It may be corrupted, password-protected without providing a password, or in an unrecognized binary format.',
+    91: 'Incorrect password. The document is encrypted and the provided password does not match.',
+  };
+  return map[code] || `Conversion failed with code ${code}. The document may be damaged or in an unsupported format.`;
 }
 
 function escapeXml(s: string): string {

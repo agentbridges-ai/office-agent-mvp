@@ -596,3 +596,57 @@ S=Smoke, E=E2E. 空白 = 未覆盖.
 | **并发** | E | E | — | — | — | — | — | — | — | — | — | — | — | — | — |
 
 覆盖从 22 → **33 scenarios** (+50%)，补齐 ODF/二进制/错误处理三大缺口。
+
+---
+
+## 用户视角审计 — 2026-05-30
+
+> 以下从终端用户（打开浏览器编辑文档的人）的角度审视项目现状。
+> 不涉及构建系统、patch 数量、gate 架构等工程内部指标。
+
+### 用户能做什么（已验证）
+
+| 操作 | 状态 | 证据 |
+|------|:---:|------|
+| 新建 DOCX，打字，保存，下载 | ✅ 完全验证 | E2E: 输入 "ONLYOFFICE 9.3..." → 25429 bytes DOCX → word/document.xml 含原文 |
+| 新建 XLSX，保存，下载 | ✅ 结构验证 | E2E: 7854 bytes XLSX → sheet1.xml 完整 |
+| 新建 PPTX，保存，下载 | ✅ 结构验证 | E2E: 33692 bytes PPTX → presentation.xml 完整 |
+| 打开 DOCX/XLSX/PPTX/CSV | ✅ | CDP smoke 16/19 PASS |
+| 打开 ODT/ODS/ODP | ✅ | CDP smoke (新增 Phase 1) |
+| 打开 RTF/TXT | ✅ | CDP smoke (新增 Phase 1) |
+| 打开加密 DOCX (正确密码) | ✅ | E2E: 解密 1248 bytes |
+| 打开加密 DOCX (错误密码) | ✅ | 明确错误: x2t error 91 → "Incorrect password" |
+| 损坏文件处理 | ✅ | 明确错误: x2t error 89 → "The file could not be converted" |
+| 不支持格式处理 | ✅ | 明确错误: x2t error 88 → "This file format is not supported" |
+| DOCX→ODT 跨格式转换 | ✅ | E2E: 3637 bytes ODT 输出 |
+| 编辑器稳定性 | ✅ | save 后 API 仍然可用 |
+
+### 用户不能做什么（已知局限）
+
+| 限制 | 影响 | 原因 | 优先级 |
+|------|------|------|:---:|
+| **二进制格式 (DOC/XLS/PPT) 无测试覆盖** | 用户有旧 Office 文件时无法确认能否打开 | OLE2 样本生成复杂，未实现 | 中 |
+| **CSV 编辑+保存无 E2E 验证** | 用户编辑 CSV 的体验未经 Playwright 验证 | x2t WASM 不支持 CSV native 转换，当前靠 SheetJS fallback (document-converter.ts)，但 x2t-api.ts 无此 fallback | 低 (smoke 已覆盖 CSV 打开) |
+| **PDF 导出无验证** | 用户点 "导出 PDF" 后的输出质量未知 | 字体管线未完整；x2t PDF 输出需要字体目录配置 | 中 |
+| **HTML 格式无法打开** | 用户拖入 .html 文件会看到 "Unsupported file format" | ONLYOFFICE 不支持 HTML 编辑（仅转换） | 低 (期望行为) |
+| **大文件 (>10MB) 行为未定义** | 用户打开大文件时可能超时或 OOM | WASM 内存限制 ~50MB/文档 | 中 |
+| **无 emoji/RTL 字体** | 用户文档中的 emoji 或阿拉伯语/希伯来语可能渲染为方块 | 字体集仅覆盖拉丁+CJK | 低 (R2-6 deferred) |
+
+### 用户体验问题
+
+| 问题 | 当前状态 | 建议 |
+|------|---------|------|
+| **加载无进度指示** | 用户点击"新建"后等待 WASM 加载 (3-10s)，无反馈 | 添加加载进度条或 spinner |
+| **错误消息过于技术化** | ~~曾显示 "x2t conversion failed with code 89"~~ → 现已修复为可读消息 | ✅ R2-6 已解决 |
+| **无离线状态指示** | 用户不知道应用是否可离线使用 | 添加 service worker 状态提示 |
+| **保存路径不透明** | 用户不知道文件会下载到哪里 | File System API 可用时弹出保存对话框；不可用时自动下载 |
+
+### 下一步建议（按用户价值排序）
+
+| # | 改进 | 用户价值 | 工程成本 |
+|---|------|:---:|:---:|
+| 1 | 二进制格式 (DOC/XLS/PPT) smoke 覆盖 | 高 — 大量企业用户有旧格式文件 | 2h (OLE2 生成器) |
+| 2 | PDF 导出验证 + 字体配置 | 高 — PDF 是最常用的导出格式 | 4h (字体目录 + E2E) |
+| 3 | 加载进度指示 | 中 — 改善首次体验 | 2h (UI spinner) |
+| 4 | 大文件行为测试 + 内存限制文档 | 中 — 避免用户遇到静默崩溃 | 2h (E2E + docs) |
+| 5 | emoji/RTL 字体扩展 | 低 — 特定用户群才需要 | 4h (字体 + manifest) |

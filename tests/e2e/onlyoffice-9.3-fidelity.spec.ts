@@ -576,6 +576,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
     console.log(`Unsupported format rejected: ${result.error}`);
   });
 
+
   // ── Phase 3: Editor stability after save ────────────────────────
 
   test('editor API remains functional after save completes', async ({ page }) => {
