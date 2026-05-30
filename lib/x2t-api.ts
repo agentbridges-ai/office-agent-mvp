@@ -1,6 +1,5 @@
 import { sanitizeX2TFileName } from './x2t-paths';
-import { toStandaloneArrayBuffer, toUint8Array } from './onlyoffice-compat/binary';
-import type { EmscriptenModule } from './document-types';
+import { toStandaloneArrayBuffer } from './onlyoffice-compat/binary';
 import { X2TConverter } from './document-converter';
 
 // ── Public API types ────────────────────────────────────────────

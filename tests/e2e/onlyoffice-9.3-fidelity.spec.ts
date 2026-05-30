@@ -7,6 +7,7 @@ import {
   recordRequestFailures,
   waitForOnlyOfficeShell,
   waitForEditorReady,
+  extractFileFromZip,
 } from './helpers/onlyoffice';
 
 const BASE_URL = process.env.APP_URL || 'http://127.0.0.1:5173';
@@ -67,6 +68,14 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
     expect(docxDownload).toBeDefined();
     console.log(`Downloaded: ${docxDownload!.filename} (${docxDownload!.size} bytes)`);
     expect(docxDownload!.size).toBeGreaterThan(1000);
+
+    // Verify typed text is in the DOCX by extracting word/document.xml
+    const docxBuffer = Buffer.from(docxDownload!.data);
+    const documentXml = extractFileFromZip(docxBuffer, 'word/document.xml');
+    expect(documentXml).not.toBeNull();
+    const xmlText = documentXml!.toString('utf8');
+    expect(xmlText).toContain('ONLYOFFICE 9.3 E2E Fidelity Test');
+    console.log('DOCX content verified: typed text found in word/document.xml');
   });
 
   test('convertLocal real conversion — TXT to DOCX via x2t-api.ts wrapper', async ({ page }) => {
@@ -85,7 +94,8 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
           inputName: 'e2e-test.txt',
           inputBytes,
           outputName: 'e2e-test.docx',
-          formatTo: 65, // DOCX
+          formatFrom: 69, // TXT — explicit, don't rely on auto-detect
+          formatTo: 65,  // DOCX
         });
 
         return {

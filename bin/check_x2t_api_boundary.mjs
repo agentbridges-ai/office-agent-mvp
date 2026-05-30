@@ -66,10 +66,12 @@ function main() {
     }
   }
 
-  // Boundary files must not use raw FS/ccall — they should go through x2t-api or document-converter.
-  // NOTE: This gate only protects lib/x2t-api.ts as an OPTIONAL controlled API wrapper.
-  // The production path (lib/document-converter.ts) directly uses FS/ccall and is
-  // intentionally excluded — P1 migration to x2t-api.ts was attempted and deferred
+  // This is NOT a "production path migration" gate.
+  // It enforces that business-layer files do NOT bypass the x2t abstraction layer
+  // by directly calling raw FS/ccall. The sanctioned abstraction layers are:
+  //   - lib/document-converter.ts (production path, owns FS/ccall)
+  //   - lib/x2t-api.ts (optional controlled API wrapper)
+  // P1 migration to route production through x2t-api.ts was attempted and deferred
   // due to dual-X2TConverter-instance conflict.
   for (const relativePath of BOUNDARY_FILES) {
     const source = readText(root, relativePath);

@@ -1,3 +1,4 @@
+import { inflateRawSync } from 'node:zlib';
 import type { Page, ConsoleMessage, Request } from '@playwright/test';
 
 // ── Download capture hook (injected via addInitScript) ────────────
@@ -123,6 +124,54 @@ export async function waitForEditorReady(
     { apiMethod },
     { timeout },
   );
+}
+
+// ── DOCX content verification ────────────────────────────────────
+
+/**
+ * Minimal ZIP reader: extract a single file from a ZIP buffer.
+ * Used to verify DOCX content (word/document.xml) in E2E tests.
+ */
+export function extractFileFromZip(zipBuffer: Buffer, targetPath: string): Buffer | null {
+  // Find EOCD signature (0x06054b50)
+  let eocdOffset = zipBuffer.length - 22;
+  while (eocdOffset >= 0) {
+    if (zipBuffer.readUInt32LE(eocdOffset) === 0x06054b50) break;
+    eocdOffset--;
+  }
+  if (eocdOffset < 0) return null;
+
+  const cdOffset = zipBuffer.readUInt32LE(eocdOffset + 16);
+  const cdSize = zipBuffer.readUInt32LE(eocdOffset + 12);
+
+  // Scan central directory for targetPath
+  let pos = cdOffset;
+  const cdEnd = cdOffset + cdSize;
+  while (pos < cdEnd) {
+    if (zipBuffer.readUInt32LE(pos) !== 0x02014b50) break;
+
+    const compMethod = zipBuffer.readUInt16LE(pos + 10);
+    const nameLen = zipBuffer.readUInt16LE(pos + 28);
+    const extraLen = zipBuffer.readUInt16LE(pos + 30);
+    const commentLen = zipBuffer.readUInt16LE(pos + 32);
+    const localHeaderOffset = zipBuffer.readUInt32LE(pos + 42);
+    const name = zipBuffer.toString('utf8', pos + 46, pos + 46 + nameLen);
+
+    if (name === targetPath) {
+      // Read local file header at localHeaderOffset
+      const lhNameLen = zipBuffer.readUInt16LE(localHeaderOffset + 26);
+      const lhExtraLen = zipBuffer.readUInt16LE(localHeaderOffset + 28);
+      const compSize = zipBuffer.readUInt32LE(localHeaderOffset + 20);
+      const dataOffset = localHeaderOffset + 30 + lhNameLen + lhExtraLen;
+      const compData = zipBuffer.slice(dataOffset, dataOffset + compSize);
+
+      if (compMethod === 0) return compData; // stored
+      if (compMethod === 8) return inflateRawSync(compData); // deflated
+      return null;
+    }
+    pos += 46 + nameLen + extraLen + commentLen;
+  }
+  return null;
 }
 
 export async function getEditorFrameWindow(page: Page): Promise<any> {

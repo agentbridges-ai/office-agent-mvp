@@ -98,10 +98,13 @@
 - [x] P5-5: CSV native x2t — `tryNativeCsvConvert()` (`bcd17600`)
 - [x] P5-3: 密码 doc 基础设施 — `officecrypto-tool` + encrypted sample + scenario (`03ddc1ff`)
 - [x] P5-4: 大文件 — `createLargeDocxSample` 1000 paragraphs (`861598eb`)
-- [~] P5-6/P5-7: Playwright E2E — `tests/e2e/onlyoffice-9.3-fidelity.spec.ts` + `playwright.config.ts`
-  - 2 pass (concurrent, x2t-init-only), 1 KNOWN FAILING (download capture — save bridge uses createObjectURL+anchor.click, not intercepted by page.on('download'))
-  - convertLocal test is pseudo-coverage: only calls initX2T(), no actual conversion
-  - `tests/e2e/helpers/` not yet created — helpers planned but not implemented
+- [~] P5-6/P5-7: Playwright E2E — `tests/e2e/onlyoffice-9.3-fidelity.spec.ts` + `playwright.config.ts` (`94f3560c`)
+  - 5 scenarios: download capture (__ooDownloads hook), convertLocal TXT→DOCX, convertLocal maxInputBytes rejection, concurrent DOCX+XLSX, 9.3.1 version check
+  - Download capture: fixed — `addInitScript` injects HTMLAnchorElement.prototype.click hook → `window.__ooDownloads`
+  - convertLocal: real conversion with explicit formatFrom + formatTo, not pseudo-coverage
+  - `tests/e2e/helpers/onlyoffice.ts`: download hook, evidence collectors, wait helpers, extractFileFromZip
+  - **Awaiting actual Playwright run confirmation**
+  - Next: DOCX content verification (unzip word/document.xml, check typed text)
 - [ ] P6-3: 跟进 PR (after PR #4 merged)
 
 ---
