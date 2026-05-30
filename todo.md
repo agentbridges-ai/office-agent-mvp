@@ -21,6 +21,70 @@
 
 ---
 
+## Claim Boundary — 宣称边界
+
+> 以下定义了本项目 "ONLYOFFICE 9.3 browser-local adaptation" 的完成边界。
+> 每一项完成声明必须有对应证据（gate / CDP smoke / Playwright E2E / hash provenance / 源码 diff 审计）。
+> 没有证据的只能写 claim boundary，不能宣称完成。
+
+### 项目定位
+
+本项目是一个 **browser-local ONLYOFFICE editor**，不是 DocumentServer 复刻。
+合理宣称范围：内置 9.3 runtime + adapter bridge + x2t 9.3 WASM 在浏览器本地
+打开、编辑、保存主路径可用，关键风险有 gate/smoke/E2E/provenance 覆盖。
+
+### 四个不变量
+
+| # | 不变量 | 验证方式 |
+|---|--------|---------|
+| 1 | **版本同源** — Editor runtime 9.3.1，x2t 对齐 core v9.3.0.140，格式 ID/字体入口/save hook 不含 7.x | gate:format_table, gate:docs_consistency, smoke 11/11 |
+| 2 | **主链闭环** — 新建/打开/编辑/保存 DOCX/XLSX/PPTX/CSV 可用，失败时显式失败 | CDP smoke 11/11, Playwright E2E 5/5 |
+| 3 | **本地安全边界** — x2t WASM 只写受控 /working 路径，文件名/字体路径/格式参数不能任意 FS path 或 XML 注入 | gate:fs_sandbox, gate:path_behavior, gate:api_boundary |
+| 4 | **证据先于声明** — 每个完成项至少一个证据 | 见下方证据矩阵 |
+
+### 可以宣称完成的
+
+| 项 | 证据 |
+|----|------|
+| Editor Runtime 9.3.1 full-vendor (web-apps/sdkjs) | version check smoke/E2E, .deb extraction provenance |
+| Adapter Bridge 主链 (T7c/Iid/zWc save hooks) | 11/11 CDP smoke save scenarios |
+| x2t 9.3 WASM artifact (core v9.3.0.140) | bit-identical self-build, `docs/cryptpad-delta.md` |
+| 7-gate verification system | `pnpm run gate:onlyoffice` all PASS |
+| 11-scenario CDP smoke harness | `pnpm run smoke:onlyoffice` 11/11 PASS |
+| Playwright E2E 5/5 PASS | `pnpm run test:e2e:smoke` 5/5 PASS |
+| DOCX 下载捕获 + 结构验证 | __ooDownloads hook, word/document.xml 提取 |
+| convertLocal 真转换 (空 bin → DOCX, 9024 bytes) | E2E test |
+| maxInputBytes 边界拒绝 | E2E test |
+| 生产路径决策: P1 migration deferred | 双 X2TConverter 实例冲突; 旧主链保留, x2t-api.ts 为 optional API |
+
+### 不能宣称完成的
+
+| 项 | 原因 | 后续 |
+|----|------|------|
+| **full DocumentServer API compatibility** | /converter, /command, callback status 2/3/6/7 不属于 browser-local editor 范围 | 独立立项 P6 |
+| **all ONLYOFFICE 9.3 formats supported** | FB2/OFD 已知未链接; HWP/VSDX/iWork 等未验证 | P4 扩展格式 |
+| **full font fidelity** | manifest.json / hash-lock / WOFF2 策略 / CJK/RTL/emoji 未闭环 | 独立立项 P5 |
+| **PDF export** | 字体管线未完成, PDF 输出质量未验证 | P5 后 |
+| **repo-owned x2t build pipeline** | 当前 `/tmp/cryptpad-x2t` 自构建成功但未入库 `tools/x2t-wasm/` | 独立立项 P4 |
+| **typed-text content verification** | `asc_AddText` 在 Playwright evaluate 中不触发 user-gesture, 产生空 `<w:r>` | 需 keyboard 模拟或其他方案 |
+| **DOCX/XLSX 并发打开** | XLSX `waitForEditorReady` 超时 (Api 路径差异), 已替换为 sequential DOCX-only | 后续 debug |
+
+### 验证命令
+
+```bash
+pnpm run verify:onlyoffice9      # gates + build + 11/11 CDP smoke
+pnpm run test:e2e:smoke          # 5/5 Playwright E2E
+pnpm run verify:onlyoffice9:e2e  # both of the above
+```
+
+### 核心取舍
+
+> 不为了"架构统一"强迁移生产路径到 x2t-api.ts。
+> 保留已验证的旧主链 (lib/document-converter.ts)，
+> 把 x2t-api.ts 定位为可选受控 API 和未来重构入口。
+
+---
+
 ## 后续: x2t 自主构建 Pipeline (独立立项)
 
 ### Phase 0: 基线锁定与差异审计 [x] `6443117b`
