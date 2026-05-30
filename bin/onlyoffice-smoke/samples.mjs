@@ -9,6 +9,14 @@ function createGeneratedSamples() {
     ['.csv', Buffer.from('Name,Value\nOnlyOffice 9.3,中文输入\n', 'utf8')],
     ['.protected.docx', createPasswordProtectedDocx()],
     ['.large.docx', createLargeDocxSample()],
+    // ODF formats (Phase 1 — ZIP-based, structurally similar to OOXML)
+    ['.odt', createOdtSample()],
+    ['.ods', createOdsSample()],
+    ['.odp', createOdpSample()],
+    // Text formats
+    ['.rtf', createRtfSample()],
+    ['.txt', createTxtSample()],
+    ['.html', createHtmlSample()],
   ]);
 }
 
@@ -77,6 +85,12 @@ function contentType(filePath) {
   if (ext === '.xlsx') return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   if (ext === '.pptx') return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
   if (ext === '.csv') return 'text/csv; charset=utf-8';
+  if (ext === '.odt') return 'application/vnd.oasis.opendocument.text';
+  if (ext === '.ods') return 'application/vnd.oasis.opendocument.spreadsheet';
+  if (ext === '.odp') return 'application/vnd.oasis.opendocument.presentation';
+  if (ext === '.rtf') return 'application/rtf';
+  if (ext === '.txt') return 'text/plain; charset=utf-8';
+  if (ext === '.html') return 'text/html; charset=utf-8';
   return 'application/octet-stream';
 }
 
@@ -311,6 +325,106 @@ function createPptxSample() {
 </a:theme>`),
     },
   ]);
+}
+
+// ── ODF Format Generators (Phase 1) ──────────────────────────────
+
+function createOdtSample() {
+  return createZip([
+    { name: 'mimetype', data: 'application/vnd.oasis.opendocument.text' },
+    {
+      name: 'META-INF/manifest.xml',
+      data: xml(`<?xml version="1.0" encoding="UTF-8"?>
+<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0">
+  <manifest:file-entry manifest:media-type="application/vnd.oasis.opendocument.text" manifest:full-path="/"/>
+</manifest:manifest>`),
+    },
+    {
+      name: 'content.xml',
+      data: xml(`<?xml version="1.0" encoding="UTF-8"?>
+<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0">
+  <office:body><office:text><text:p>ONLYOFFICE 9.3 ODT Smoke Test 中文测试</text:p></text:body></office:text>
+</office:document-content>`),
+    },
+  ]);
+}
+
+function createOdsSample() {
+  return createZip([
+    { name: 'mimetype', data: 'application/vnd.oasis.opendocument.spreadsheet' },
+    {
+      name: 'META-INF/manifest.xml',
+      data: xml(`<?xml version="1.0" encoding="UTF-8"?>
+<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0">
+  <manifest:file-entry manifest:media-type="application/vnd.oasis.opendocument.spreadsheet" manifest:full-path="/"/>
+</manifest:manifest>`),
+    },
+    {
+      name: 'content.xml',
+      data: xml(`<?xml version="1.0" encoding="UTF-8"?>
+<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0">
+  <office:body><office:spreadsheet>
+    <table:table table:name="Sheet1">
+      <table:table-row><table:table-cell office:value-type="string"><text:p>ONLYOFFICE 9.3</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>ODS Test</text:p></table:table-cell></table:table-row>
+    </table:table>
+  </office:spreadsheet></office:body>
+</office:document-content>`),
+    },
+  ]);
+}
+
+function createOdpSample() {
+  return createZip([
+    { name: 'mimetype', data: 'application/vnd.oasis.opendocument.presentation' },
+    {
+      name: 'META-INF/manifest.xml',
+      data: xml(`<?xml version="1.0" encoding="UTF-8"?>
+<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0">
+  <manifest:file-entry manifest:media-type="application/vnd.oasis.opendocument.presentation" manifest:full-path="/"/>
+</manifest:manifest>`),
+    },
+    {
+      name: 'content.xml',
+      data: xml(`<?xml version="1.0" encoding="UTF-8"?>
+<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+  xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+  xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0">
+  <office:body><office:presentation>
+    <draw:page draw:name="Slide 1">
+      <draw:frame draw:style-name="standard" svg:width="25cm" svg:height="3cm" svg:x="2cm" svg:y="2cm"
+        xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0">
+        <draw:text-box><text:p>ONLYOFFICE 9.3 ODP Smoke Test</text:p></draw:text-box>
+      </draw:frame>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document-content>`),
+    },
+  ]);
+}
+
+// ── Text Format Generators (Phase 1) ──────────────────────────────
+
+function createRtfSample() {
+  return Buffer.from(
+    '{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Arial;}} \\f0\\fs24 ONLYOFFICE 9.3 RTF Smoke Test. \\par 中文 smoke 测试。}',
+    'utf8',
+  );
+}
+
+function createTxtSample() {
+  return Buffer.from('ONLYOFFICE 9.3 TXT Smoke Test\n中文纯文本 smoke 测试\n', 'utf8');
+}
+
+function createHtmlSample() {
+  return Buffer.from(
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Smoke</title></head><body><p>ONLYOFFICE 9.3 HTML Smoke Test</p><p>中文 HTML smoke 测试</p></body></html>',
+    'utf8',
+  );
 }
 
 function createZip(entries) {

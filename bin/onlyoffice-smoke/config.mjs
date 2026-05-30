@@ -81,6 +81,50 @@ export const DEFAULT_SCENARIOS = [
     fileName: 'generated-smoke-large.docx',
     expectDocumentReady: true,
   },
+  // ── Phase 1: ODF formats ──────────────────────────────────
+  {
+    name: 'open-odt',
+    kind: 'generated',
+    ext: '.odt',
+    fileName: 'generated-smoke.odt',
+    expectDocumentReady: true,
+  },
+  {
+    name: 'open-ods',
+    kind: 'generated',
+    ext: '.ods',
+    fileName: 'generated-smoke.ods',
+    expectDocumentReady: true,
+  },
+  {
+    name: 'open-odp',
+    kind: 'generated',
+    ext: '.odp',
+    fileName: 'generated-smoke.odp',
+    expectDocumentReady: true,
+  },
+  // ── Phase 1: Text formats ─────────────────────────────────
+  {
+    name: 'open-rtf',
+    kind: 'generated',
+    ext: '.rtf',
+    fileName: 'generated-smoke.rtf',
+    expectDocumentReady: true,
+  },
+  {
+    name: 'open-txt',
+    kind: 'generated',
+    ext: '.txt',
+    fileName: 'generated-smoke.txt',
+    expectDocumentReady: true,
+  },
+  {
+    name: 'open-html',
+    kind: 'generated',
+    ext: '.html',
+    fileName: 'generated-smoke.html',
+    expectDocumentReady: true,
+  },
 ];
 
 export function parseArgs(argv) {

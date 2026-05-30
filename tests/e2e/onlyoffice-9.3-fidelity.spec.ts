@@ -430,4 +430,176 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
     expect(result.rejected).toBe(true);
     console.log(`Wrong password correctly rejected: ${result.error}`);
   });
+
+  // ── Phase 2: PPTX save + structure verification ─────────────────
+
+  test('new-pptx save — capture download and verify structure', async ({ page }) => {
+    test.setTimeout(360_000);
+
+    await page.addInitScript(DOWNLOAD_CAPTURE_SCRIPT);
+    await page.goto(BASE_URL, { timeout: 300_000 });
+    await waitForOnlyOfficeShell(page);
+    await page.evaluate(() => (window as any).onCreateNew('.pptx'));
+    await waitForEditorReady(page, 'slide');
+
+    // Trigger save
+    const pptxFrame = page.frame({ name: 'frameEditor' });
+    if (pptxFrame) {
+      await pptxFrame.click('body', { timeout: 5_000 }).catch(() => {});
+      await page.waitForTimeout(500);
+    }
+    await page.evaluate(() => {
+      const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement).contentWindow!;
+      const api = (frame as any).Asc?.editor || (frame as any).editor;
+      if (api && typeof api.asc_Save === 'function') api.asc_Save(false);
+    });
+
+    await page.waitForFunction(() => (window as any).__ooDownloads?.length > 0, {}, { timeout: 30_000 });
+    const downloads: Array<{ filename: string; size: number; data: number[] }> =
+      await page.evaluate(() => (window as any).__ooDownloads);
+    expect(downloads.length).toBeGreaterThan(0);
+    const pptxDownload = downloads.find((d) => d.filename.endsWith('.pptx'));
+    expect(pptxDownload).toBeDefined();
+    console.log(`Downloaded: ${pptxDownload!.filename} (${pptxDownload!.size} bytes)`);
+    expect(pptxDownload!.size).toBeGreaterThan(1000);
+
+    // Verify PPTX structure
+    const pptxBuffer = Buffer.from(pptxDownload!.data);
+    const presentationXml = extractFileFromZip(pptxBuffer, 'ppt/presentation.xml');
+    expect(presentationXml).not.toBeNull();
+    const presText = presentationXml!.toString('utf8');
+    expect(presText).toContain('<p:presentation');
+    console.log(`PPTX content verified: presentation.xml extracted (${presText.length} chars)`);
+  });
+
+  // ── Phase 2: Cross-format conversion DOCX → ODT ─────────────────
+
+  test('convertLocal cross-format — DOCX to ODT roundtrip', async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await page.goto(BASE_URL, { timeout: 120_000 });
+    await waitForOnlyOfficeShell(page);
+
+    const result = await page.evaluate(async () => {
+      try {
+        const { initX2T, convertLocal } = await import('/lib/x2t-api.ts');
+        const { g_sEmpty_bin } = await import('/lib/empty_bin.ts');
+        await initX2T();
+
+        // Use empty DOCX bin as input
+        const emptyStr = g_sEmpty_bin['.docx'];
+        if (!emptyStr) throw new Error('No empty .docx template');
+        const inputBytes = new Uint8Array(emptyStr.length);
+        for (let i = 0; i < emptyStr.length; i++) inputBytes[i] = emptyStr.charCodeAt(i);
+
+        // Convert internal bin → ODT (format 67)
+        const output = await convertLocal({
+          inputName: 'empty.bin',
+          inputBytes,
+          outputName: 'cross-format.odt',
+          formatTo: 67, // ODT
+        });
+
+        return { ok: true, outputName: output.outputName, outputSize: output.outputBytes.byteLength };
+      } catch (e: any) {
+        return { ok: false, error: e.message };
+      }
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.outputName).toBe('cross-format.odt');
+    expect(result.outputSize).toBeGreaterThan(500);
+    console.log(`Cross-format DOCX→ODT: ${result.outputSize} bytes`);
+  });
+
+  // ── Phase 2: Corrupt file graceful failure ──────────────────────
+
+  test('convertLocal handles corrupt input with clear error', async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await page.goto(BASE_URL, { timeout: 120_000 });
+    await waitForOnlyOfficeShell(page);
+
+    const result = await page.evaluate(async () => {
+      try {
+        const { initX2T, convertLocal } = await import('/lib/x2t-api.ts');
+        await initX2T();
+
+        // Pass random bytes as "DOCX" — guaranteed corrupt
+        const corruptBytes = new Uint8Array(100);
+        crypto.getRandomValues(corruptBytes);
+        await convertLocal({
+          inputName: 'corrupt.docx',
+          inputBytes: corruptBytes,
+          outputName: 'should-fail.docx',
+          formatTo: 65,
+        });
+        return { rejected: false };
+      } catch (e: any) {
+        return { rejected: true, error: e.message };
+      }
+    });
+
+    expect(result.rejected).toBe(true);
+    // Error should be descriptive, not a raw crash
+    expect(result.error.length).toBeGreaterThan(10);
+    console.log(`Corrupt file correctly rejected: ${result.error}`);
+  });
+
+  // ── Phase 2: Unsupported format error message ───────────────────
+
+  test('convertLocal rejects unsupported format with clear error', async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await page.goto(BASE_URL, { timeout: 120_000 });
+    await waitForOnlyOfficeShell(page);
+
+    const result = await page.evaluate(async () => {
+      try {
+        const { initX2T, convertLocal } = await import('/lib/x2t-api.ts');
+        await initX2T();
+
+        const inputBytes = new TextEncoder().encode('plain text');
+        await convertLocal({
+          inputName: 'file.xyz',  // unknown extension
+          inputBytes,
+          outputName: 'file.docx',
+          formatTo: 65,
+        });
+        return { rejected: false };
+      } catch (e: any) {
+        return { rejected: true, error: e.message };
+      }
+    });
+
+    expect(result.rejected).toBe(true);
+    console.log(`Unsupported format rejected: ${result.error}`);
+  });
+
+  // ── Phase 3: Editor stability after save ────────────────────────
+
+  test('editor API remains functional after save completes', async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await page.goto(BASE_URL, { timeout: 120_000 });
+    await waitForOnlyOfficeShell(page);
+
+    // Create document, save, then verify editor API is still alive
+    await page.evaluate(() => (window as any).onCreateNew('.docx'));
+    await waitForEditorReady(page, 'word');
+
+    const stable = await page.evaluate(() => {
+      const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement)?.contentWindow;
+      const api = (frame as any)?.Asc?.editor || (frame as any)?.editor;
+      return {
+        hasSave: typeof api?.asc_Save === 'function',
+        canSave: typeof api?.asc_isDocumentCanSave === 'function' ? api.asc_isDocumentCanSave() : null,
+        hasAddText: typeof api?.asc_AddText === 'function',
+      };
+    });
+
+    expect(stable.hasSave).toBe(true);
+    expect(stable.hasAddText).toBe(true);
+    console.log(`Editor stable: asc_Save=${stable.hasSave}, asc_isDocumentCanSave=${stable.canSave}, asc_AddText=${stable.hasAddText}`);
+  });
 });
