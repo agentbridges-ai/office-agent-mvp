@@ -1,20 +1,35 @@
 {
-  "schema": 1,
-  "description": "Source provenance for the x2t WASM build. The Dockerfile requires CryptPad's modified ONLYOFFICE/core — vanilla core does NOT build directly (missing 6 stub files + build config changes).",
+  "schema": 2,
+  "description": "Source provenance for the x2t WASM build. Vanilla ONLYOFFICE/core v9.3.0.140 can now be used directly — 26 patches + 6 stubs produce bit-identical x2t.wasm (verified 2026-05-30).",
   "coreSource": {
     "primary": {
-      "source": "cryptpad/onlyoffice-x2t-wasm",
-      "ref": "v9.3.0+0",
-      "path": "core/",
-      "url": "https://github.com/cryptpad/onlyoffice-x2t-wasm",
-      "note": "CryptPad maintains a git subtree of ONLYOFFICE/core with 56 WASM-adaptation files changed"
-    },
-    "upstream": {
       "source": "ONLYOFFICE/core",
       "ref": "v9.3.0.140",
       "url": "https://github.com/ONLYOFFICE/core",
-      "note": "Vanilla core cannot be used directly — see delta classification below"
+      "note": "Vanilla core + patches/stubs is now the PRIMARY build source. CryptPad fork no longer required."
+    },
+    "historical": {
+      "source": "cryptpad/onlyoffice-x2t-wasm",
+      "ref": "v9.3.0+0",
+      "url": "https://github.com/cryptpad/onlyoffice-x2t-wasm",
+      "note": "Used for initial adaptation and as the reference for patch generation."
     }
+  },
+  "patchSystem": {
+    "stubs": {
+      "count": 6,
+      "lines": 1138,
+      "path": "patches/core-stubs/",
+      "description": "Empty stub implementations replacing Qt-dependent code"
+    },
+    "mustPortPatches": {
+      "count": 26,
+      "lines": 1960,
+      "path": "patches/core-must-port/",
+      "description": "Build config, linker, and behavioral changes required for WASM compilation"
+    },
+    "applyScript": "patches/apply-all.sh",
+    "note": "apply-all.sh auto-discovers all .patch files — no manual mapping needed"
   },
   "delta": {
     "totalFilesChanged": 56,

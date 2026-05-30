@@ -57,7 +57,7 @@
 | maxInputBytes 边界拒绝 | E2E test |
 | 密码文档解密 + 错误密码拒绝 | E2E test: decrypt 1248 bytes, wrong password → x2t error code 91 |
 | 字体管线 (manifest + hash-lock + verify) | `fonts/manifest.json` + `fonts/hash-lock.json` + `bin/verify-font-pack.mjs`, 24 match 0 mismatch |
-| x2t build pipeline 验证 | `tools/x2t-wasm/` — WASM bit-identical (347 steps, x2t.wasm/x2t.wasm.br MATCH) |
+| x2t build pipeline (vanilla core) | `tools/x2t-wasm/` — vanilla ONLYOFFICE/core + 26 patches + 6 stubs → WASM bit-identical `e166c252...` |
 | 生产路径决策: P1 migration deferred | 双 X2TConverter 实例冲突; 旧主链保留, x2t-api.ts 为 optional API |
 
 ### 不能宣称完成的
@@ -207,7 +207,7 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 
 ---
 
-### R3: Repo x2t 构建验证 [x] — 完成, 长期路线已规划
+### R3: Repo x2t 构建验证 [x] — 完成, vanilla core 独立构建确认
 
 - [x] **R3-1**: 确认 CryptPad modified core 为构建依赖
   - 根本原因: 6 个 stub 文件 (共 1138 行) 替换了依赖 Qt 的 doctrenderer/graphics/fonts 实现
@@ -223,12 +223,12 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
   - `tools/x2t-wasm/README.md` — 构建流程、源码链、长期路线图
   - `scripts/clone-core.sh` — 从 CryptPad repo 提取 core/
   - `scripts/build-with-core.sh` — 统一构建入口 (core check → build → verify)
-- [ ] **R3-远期**: 消除 CryptPad core 依赖
-  - [x] Step 1: 将 6 个 stub 提取为独立 patches → `patches/core-stubs/` (1138 行, README + apply-stubs.sh)
-  - [ ] Step 2: 将 14 个 must-port build config 制成 `.patch` 文件
-  - [ ] Step 3: Review 4 个 risk-needs-review 变更
-  - [ ] Step 4: `clone-core.sh` 改为拉取 vanilla core + apply patches
-  - 完成后可完全独立于 CryptPad fork 构建
+- [x] **R3-远期**: 消除 CryptPad core 依赖 ✅ 完成
+  - [x] Step 1: 6 个 stub 提取为独立 patches → `patches/core-stubs/` (1138 行)
+  - [x] Step 2: 26 个 `.patch` 文件覆盖全部文件差异 → `patches/core-must-port/` (1960 行)
+  - [x] Step 3: 4 个 risk 变更评审 → 3 INCLUDE (html.h/pdf_image.h/X2tConverter.pri), 1 EXCLUDE (BinaryReader defer)
+  - [x] Step 4: vanilla core + apply-all.sh(26 patches + 6 stubs) → docker build → **x2t.wasm bit-identical** `e166c252...` ✅
+  - 现在完全可以从 vanilla ONLYOFFICE/core v9.3.0.140 独立构建，不再依赖 CryptPad fork
 
 ---
 
