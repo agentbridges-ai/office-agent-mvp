@@ -159,6 +159,47 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
     expect(result.error).toContain('exceeds max');
   });
 
+  test('new-xlsx save — capture download via __ooDownloads hook', async ({ page }) => {
+    test.setTimeout(360_000);
+
+    await page.addInitScript(DOWNLOAD_CAPTURE_SCRIPT);
+
+    await page.goto(BASE_URL, { timeout: 300_000 });
+    await waitForOnlyOfficeShell(page);
+    await page.evaluate(() => (window as any).onCreateNew('.xlsx'));
+    await waitForEditorReady(page, 'cell');
+
+    // XLSX needs more init time than DOCX before save is safe
+    await page.waitForTimeout(3000);
+
+    // Trigger save — use iframe click + evaluate to establish user-gesture
+    const xlsxFrame = page.frame({ name: 'frameEditor' });
+    if (xlsxFrame) {
+      await xlsxFrame.click('body', { timeout: 5_000 }).catch(() => {});
+      await page.waitForTimeout(300);
+    }
+    await page.evaluate(() => {
+      const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement).contentWindow!;
+      const api = (frame as any).Asc?.editor || (frame as any).editor;
+      if (api && typeof api.asc_Save === 'function') api.asc_Save(false);
+    });
+
+    await page.waitForFunction(
+      () => (window as any).__ooDownloads?.length > 0,
+      {},
+      { timeout: 30_000 },
+    );
+
+    const downloads: Array<{ filename: string; size: number }> = await page.evaluate(
+      () => (window as any).__ooDownloads,
+    );
+    expect(downloads.length).toBeGreaterThan(0);
+    const xlsxDownload = downloads.find((d) => d.filename.endsWith('.xlsx'));
+    expect(xlsxDownload).toBeDefined();
+    console.log(`Downloaded: ${xlsxDownload!.filename} (${xlsxDownload!.size} bytes)`);
+    expect(xlsxDownload!.size).toBeGreaterThan(1000);
+  });
+
   test('second context opens DOCX independently', async ({ browser }) => {
     test.setTimeout(360_000);
 

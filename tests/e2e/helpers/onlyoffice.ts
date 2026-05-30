@@ -120,38 +120,31 @@ export async function waitForEditorReady(
   // Wait for iframe
   await page.waitForSelector('iframe[name="frameEditor"]', { timeout: 60_000 });
 
-  // Wait for editor API to be available in the iframe
-  // Different editors expose APIs differently: Word uses Asc.editor.asc_AddText,
-  // XLSX uses frame.Api.GetActiveSheet, PPTX uses frame.Api.GetPresentation
-  if (editorType === 'cell') {
-    await page.waitForFunction(
-      () => {
-        try {
-          const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement)?.contentWindow;
-          return !!(frame as any)?.Api && typeof (frame as any).Api.GetActiveSheet === 'function';
-        } catch { return false; }
-      },
-      {},
-      { timeout },
-    );
-  } else if (editorType === 'slide') {
-    await page.waitForFunction(
-      () => {
-        try {
-          const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement)?.contentWindow;
-          return !!(frame as any)?.Api && typeof (frame as any).Api.GetPresentation === 'function';
-        } catch { return false; }
-      },
-      {},
-      { timeout },
-    );
-  } else {
+  // Wait for editor API to be available in the iframe.
+  // All editor types expose Asc.editor with asc_Save. Word additionally has
+  // asc_AddText; cell/slide have it too but we check the common asc_Save.
+  // Note: frame.Api (capital A) is NOT reliably available for cell/slide
+  // in all load scenarios — use Asc.editor as the common denominator.
+  if (editorType === 'word') {
     await page.waitForFunction(
       () => {
         try {
           const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement)?.contentWindow;
           const api = (frame as any)?.Asc?.editor || (frame as any)?.editor;
           return api && typeof api.asc_AddText === 'function';
+        } catch { return false; }
+      },
+      {},
+      { timeout },
+    );
+  } else {
+    // cell or slide: check asc_Save as the common readiness signal
+    await page.waitForFunction(
+      () => {
+        try {
+          const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement)?.contentWindow;
+          const api = (frame as any)?.Asc?.editor || (frame as any)?.editor;
+          return api && typeof api.asc_Save === 'function';
         } catch { return false; }
       },
       {},

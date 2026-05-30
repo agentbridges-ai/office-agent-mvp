@@ -51,8 +51,8 @@
 | x2t 9.3 WASM artifact (core v9.3.0.140) | bit-identical self-build, `docs/cryptpad-delta.md` |
 | 7-gate verification system | `pnpm run gate:onlyoffice` all PASS |
 | 11-scenario CDP smoke harness | `pnpm run smoke:onlyoffice` 11/11 PASS |
-| Playwright E2E 5/5 PASS | `pnpm run test:e2e:smoke` 5/5 PASS |
-| DOCX 下载捕获 + 内容验证 | __ooDownloads hook, word/document.xml 提取 + typed-text 内容匹配 |
+| Playwright E2E 6/6 PASS | `pnpm run test:e2e:smoke` 6/6 PASS |
+| DOCX/XLSX 下载捕获 + 内容验证 | 6/6 PASS: DOCX (25429 bytes + typed text), XLSX (7854 bytes) |
 | convertLocal 真转换 (空 bin → DOCX, 9024 bytes) | E2E test |
 | maxInputBytes 边界拒绝 | E2E test |
 | x2t build pipeline 入库 | `tools/x2t-wasm/` (Dockerfile + scripts + provenance.json), 待 repo 内重跑验证 |
@@ -67,7 +67,6 @@
 | **full font fidelity** | manifest.json / hash-lock / WOFF2 策略 / CJK/RTL/emoji 未闭环 | 独立立项 P5 |
 | **PDF export** | 字体管线未完成, PDF 输出质量未验证 | P5 后 |
 | **repo-owned x2t build pipeline** | 当前 `/tmp/cryptpad-x2t` 自构建成功但未入库 `tools/x2t-wasm/` | 独立立项 P4 |
-| **DOCX/XLSX 并发打开** | XLSX `waitForEditorReady` 超时 (Api 路径差异), 已替换为 sequential DOCX-only | 后续 debug |
 
 ### 验证命令
 
@@ -166,11 +165,12 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 - [x] P5-5: CSV native x2t — `tryNativeCsvConvert()` (`bcd17600`)
 - [x] P5-3: 密码 doc 基础设施 — `officecrypto-tool` + encrypted sample + scenario (`03ddc1ff`)
 - [x] P5-4: 大文件 — `createLargeDocxSample` 1000 paragraphs (`861598eb`)
-- [x] P5-6/P5-7: Playwright E2E — `tests/e2e/onlyoffice-9.3-fidelity.spec.ts` + `playwright.config.ts` (`48992b77`)
-  - 5/5 PASS: download capture (__ooDownloads hook + URL.createObjectURL trap), convertLocal empty bin→DOCX (9024 bytes), maxInputBytes boundary rejection, second context DOCX open, 9.3.1 version check
+- [x] P5-6/P5-7: Playwright E2E — `tests/e2e/onlyoffice-9.3-fidelity.spec.ts` + `playwright.config.ts` (`2295a9ca`)
+  - 6/6 PASS: DOCX download + typed-text verification (25429 bytes), convertLocal empty bin→DOCX (9024 bytes), maxInputBytes rejection, XLSX download (7854 bytes), second context DOCX open, 9.3.1 version check
   - `tests/e2e/helpers/onlyoffice.ts` with download hook, evidence collectors, wait helpers, extractFileFromZip
-  - Download: 25383 bytes DOCX captured, word/document.xml extracted (2124 chars)
-  - Known: was failing — fixed by using `page.keyboard.type()` via iframe click instead of `page.evaluate(() => api.asc_AddText(...))` (user-gesture context required).
+  - DOCX typed text: fixed via `page.keyboard.type()` + iframe click (user-gesture context required)
+  - XLSX: fixed via iframe click + wait, `Asc.editor.asc_Save` not `frame.Api.GetActiveSheet`
+  - Download: 25429 bytes DOCX (word/document.xml verified), 7854 bytes XLSX
 - [ ] P6-3: 跟进 PR (after PR #4 merged)
 
 ---
