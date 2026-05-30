@@ -283,9 +283,22 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 
 ---
 
-### R6: 跟进 PR [ ] — after PR #4 merged
+### R6: 跟进 PR [~] — 准备就绪, 待 merge
 
-- [ ] 整理 PR 描述 (完整提交历史 + Claim Boundary)
+- [x] todo.md 清理 (stale sections removed, counts synced)
+- [x] 验证通过: 7 gates ✅ + tsc ✅ + 9/9 E2E ✅
+- [x] 84 commits on `onlyoffice-9-3-adaption`, key deliverables:
+  - Editor Runtime 9.3.1 full-vendor
+  - Adapter Bridge (T7c/Iid/zWc save hooks)
+  - x2t WASM 9.3.0.140 (self-built, bit-identical verified)
+  - 7-gate verification system
+  - 11/11 CDP smoke + 9/9 Playwright E2E
+  - Claim Boundary (4 invariants, can/cannot declare tables)
+  - Font pipeline (manifest + hash-lock + verify)
+  - x2t build pipeline (tools/x2t-wasm/)
+  - Password doc E2E (decrypt + wrong-password reject)
+  - R3-远期 Step 1 (6 stub patches extracted)
+- [ ] 整理 PR 描述
 - [ ] 确保 CI 可跑 `pnpm run verify:onlyoffice9 && pnpm run test:e2e:smoke`
 - [ ] 处理 PR review 反馈
 - [ ] 合并后关闭相关 issue
