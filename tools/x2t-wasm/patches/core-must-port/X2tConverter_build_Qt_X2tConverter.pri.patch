@@ -5,8 +5,8 @@
  #All dynamic libs
  
 -ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, Fb2File, PdfFile, HtmlFile2, EpubFile, XpsFile, OFDFile, DjVuFile, doctrenderer, DocxRenderer, IWorkFile, HWPFile, StarMathConverter, ooxmlsignature)
-+# ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, Fb2File, PdfFile, HtmlFile2, EpubFile, XpsFile, DjVuFile, doctrenderer, DocxRenderer, IWorkFile, HWPFile)
-+ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, HtmlFile2, EpubFile, XpsFile, DjVuFile, doctrenderer, DocxRenderer, IWorkFile, HWPFile)
++# ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, Fb2File, PdfFile, HtmlFile2, EpubFile, XpsFile, OFDFile, DjVuFile, doctrenderer, DocxRenderer, IWorkFile, HWPFile, StarMathConverter, ooxmlsignature)
++ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, HtmlFile2, EpubFile, XpsFile, DjVuFile, doctrenderer, DocxRenderer, IWorkFile, HWPFile, DocFormatLib, XlsFormatLib, PPTFormatLib)
  
  #####################################################
  # внешнее подключение сторонних библиотек
