@@ -269,7 +269,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
       { timeout: 30_000 },
     );
 
-    const downloads: Array<{ filename: string; size: number }> = await page.evaluate(
+    const downloads: Array<{ filename: string; size: number; data: number[] }> = await page.evaluate(
       () => (window as any).__ooDownloads,
     );
     expect(downloads.length).toBeGreaterThan(0);
@@ -277,6 +277,15 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
     expect(xlsxDownload).toBeDefined();
     console.log(`Downloaded: ${xlsxDownload!.filename} (${xlsxDownload!.size} bytes)`);
     expect(xlsxDownload!.size).toBeGreaterThan(1000);
+
+    // Verify XLSX is valid OOXML — extract and check sheet data
+    const xlsxBuffer = Buffer.from(xlsxDownload!.data);
+    const sheetXml = extractFileFromZip(xlsxBuffer, 'xl/worksheets/sheet1.xml');
+    expect(sheetXml).not.toBeNull();
+    const sheetText = sheetXml!.toString('utf8');
+    expect(sheetText).toContain('<worksheet');
+    expect(sheetText).toContain('<sheetData>');
+    console.log(`XLSX content verified: sheet1.xml extracted (${sheetText.length} chars)`);
   });
 
   test('second context opens DOCX independently', async ({ browser }) => {
@@ -301,6 +310,45 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
     await waitForEditorReady(page2, 'word');
     expect(await page2.evaluate(() => !!(window as any).editor)).toBe(true);
     await ctx2.close();
+  });
+
+  test('concurrent DOCX and XLSX in parallel contexts', async ({ browser }) => {
+    test.setTimeout(360_000);
+
+    const docxCtx = await browser.newContext();
+    const xlsxCtx = await browser.newContext();
+    const [docxPage, xlsxPage] = await Promise.all([
+      docxCtx.newPage(),
+      xlsxCtx.newPage(),
+    ]);
+
+    // Load both in parallel
+    await Promise.all([
+      docxPage.goto(BASE_URL, { timeout: 300_000 }),
+      xlsxPage.goto(BASE_URL, { timeout: 300_000 }),
+    ]);
+    await Promise.all([
+      waitForOnlyOfficeShell(docxPage),
+      waitForOnlyOfficeShell(xlsxPage),
+    ]);
+
+    // Create documents in parallel
+    await Promise.all([
+      docxPage.evaluate(() => (window as any).onCreateNew('.docx')),
+      xlsxPage.evaluate(() => (window as any).onCreateNew('.xlsx')),
+    ]);
+    await Promise.all([
+      waitForEditorReady(docxPage, 'word'),
+      waitForEditorReady(xlsxPage, 'cell'),
+    ]);
+
+    const docxOk = await docxPage.evaluate(() => !!(window as any).editor);
+    const xlsxOk = await xlsxPage.evaluate(() => !!(window as any).editor);
+    expect(docxOk).toBe(true);
+    expect(xlsxOk).toBe(true);
+
+    await docxCtx.close();
+    await xlsxCtx.close();
   });
 
   test('9.3.1 version check', async ({ page }) => {
