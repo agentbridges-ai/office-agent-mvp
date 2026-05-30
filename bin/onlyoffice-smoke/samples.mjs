@@ -17,6 +17,9 @@ function createGeneratedSamples() {
     ['.rtf', createRtfSample()],
     ['.txt', createTxtSample()],
     ['.html', createHtmlSample()],
+    // Binary format (OLE2 — Word 97-2003)
+    ['.doc', createDocSample()],
+    // XLS/PPT deferred: BIFF record structures need refinement
   ]);
 }
 
@@ -91,6 +94,9 @@ function contentType(filePath) {
   if (ext === '.rtf') return 'application/rtf';
   if (ext === '.txt') return 'text/plain; charset=utf-8';
   if (ext === '.html') return 'text/html; charset=utf-8';
+  if (ext === '.doc') return 'application/msword';
+  if (ext === '.xls') return 'application/vnd.ms-excel';
+  if (ext === '.ppt') return 'application/vnd.ms-powerpoint';
   return 'application/octet-stream';
 }
 
@@ -425,6 +431,158 @@ function createHtmlSample() {
     '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Smoke</title></head><body><p>ONLYOFFICE 9.3 HTML Smoke Test</p><p>中文 HTML smoke 测试</p></body></html>',
     'utf8',
   );
+}
+
+// ── Binary Format Generators (OLE2 Compound File) ─────────────────
+
+// Minimal OLE2 compound document builder.
+// Creates valid-enough DOC/XLS/PPT files that x2t can recognize and open.
+// OLE2 spec: sectors are 512 bytes, header is fixed format.
+function createOle2(streams) {
+  const SECTOR = 512;
+  const HEADER_SIZE = SECTOR;
+  const DIR_ENTRY_SIZE = 128;
+
+  // Build directory entries
+  const dirEntries = [{ name: 'Root Entry', type: 5, color: 1, left: -1, right: -1, child: 1, start: -1, size: 0 }]; // root storage
+  for (const s of streams) {
+    dirEntries.push({ name: s.name, type: 2, color: 0, left: -1, right: -1, child: -1, start: -1, size: s.data.length });
+  }
+
+  const dirSize = dirEntries.length * DIR_ENTRY_SIZE;
+  const fatEntriesNeeded = Math.ceil((HEADER_SIZE + dirSize + streams.reduce((a, s) => a + s.data.length, 0)) / SECTOR) + 2;
+
+  // Build FAT — simple contiguous allocation
+  const fat = Buffer.alloc(Math.max(fatEntriesNeeded * 4, SECTOR));
+  fat.writeUInt32LE(0xFFFFFFFD, 0); // FAT sector marker
+  for (let i = 1; i < fatEntriesNeeded - 1; i++) fat.writeUInt32LE(i + 1, i * 4);
+  fat.writeUInt32LE(0xFFFFFFFE, (fatEntriesNeeded - 1) * 4); // ENDOFCHAIN
+
+  // Build header
+  const header = Buffer.alloc(HEADER_SIZE);
+  header.write('D0CF11E0A1B11AE1', 0, 'hex'); // magic
+  for (let i = 8; i < 16; i++) header[i] = 0; // CLSID
+  header.writeUInt16LE(0x003E, 26); // minor version
+  header.writeUInt16LE(0x0003, 28); // major version (3=512B sectors)
+  header.writeUInt16LE(0xFFFE, 30); // byte order
+  header.writeUInt16LE(9, 32);   // sector size power (2^9=512)
+  header.writeUInt16LE(6, 34);   // mini sector size power (2^6=64)
+  header.writeUInt32LE(0, 40);   // reserved
+  header.writeUInt32LE(0, 44);   // FAT sectors count (will set later)
+  header.writeUInt32LE(0xFFFFFFFE, 48); // DIR start
+  header.writeUInt32LE(1, 56);   // mini FAT cutoff (4096 bytes)
+  header.writeUInt32LE(2, 60);   // mini FAT start
+  header.writeUInt32LE(Math.ceil(fat.length / SECTOR), 64); // DIFAT count
+  // DIFAT: first 109 FAT sector indices
+  for (let i = 1, j = 0; i <= Math.ceil(fat.length / SECTOR) && j < 109; i++, j++) {
+    header.writeUInt32LE(i, 76 + j * 4);
+  }
+
+  // Allocate sectors
+  let sectorOffset = 0;
+  const allocate = (size) => {
+    const start = sectorOffset;
+    sectorOffset += Math.ceil(size / SECTOR);
+    return start;
+  };
+
+  const headerSector = allocate(HEADER_SIZE);
+  const fatSector = allocate(fat.length);
+  const dirSector = allocate(dirSize);
+  for (const s of streams) s.sectorStart = allocate(s.data.length);
+
+  // Write directory
+  const dirBuf = Buffer.alloc(dirSize);
+  let dirOff = 0;
+  for (const e of dirEntries) {
+    const nameLen = Math.min(e.name.length, 31);
+    for (let n = 0; n < nameLen; n++) dirBuf.writeUInt16LE(e.name.charCodeAt(n), dirOff + n * 2);
+    dirBuf.writeUInt16LE(nameLen + 1, dirOff + 64); // name length (with null terminator)
+    dirBuf.writeUInt8(e.type, dirOff + 66);    // 2=stream, 5=storage
+    dirBuf.writeUInt8(e.color, dirOff + 67);   // 0=red, 1=black
+    dirBuf.writeInt32LE(e.left, dirOff + 68);
+    dirBuf.writeInt32LE(e.right, dirOff + 72);
+    dirBuf.writeInt32LE(e.child, dirOff + 76);
+    // CLSID (16 bytes zero at offset 80, then start sector at offset 116)
+    for (let c = 80; c < 96; c++) dirBuf.writeUInt8(0, dirOff + c);
+    const startSector = e.start >= 0 ? (e.sectorStart + 1 + Math.ceil(fat.length / SECTOR)) : 0xFFFFFFFE;
+    dirBuf.writeUInt32LE(startSector, dirOff + 116);
+    dirBuf.writeUInt32LE(0, dirOff + 120); // size high
+    dirBuf.writeUInt32LE(e.size, dirOff + 124); // size low
+    dirOff += DIR_ENTRY_SIZE;
+  }
+
+  // Assemble
+  const parts = [header];
+  while (parts[0].length < sectorOffset * SECTOR) parts[0] = Buffer.concat([parts[0], Buffer.alloc(SECTOR - parts[0].length % SECTOR || SECTOR)]);
+  parts.push(fat);
+  while (parts.reduce((a, b) => a + b.length, 0) < (fatSector + Math.ceil(fat.length / SECTOR)) * SECTOR) parts.push(Buffer.alloc(SECTOR));
+  parts.push(dirBuf);
+  while (parts.reduce((a, b) => a + b.length, 0) < (dirSector + Math.ceil(dirSize / SECTOR)) * SECTOR) parts.push(Buffer.alloc(SECTOR));
+  for (const s of streams) {
+    const buf = Buffer.isBuffer(s.data) ? s.data : Buffer.from(s.data);
+    parts.push(buf);
+    while (parts.reduce((a, b) => a + b.length, 0) < (s.sectorStart + Math.ceil(buf.length / SECTOR)) * SECTOR) parts.push(Buffer.alloc(SECTOR));
+  }
+
+  return Buffer.concat(parts);
+}
+
+function createDocSample() {
+  // Minimal WordDocument stream: FIB header (32 bytes) + empty body
+  const fib = Buffer.alloc(32);
+  fib.writeUInt16LE(0xA5EC, 0);  // magic
+  fib.writeUInt16LE(0x00C1, 2);  // version
+  fib.writeUInt16LE(0x0006, 6);  // flags
+
+  const wordDoc = Buffer.concat([fib]);
+  const table1 = Buffer.from([0x01, 0x00, 0x00, 0x00]); // minimal Clx
+
+  return createOle2([
+    { name: 'WordDocument', data: wordDoc },
+    { name: '\x011Table', data: table1 },
+    { name: 'Data', data: Buffer.alloc(0) },
+  ]);
+}
+
+function createXlsSample() {
+  // Minimal BOF/EOF BIFF records
+  const bof = Buffer.alloc(20);
+  bof.writeUInt16LE(0x0809, 0); // BOF record
+  bof.writeUInt16LE(16, 2);      // size
+  bof.writeUInt16LE(0x0006, 4);  // BIFF version 6 (= Excel 97)
+  const eof = Buffer.alloc(4);
+  eof.writeUInt16LE(0x000A, 0);  // EOF record
+  eof.writeUInt16LE(0, 2);
+
+  const book = Buffer.concat([bof, eof]);
+
+  return createOle2([
+    { name: 'Workbook', data: book },
+    { name: 'Book', data: book },
+  ]);
+}
+
+function createPptSample() {
+  // Minimal PPT: empty presentation
+  const currentUserAtom = Buffer.alloc(16);
+  currentUserAtom.writeUInt32LE(0x03E8, 0); // size
+  currentUserAtom.writeUInt32LE(0x03E9, 4); // size again
+
+  const userEditAtom = Buffer.alloc(50);
+  userEditAtom.writeUInt32LE(0x1000, 0); // record header
+  userEditAtom.writeUInt32LE(26, 4);     // size
+
+  const docAtom = Buffer.alloc(48);
+  docAtom.writeUInt32LE(0x03E8, 0);
+
+  const ppDoc = Buffer.concat([currentUserAtom, userEditAtom, docAtom]);
+
+  return createOle2([
+    { name: 'PowerPoint Document', data: ppDoc },
+    { name: 'Current User', data: Buffer.alloc(8) },
+    { name: 'Pictures', data: Buffer.alloc(0) },
+  ]);
 }
 
 function createZip(entries) {

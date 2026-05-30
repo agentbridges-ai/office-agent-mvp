@@ -125,6 +125,16 @@ export const DEFAULT_SCENARIOS = [
     fileName: 'generated-smoke.html',
     expectDocumentReady: true,
   },
+  // ── Phase 1 continued: Binary format (OLE2) ───────────────
+  {
+    name: 'open-doc',
+    kind: 'generated',
+    ext: '.doc',
+    fileName: 'generated-smoke.doc',
+    expectDocumentReady: true,
+  },
+  // XLS/PPT deferred: OLE2 BIFF structures more complex than DOC;
+  // current createOle2 builder works for DOC but needs refinement for XLS/PPT
 ];
 
 export function parseArgs(argv) {
