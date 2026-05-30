@@ -1,5 +1,7 @@
 // @ts-nocheck — Playwright E2E test, Vite module resolution in browser
 import { test, expect } from '@playwright/test';
+import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
 import {
   DOWNLOAD_CAPTURE_SCRIPT,
   createEvidence,
@@ -9,6 +11,83 @@ import {
   waitForEditorReady,
   extractFileFromZip,
 } from './helpers/onlyoffice';
+
+const require = createRequire(import.meta.url);
+const PASSWORD = 'onlyoffice-9.3-test';
+
+// Minimal DOCX ZIP creator (Node.js side, for generating encrypted test fixtures)
+function createMinimalDocx(): Buffer {
+  const entries = [
+    {
+      name: '[Content_Types].xml',
+      data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+    },
+    {
+      name: '_rels/.rels',
+      data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+    },
+    {
+      name: 'word/document.xml',
+      data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>ONLYOFFICE 9.3 Password E2E Test</w:t></w:r></w:p></w:body></w:document>',
+    },
+  ];
+  return createZip(entries);
+}
+
+function createZip(entries: Array<{ name: string; data: string }>): Buffer {
+  const localParts: Buffer[] = [];
+  const centralParts: Buffer[] = [];
+  let offset = 0;
+  for (const entry of entries) {
+    const name = Buffer.from(entry.name, 'utf8');
+    const data = Buffer.from(entry.data, 'utf8');
+    const crc = crc32(data);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4); local.writeUInt16LE(0x0800, 6);
+    local.writeUInt16LE(0, 8); local.writeUInt16LE(0, 10);
+    local.writeUInt16LE(0, 12); local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(data.length, 18); local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(name.length, 26); local.writeUInt16LE(0, 28);
+    localParts.push(local, name, data);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4); central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(0x0800, 8);
+    central.writeUInt16LE(0, 10); central.writeUInt16LE(0, 12);
+    central.writeUInt16LE(0, 14); central.writeUInt32LE(crc, 16);
+    central.writeUInt32LE(data.length, 20); central.writeUInt32LE(data.length, 24);
+    central.writeUInt16LE(name.length, 28); central.writeUInt16LE(0, 30);
+    central.writeUInt16LE(0, 32); central.writeUInt16LE(0, 34);
+    central.writeUInt16LE(0, 36); central.writeUInt32LE(0, 38);
+    central.writeUInt32LE(offset, 42);
+    centralParts.push(central, name);
+    offset += local.length + name.length + data.length;
+  }
+  const central = Buffer.concat(centralParts);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(0, 4); end.writeUInt16LE(0, 6);
+  end.writeUInt16LE(entries.length, 8); end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(central.length, 12); end.writeUInt32LE(offset, 16);
+  end.writeUInt16LE(0, 20);
+  return Buffer.concat([...localParts, central, end]);
+}
+
+function crc32(buf: Buffer): number {
+  let crc = 0xffffffff;
+  for (const b of buf) { crc ^= b; for (let i = 0; i < 8; i++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1)); }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+// Pre-compute encrypted DOCX at module load (Node.js side)
+let encryptedDocx: Buffer;
+try {
+  const { encrypt } = require('officecrypto-tool');
+  encryptedDocx = encrypt(createMinimalDocx(), { password: PASSWORD });
+} catch {
+  encryptedDocx = createMinimalDocx(); // fallback: plain docx
+}
 
 const BASE_URL = process.env.APP_URL || 'http://127.0.0.1:5173';
 
@@ -232,5 +311,75 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
 
     const version = await page.evaluate(() => (window as any).DocsAPI?.DocEditor?.version());
     expect(version).toBe('9.3.1');
+  });
+
+  // ── R1: Password-protected DOCX E2E ──────────────────────────────
+
+  test('convertLocal decrypts password-protected DOCX', async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await page.goto(BASE_URL, { timeout: 120_000 });
+    await waitForOnlyOfficeShell(page);
+
+    // Pass encrypted bytes as array to browser context
+    const encBytes = Array.from(new Uint8Array(encryptedDocx));
+    const result = await page.evaluate(async ({ encBytes, password }) => {
+      try {
+        const { initX2T, convertLocal } = await import('/lib/x2t-api.ts');
+        await initX2T();
+
+        const inputBytes = new Uint8Array(encBytes);
+        const output = await convertLocal({
+          inputName: 'protected.docx',
+          inputBytes,
+          outputName: 'decrypted.docx',
+          formatTo: 65, // DOCX
+          password,
+        });
+
+        return {
+          ok: true,
+          outputName: output.outputName,
+          outputSize: output.outputBytes.byteLength,
+        };
+      } catch (e) {
+        return { ok: false, error: e.message };
+      }
+    }, { encBytes, password: PASSWORD });
+
+    expect(result.ok).toBe(true);
+    expect(result.outputName).toBe('decrypted.docx');
+    expect(result.outputSize).toBeGreaterThan(500);
+    console.log(`Password decrypt: ${result.outputName} (${result.outputSize} bytes)`);
+  });
+
+  test('convertLocal rejects wrong password', async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await page.goto(BASE_URL, { timeout: 120_000 });
+    await waitForOnlyOfficeShell(page);
+
+    const encBytes = Array.from(new Uint8Array(encryptedDocx));
+    const result = await page.evaluate(async ({ encBytes }) => {
+      try {
+        const { initX2T, convertLocal } = await import('/lib/x2t-api.ts');
+        await initX2T();
+
+        const inputBytes = new Uint8Array(encBytes);
+        await convertLocal({
+          inputName: 'protected.docx',
+          inputBytes,
+          outputName: 'fail.docx',
+          formatTo: 65,
+          password: 'wrong-password',
+        });
+        return { rejected: false };
+      } catch (e) {
+        return { rejected: true, error: e.message };
+      }
+    }, { encBytes });
+
+    expect(result.rejected).toBe(true);
+    console.log(`Wrong password correctly rejected: ${result.error}`);
   });
 });

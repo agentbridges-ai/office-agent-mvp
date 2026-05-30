@@ -51,10 +51,11 @@
 | x2t 9.3 WASM artifact (core v9.3.0.140) | bit-identical self-build, `docs/cryptpad-delta.md` |
 | 7-gate verification system | `pnpm run gate:onlyoffice` all PASS |
 | 11-scenario CDP smoke harness | `pnpm run smoke:onlyoffice` 11/11 PASS |
-| Playwright E2E 6/6 PASS | `pnpm run test:e2e:smoke` 6/6 PASS |
+| Playwright E2E 8/8 PASS | `pnpm run test:e2e:smoke` 8/8 PASS (含密码解密+拒绝) |
 | DOCX/XLSX 下载捕获 + 内容验证 | 6/6 PASS: DOCX (25429 bytes + typed text), XLSX (7854 bytes) |
 | convertLocal 真转换 (空 bin → DOCX, 9024 bytes) | E2E test |
 | maxInputBytes 边界拒绝 | E2E test |
+| 密码文档解密 + 错误密码拒绝 | E2E test: decrypt 1248 bytes, wrong password → code 91 |
 | x2t build pipeline 入库 | `tools/x2t-wasm/` (Dockerfile + scripts + provenance.json), 待 repo 内重跑验证 |
 | 生产路径决策: P1 migration deferred | 双 X2TConverter 实例冲突; 旧主链保留, x2t-api.ts 为 optional API |
 
@@ -174,26 +175,19 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 
 > 所有项均为独立可推进。状态标记: `[ ]` 待做, `[~]` 进行中, `[x]` 完成, `[!]` 阻塞。
 
-### R1: 密码文档 E2E [ ] — 优先级最高
+### R1: 密码文档 E2E [x] — 完成 `cd84d29a+`
 
 **目标**: Playwright 验证加密 DOCX 的打开/解密/保存全链路。
 
 **现有基础设施**:
-- `officecrypto-tool` npm 包已安装 (`package.json:64`)
-- `bin/onlyoffice-smoke/samples.mjs` 已有 `createPasswordProtectedDocx()` (密码: `onlyoffice-9.3-test`)
-- `lib/x2t-api.ts` 已支持 `m_sPassword` 参数
-- CDP smoke 已有 `.protected.docx` scenario
 
 **待做**:
-- [ ] **R1-1**: 在 E2E spec 中新增 `open password-protected DOCX` 测试
-  - 用 `officecrypto-tool` 在测试中生成加密 DOCX 或使用 smoke 的 sample server
-  - 调用 `convertLocal({ password: 'onlyoffice-9.3-test' })` 解密并转换
-  - 验证输出内容与原文匹配
-- [ ] **R1-2**: 验证错误密码被正确拒绝
-  - 错误密码 → x2t 返回非零错误码 → convertLocal 抛错
-- [ ] **R1-3**: 通过后更新 Claim Boundary can-claim 表
-
-**预计耗时**: 1-2h
+- [x] **R1-1**: 在 E2E spec 中新增 `open password-protected DOCX` 测试
+  - ✅ `convertLocal({ password })` 成功解密: 1248 bytes decrypted.docx
+  - `lib/x2t-api.ts` `m_sPassword` XML 参数注入验证通过
+- [x] **R1-2**: 验证错误密码被正确拒绝
+  - ✅ 错误密码 → x2t 返回 error code 91 → convertLocal 正确抛错
+- [x] **R1-3**: 通过后更新 Claim Boundary can-claim 表
 
 ---
 
