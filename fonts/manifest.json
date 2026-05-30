@@ -1,0 +1,277 @@
+{
+  "schema": 1,
+  "description": "Font registry for browser-local ONLYOFFICE 9.3 editor. 24 TTF fonts covering Latin, CJK, and monospace. 19 fonts are registered in AllFonts.js; 5 are available on disk but not yet registered.",
+  "allFontsJs": "public/sdkjs/common/AllFonts.js",
+  "fontDir": "public/fonts",
+  "fontEngine": "libfont/engine/fonts.wasm (9.3.1)",
+  "fonts": [
+    {
+      "file": "LiberationSans-Regular.ttf",
+      "family": "Liberation Sans",
+      "style": "Regular",
+      "weight": 400,
+      "coverage": ["Latin", "Cyrillic", "Greek"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/liberationfonts/liberation-fonts",
+      "registered": true
+    },
+    {
+      "file": "LiberationSans-Bold.ttf",
+      "family": "Liberation Sans",
+      "style": "Bold",
+      "weight": 700,
+      "coverage": ["Latin", "Cyrillic", "Greek"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/liberationfonts/liberation-fonts",
+      "registered": true
+    },
+    {
+      "file": "LiberationSans-Italic.ttf",
+      "family": "Liberation Sans",
+      "style": "Italic",
+      "weight": 400,
+      "coverage": ["Latin", "Cyrillic", "Greek"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/liberationfonts/liberation-fonts",
+      "registered": true
+    },
+    {
+      "file": "LiberationSans-BoldItalic.ttf",
+      "family": "Liberation Sans",
+      "style": "Bold Italic",
+      "weight": 700,
+      "coverage": ["Latin", "Cyrillic", "Greek"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/liberationfonts/liberation-fonts",
+      "registered": true
+    },
+    {
+      "file": "DejaVuSans.ttf",
+      "family": "DejaVu Sans",
+      "style": "Regular",
+      "weight": 400,
+      "coverage": ["Latin", "Cyrillic", "Greek", "Arabic", "Hebrew"],
+      "license": "Bitstream Vera Fonts + Public Domain",
+      "source": "https://github.com/dejavu-fonts/dejavu-fonts",
+      "registered": true
+    },
+    {
+      "file": "DejaVuSans-Bold.ttf",
+      "family": "DejaVu Sans",
+      "style": "Bold",
+      "weight": 700,
+      "coverage": ["Latin", "Cyrillic", "Greek", "Arabic", "Hebrew"],
+      "license": "Bitstream Vera Fonts + Public Domain",
+      "source": "https://github.com/dejavu-fonts/dejavu-fonts",
+      "registered": true
+    },
+    {
+      "file": "DejaVuSans-Oblique.ttf",
+      "family": "DejaVu Sans",
+      "style": "Oblique",
+      "weight": 400,
+      "coverage": ["Latin", "Cyrillic", "Greek", "Arabic", "Hebrew"],
+      "license": "Bitstream Vera Fonts + Public Domain",
+      "source": "https://github.com/dejavu-fonts/dejavu-fonts",
+      "registered": true
+    },
+    {
+      "file": "DejaVuSans-BoldOblique.ttf",
+      "family": "DejaVu Sans",
+      "style": "Bold Oblique",
+      "weight": 700,
+      "coverage": ["Latin", "Cyrillic", "Greek", "Arabic", "Hebrew"],
+      "license": "Bitstream Vera Fonts + Public Domain",
+      "source": "https://github.com/dejavu-fonts/dejavu-fonts",
+      "registered": true
+    },
+    {
+      "file": "DejaVuSansMono.ttf",
+      "family": "DejaVu Sans Mono",
+      "style": "Regular",
+      "weight": 400,
+      "coverage": ["Latin", "Cyrillic", "Greek"],
+      "license": "Bitstream Vera Fonts + Public Domain",
+      "source": "https://github.com/dejavu-fonts/dejavu-fonts",
+      "registered": true
+    },
+    {
+      "file": "DejaVuSansMono-Bold.ttf",
+      "family": "DejaVu Sans Mono",
+      "style": "Bold",
+      "weight": 700,
+      "coverage": ["Latin", "Cyrillic", "Greek"],
+      "license": "Bitstream Vera Fonts + Public Domain",
+      "source": "https://github.com/dejavu-fonts/dejavu-fonts",
+      "registered": true
+    },
+    {
+      "file": "DejaVuSansMono-Oblique.ttf",
+      "family": "DejaVu Sans Mono",
+      "style": "Oblique",
+      "weight": 400,
+      "coverage": ["Latin", "Cyrillic", "Greek"],
+      "license": "Bitstream Vera Fonts + Public Domain",
+      "source": "https://github.com/dejavu-fonts/dejavu-fonts",
+      "registered": false,
+      "note": "On disk but not in AllFonts.js — available for registration"
+    },
+    {
+      "file": "DejaVuSansMono-BoldOblique.ttf",
+      "family": "DejaVu Sans Mono",
+      "style": "Bold Oblique",
+      "weight": 700,
+      "coverage": ["Latin", "Cyrillic", "Greek"],
+      "license": "Bitstream Vera Fonts + Public Domain",
+      "source": "https://github.com/dejavu-fonts/dejavu-fonts",
+      "registered": false,
+      "note": "On disk but not in AllFonts.js — available for registration"
+    },
+    {
+      "file": "NotoSansSC-VF.ttf",
+      "family": "Noto Sans SC",
+      "style": "Variable (Regular/Bold)",
+      "weight": "100-900",
+      "coverage": ["CJK: Simplified Chinese", "Latin"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/notofonts/noto-cjk",
+      "registered": true
+    },
+    {
+      "file": "NotoSansTC-VF.ttf",
+      "family": "Noto Sans TC",
+      "style": "Variable (Regular/Bold)",
+      "weight": "100-900",
+      "coverage": ["CJK: Traditional Chinese (Taiwan)", "Latin"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/notofonts/noto-cjk",
+      "registered": true
+    },
+    {
+      "file": "NotoSansJP-VF.ttf",
+      "family": "Noto Sans JP",
+      "style": "Variable (Regular/Bold)",
+      "weight": "100-900",
+      "coverage": ["CJK: Japanese", "Latin"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/notofonts/noto-cjk",
+      "registered": true
+    },
+    {
+      "file": "NotoSansKR-VF.ttf",
+      "family": "Noto Sans KR",
+      "style": "Variable (Regular/Bold)",
+      "weight": "100-900",
+      "coverage": ["CJK: Korean", "Latin"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/notofonts/noto-cjk",
+      "registered": true
+    },
+    {
+      "file": "NotoSerifSC-VF.ttf",
+      "family": "Noto Serif SC",
+      "style": "Variable (Regular/Bold)",
+      "weight": "100-900",
+      "coverage": ["CJK: Simplified Chinese (Serif)", "Latin"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/notofonts/noto-cjk",
+      "registered": true
+    },
+    {
+      "file": "NotoSerifTC-VF.ttf",
+      "family": "Noto Serif TC",
+      "style": "Variable (Regular/Bold)",
+      "weight": "100-900",
+      "coverage": ["CJK: Traditional Chinese (Serif, Taiwan)", "Latin"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/notofonts/noto-cjk",
+      "registered": false,
+      "note": "On disk but not in AllFonts.js — available for registration"
+    },
+    {
+      "file": "NotoSerifJP-VF.ttf",
+      "family": "Noto Serif JP",
+      "style": "Variable (Regular/Bold)",
+      "weight": "100-900",
+      "coverage": ["CJK: Japanese (Serif)", "Latin"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/notofonts/noto-cjk",
+      "registered": false,
+      "note": "On disk but not in AllFonts.js — available for registration"
+    },
+    {
+      "file": "NotoSerifKR-VF.ttf",
+      "family": "Noto Serif KR",
+      "style": "Variable (Regular/Bold)",
+      "weight": "100-900",
+      "coverage": ["CJK: Korean (Serif)", "Latin"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/notofonts/noto-cjk",
+      "registered": false,
+      "note": "On disk but not in AllFonts.js — available for registration"
+    },
+    {
+      "file": "ComicNeue-Regular.ttf",
+      "family": "Comic Neue",
+      "style": "Regular",
+      "weight": 400,
+      "coverage": ["Latin"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/crozynski/comicneue",
+      "registered": true
+    },
+    {
+      "file": "ComicNeue-Bold.ttf",
+      "family": "Comic Neue",
+      "style": "Bold",
+      "weight": 700,
+      "coverage": ["Latin"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/crozynski/comicneue",
+      "registered": true
+    },
+    {
+      "file": "ComicNeue-Italic.ttf",
+      "family": "Comic Neue",
+      "style": "Italic",
+      "weight": 400,
+      "coverage": ["Latin"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/crozynski/comicneue",
+      "registered": true
+    },
+    {
+      "file": "ComicNeue-BoldItalic.ttf",
+      "family": "Comic Neue",
+      "style": "Bold Italic",
+      "weight": 700,
+      "coverage": ["Latin"],
+      "license": "SIL Open Font License 1.1",
+      "source": "https://github.com/crozynski/comicneue",
+      "registered": true
+    }
+  ],
+  "coverageSummary": {
+    "Latin": "Complete (Liberation Sans + DejaVu + Comic Neue)",
+    "Cyrillic": "Liberation Sans + DejaVu Sans",
+    "Greek": "Liberation Sans + DejaVu Sans",
+    "Arabic": "DejaVu Sans (basic)",
+    "Hebrew": "DejaVu Sans (basic)",
+    "CJK": {
+      "Simplified Chinese": "Noto Sans SC + Noto Serif SC",
+      "Traditional Chinese": "Noto Sans TC + Noto Serif TC (on disk)",
+      "Japanese": "Noto Sans JP + Noto Serif JP (on disk)",
+      "Korean": "Noto Sans KR + Noto Serif KR (on disk)"
+    },
+    "Monospace": "DejaVu Sans Mono (4 styles)",
+    "Emoji": "NOT COVERED — no emoji font in current pack",
+    "RTL": "DejaVu Sans has basic Arabic/Hebrew glyphs"
+  },
+  "woff2": {
+    "status": "not converted",
+    "rationale": "TTF files served directly. WOFF2 would reduce ~135MB to ~80MB. 9.0.4+ font engine supports WOFF2. Decision: evaluate during next font refresh cycle."
+  },
+  "totalFonts": 24,
+  "registeredFonts": 19,
+  "unregisteredFonts": 5
+}
