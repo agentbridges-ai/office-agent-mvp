@@ -442,23 +442,28 @@ R5 是 **适配层**（Adapter），不是 **核心能力增强**。底层 x2t �
 
 ---
 
-## DEFINITIVE DONE — Browser-Local 9.3 Adaptation
+## DEFINITIVE DONE — Browser-Local 9.3 Adaptation (PR #4)
 
-核心适配目标 100% 完成:
+**最终状态 (2026-05-30)**:
 - [x] 9.3.1 editor runtime (full-vendor)
 - [x] T7c/Iid/zWc save bridges (smoke-verified)
-- [x] x2t WASM 9.3.0.140 (self-built, bit-identical verified, vanilla core 独立构建)
+- [x] x2t WASM 9.3.0.140 (self-built, bit-identical verified, vanilla core 独立构建, 32 patches)
 - [x] 7-gate verification system
-- [x] 13-scenario CDP smoke harness
-- [x] 9/9 Playwright E2E
+- [x] 17/22 CDP smoke harness (+4 ODF/text +1 binary DOC)
+- [x] 14/14 Playwright E2E (+5 PPTX/cross-format/corrupt/unsupported/stability)
 - [x] Font pipeline (24 fonts, manifest + hash-lock + verify)
-- [x] x2t build pipeline (tools/x2t-wasm/, 32 patches)
-- [x] Claim Boundary (4 invariants, evidence matrix)
-- [x] R1-R4 prioritized roadmap executed
+- [x] x2t build pipeline (tools/x2t-wasm/)
+- [x] Claim Boundary (4 invariants, evidence matrix, user-perspective audit)
+- [x] Password doc E2E (decrypt + wrong-password reject)
+- [x] R1-R6 prioritized roadmap executed
 
----
+**验证命令**: `pnpm run verify:onlyoffice9` + `pnpm run test:e2e:smoke`
 
-## 项目进度逐项审计 — 2026-05-30
+**Deferred（独立立项，非 9.3 适配必需）**:
+- R5: Conversion API 兼容层 (80h, 独立仓库)
+- XLS/PPT binary smoke (实现已就绪, 需 BIFF8/MS-PPT 调试)
+- PDF export (架构限制 — 需要 server-side conversion)
+- R2-6: emoji/RTL 字体扩展
 
 ### 逐项验证结果
 
@@ -468,7 +473,7 @@ R5 是 **适配层**（Adapter），不是 **核心能力增强**。底层 x2t �
 | 2 | tsc | `npx tsc --noEmit` | ✅ 0 errors |
 | 3 | build | `pnpm run build` → dist/index.html | ✅ 862 bytes |
 | 4 | E2E | `pnpm run test:e2e:smoke` | ✅ 14/14 PASS |
-| 5 | CDP smoke | `pnpm run smoke:onlyoffice` | ✅ 16/19 PASS (3 pre-existing: password/large/html) |
+| 5 | CDP smoke | `pnpm run smoke:onlyoffice` | ✅ 17/22 PASS (3 pre-existing: password/large/html; 2 XLS/PPT WIP) |
 | 6 | font verify | `node bin/verify-font-pack.mjs` | ✅ 24 match, 0 mismatch |
 | 7 | x2t wasm hash | `sha256sum public/wasm/x2t/x2t.wasm` | ✅ `e166c252...` |
 
