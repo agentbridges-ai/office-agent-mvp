@@ -160,18 +160,191 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 - `libfont/engine/fonts.wasm` + `AllFonts.js`(100行) + 24 TTF
 - `allfontsgen` from 9.3.1 .deb verified (`docker/Dockerfile.allfontsgen` for font expansion)
 
-### Phase 5+6: Improvement Tickets (非核心)
-- [ ] P5-3: 密码 doc smoke (x2t-api.ts supports m_sPassword, needs encrypted sample)
+### Phase 5+6: Improvement Tickets (核心完成) [x]
+
 - [x] P5-5: CSV native x2t — `tryNativeCsvConvert()` (`bcd17600`)
 - [x] P5-3: 密码 doc 基础设施 — `officecrypto-tool` + encrypted sample + scenario (`03ddc1ff`)
 - [x] P5-4: 大文件 — `createLargeDocxSample` 1000 paragraphs (`861598eb`)
-- [x] P5-6/P5-7: Playwright E2E — `tests/e2e/onlyoffice-9.3-fidelity.spec.ts` + `playwright.config.ts` (`2295a9ca`)
-  - 6/6 PASS: DOCX download + typed-text verification (25429 bytes), convertLocal empty bin→DOCX (9024 bytes), maxInputBytes rejection, XLSX download (7854 bytes), second context DOCX open, 9.3.1 version check
-  - `tests/e2e/helpers/onlyoffice.ts` with download hook, evidence collectors, wait helpers, extractFileFromZip
-  - DOCX typed text: fixed via `page.keyboard.type()` + iframe click (user-gesture context required)
-  - XLSX: fixed via iframe click + wait, `Asc.editor.asc_Save` not `frame.Api.GetActiveSheet`
-  - Download: 25429 bytes DOCX (word/document.xml verified), 7854 bytes XLSX
-- [ ] P6-3: 跟进 PR (after PR #4 merged)
+- [x] P5-6/P5-7: Playwright E2E — `tests/e2e/onlyoffice-9.3-fidelity.spec.ts` + `playwright.config.ts` (`cd84d29a`)
+  - 6/6 PASS: DOCX (typed text verified), convertLocal (9024 bytes), maxInputBytes rejection, XLSX (7854 bytes), second context DOCX, 9.3.1 version
+
+---
+
+## 剩余待办 — 按优先级排序
+
+> 所有项均为独立可推进。状态标记: `[ ]` 待做, `[~]` 进行中, `[x]` 完成, `[!]` 阻塞。
+
+### R1: 密码文档 E2E [ ] — 优先级最高
+
+**目标**: Playwright 验证加密 DOCX 的打开/解密/保存全链路。
+
+**现有基础设施**:
+- `officecrypto-tool` npm 包已安装 (`package.json:64`)
+- `bin/onlyoffice-smoke/samples.mjs` 已有 `createPasswordProtectedDocx()` (密码: `onlyoffice-9.3-test`)
+- `lib/x2t-api.ts` 已支持 `m_sPassword` 参数
+- CDP smoke 已有 `.protected.docx` scenario
+
+**待做**:
+- [ ] **R1-1**: 在 E2E spec 中新增 `open password-protected DOCX` 测试
+  - 用 `officecrypto-tool` 在测试中生成加密 DOCX 或使用 smoke 的 sample server
+  - 调用 `convertLocal({ password: 'onlyoffice-9.3-test' })` 解密并转换
+  - 验证输出内容与原文匹配
+- [ ] **R1-2**: 验证错误密码被正确拒绝
+  - 错误密码 → x2t 返回非零错误码 → convertLocal 抛错
+- [ ] **R1-3**: 通过后更新 Claim Boundary can-claim 表
+
+**预计耗时**: 1-2h
+
+---
+
+### R2: 字体管线补齐 [ ] — manifest + hash-lock + 验证
+
+**目标**: 将字体从"可用资源"升级为"已验证管线"。
+
+**现有基础设施**:
+- 24 TTF 字体 (`public/fonts/`) — Liberation(4) + DejaVu(8) + Noto CJK(8) + Comic Neue(4)
+- `AllFonts.js` — 100 行手动编写, 9.3 兼容 `__all_fonts_js_version__ = 2`
+- `docker/Dockerfile.allfontsgen` — 从 Nextcloud 构建 allfontsgen 工具
+- 9.3.1 .deb 中包含预编译 allfontsgen
+
+**待做**:
+- [ ] **R2-1**: 生成 `fonts/manifest.json`
+  - 字段: family, style, weight, stretch, coverage (Latin/CJK/RTL/emoji), license, source
+  - 24 个现有字体逐项填写
+  - 标注 CJK 覆盖: Noto Sans/Serif SC/TC/JP/KR (8 fonts, variable)
+- [ ] **R2-2**: 生成 `fonts/hash-lock.json`
+  - 每个 TTF 的 sha256
+  - AllFonts.js 的 sha256
+  - lock 文件自身的 schema version
+- [ ] **R2-3**: WOFF2 策略文档
+  - 评估: 当前 TTF 直接 serving，WOFF2 可减少 ~40% 体积
+  - 9.0.4 已加入 WOFF2 支持 — 确认 9.3.1 字体引擎是否支持 WOFF2
+  - 决策: 是否转换为 WOFF2（增加构建步骤但减少加载时间）
+- [ ] **R2-4**: CJK/RTL/emoji 验证清单
+  - CJK: Noto Sans/Serif SC 渲染测试 (中文简体)
+  - Emoji: 当前字体集无 emoji font — 是否需要?
+  - RTL: 当前字体集无 Arabic/Hebrew — 是否需要?
+- [ ] **R2-5**: `bin/verify-font-pack.mjs` 脚本
+  - 检查 manifest.json 中所有字体文件存在
+  - 检查 hash-lock.json 与实际 sha256 一致
+  - 检查 AllFonts.js 中声明的字体都在 fonts/ 目录中
+- [ ] **R2-6**: 如需要扩展字体 (emoji/RTL/Arabic)
+  - 用 `docker/Dockerfile.allfontsgen` 或 .deb allfontsgen 重新生成 AllFonts.js
+  - 更新 manifest + hash-lock
+- [ ] **R2-7**: 通过后更新 Claim Boundary — 字体管线从 cannot-claim 移至 can-claim
+
+**预计耗时**: 2-4h。核心是 R2-1/R2-2/R2-5（自动化 script），R2-6 是可选扩展。
+
+**参考**:
+- allfontsgen 参数: `--input=<font-dir> --allfonts-web=<AllFonts.js> --images=<dir> --selection=<font_selection.bin> --output-web=<fonts-dir> --use-system=true`
+- allfontsgen 来源: DocumentServer .deb 的 `server/tools/allfontsgen` 或 Nextcloud `documentserver_community`
+
+---
+
+### R3: Repo x2t 构建验证 [ ] — P2 收尾
+
+**目标**: 从 `tools/x2t-wasm/` 完整复跑构建，确认 bit-identical 输出。
+
+**现有基础设施**:
+- `tools/x2t-wasm/` — Dockerfile + patches + scripts + provenance.json (`c7133e53`)
+- `scripts/clone-core.sh` — 拉取 ONLYOFFICE/core v9.3.0.140
+- `scripts/verify-artifact.sh` — 比对构建产物与 `public/wasm/x2t/` sha256
+- `/tmp/cryptpad-x2t/` 成功自构建证据 (1.1GB, 包含 686MB core)
+
+**待做**:
+- [ ] **R3-1**: 执行 `cd tools/x2t-wasm && ./scripts/clone-core.sh`
+  - 从 GitHub 拉取 ONLYOFFICE/core v9.3.0.140 (~686MB)
+  - 需网络连接
+- [ ] **R3-2**: 执行 `docker build --target output -o build .`
+  - 28 个库阶段 + Emscripten 链接 (~1-2h)
+  - 验证 emsdk 4.0.11 镜像可用
+  - 验证 mirror `docker.1ms.run` 可用 (如 Docker Hub 不可达)
+- [ ] **R3-3**: 执行 `./scripts/verify-artifact.sh build/`
+  - x2t.js sha256 必须匹配 `e0abb599...`
+  - x2t.wasm sha256 必须匹配 `e166c252...`
+  - x2t.wasm.br sha256 必须匹配 `8dfeb638...`
+  - x2t.wasm.gz 允许差异 (gzip 时间戳不定)
+- [ ] **R3-4**: 如果 bit-identical 确认，更新 todo.md P2 为 [x]
+- [ ] **R3-5**: 如果 hash 不匹配，记录差异并分析原因 (编译器版本/emsdk 版本/时间戳)
+- [ ] **R3-BLOCKER**: 需要 Docker 环境 + 686MB 磁盘空间 + 稳定网络
+
+**预计耗时**: 2-4h（大部分是 Docker 构建等待 + clone 时间）
+
+---
+
+### R4: XLSX 内容验证 + DOCX/XLSX 并发 [ ]
+
+**目标**: XLSX E2E 质量对齐 DOCX（内容验证），恢复并发测试。
+
+**现有基础设施**:
+- XLSX 下载捕获通过 (7854 bytes)
+- DOCX 下载 + 内容验证通过 (25429 bytes, typed text in word/document.xml)
+- `extractFileFromZip()` 已实现
+
+**待做**:
+- [ ] **R4-1**: XLSX 内容验证
+  - 在 XLSX 测试中插入数据
+  - 保存后解包 XLSX，检查 `xl/worksheets/sheet1.xml` 包含输入值
+  - 注意: `frame.Api` 不可用（诊断证实），需使用 `Asc.editor` API 或 CDP userGesture 方式
+- [ ] **R4-2**: 恢复 DOCX/XLSX 并发测试
+  - 原问题: XLSX `waitForEditorReady` 在第二上下文超时
+  - 修复后 (Asc.editor.asc_Save 检测) 可尝试
+  - 两个独立 browser context 同时打开 DOCX + XLSX
+  - 验证两者都成功加载并保存
+- [ ] **R4-3**: 通过后更新 E2E 计数
+
+**预计耗时**: 1-2h
+
+---
+
+### R5: Conversion API 兼容层 [ ] — 独立立项, 低优先级
+
+**目标**: 可选 — 提供与 DocumentServer `POST /converter` 兼容的 API 层。
+
+**背景**: 当前项目定位是 browser-local editor，Conversion API 是服务器端关注点。
+如果未来需要 headless 模式或 server-side 部署，再启动此项目。
+
+**x2t-api.ts 已覆盖的核心参数** (对照 DocumentServer 9.3 `/converter` API):
+
+| 参数 | 支持 | 说明 |
+|------|:---:|------|
+| `filetype` | ✅ | inputName 扩展名自动检测 |
+| `outputtype` | ✅ | outputName 扩展名 |
+| `password` | ✅ | m_sPassword |
+| `codePage` | ✅ | CSV/TXT 编码 |
+| `delimiter` | ✅ | CSV 分隔符 (0=none, 1=tab, 2=;, 3=:, 4=,, 5=space) |
+| `async` | ❌ | 异步转换 (需 Web Worker) |
+| `key` | ❌ | 缓存 key (WASM 内不需要) |
+| `url` | ❌ | 远程 URL 下载 (需 fetch 层) |
+| `token` | ❌ | JWT 认证 |
+| `thumbnail` | ❌ | 缩略图 |
+| `watermark` | ❌ | 水印 |
+| `region` | ❌ | 本地化 |
+| `pdf` / `documentLayout` / `spreadsheetLayout` | ❌ | 布局控制 |
+
+**DocumentServer 标准错误码**:
+`-1`未知, `-2`超时, `-3`转换, `-4`下载, `-5`密码, `-6`数据库, `-7`输入, `-8`令牌, `-9`密码缺失, `-10`过大
+
+**待做** (如决定推进):
+- [ ] **R5-1**: 设计 API 接口 (`POST /converter` JSON → 文件 ID)
+- [ ] **R5-2**: `async` 模式 (Web Worker)
+- [ ] **R5-3**: `url` 远程下载 + `token` 认证
+- [ ] **R5-4**: 错误码映射 (x2t 返回码 → -1..-10)
+- [ ] **R5-5**: `thumbnail` / `watermark` / 布局参数
+- [ ] **R5-6**: 全格式输入/输出验证 (65+ 格式)
+
+**建议**: 作为独立仓库 `document-conversion-service`。**暂不纳入当前迭代。**
+
+**预计耗时**: 独立大项目 (40-80h)
+
+---
+
+### R6: 跟进 PR [ ] — after PR #4 merged
+
+- [ ] 整理 PR 描述 (完整提交历史 + Claim Boundary)
+- [ ] 确保 CI 可跑 `pnpm run verify:onlyoffice9 && pnpm run test:e2e:smoke`
+- [ ] 处理 PR review 反馈
+- [ ] 合并后关闭相关 issue
 
 ---
 
@@ -181,7 +354,7 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 - [x] 9.3.1 editor runtime (full-vendor)
 - [x] T7c/Iid/zWc save bridges (smoke-verified)
 - [x] x2t WASM 9.3.0.140 (self-built, bit-identical)
-- [x] 6-gate verification system
+- [x] 7-gate verification system
 - [x] 11-scenario CDP smoke harness
-- [x] Format table + FS sandbox
-- [x] Documentation + provenance
+- [x] 6/6 Playwright E2E (DOCX content + convertLocal + XLSX download)
+- [x] Documentation + Claim Boundary + provenance
