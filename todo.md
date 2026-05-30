@@ -241,45 +241,173 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 
 ---
 
-### R5: Conversion API 兼容层 [ ] — 独立立项, 低优先级
+### R5: Conversion API 兼容层 [ ] — 5W1H 深度分析
 
-**目标**: 可选 — 提供与 DocumentServer `POST /converter` 兼容的 API 层。
+---
 
-**背景**: 当前项目定位是 browser-local editor，Conversion API 是服务器端关注点。
-如果未来需要 headless 模式或 server-side 部署，再启动此项目。
+#### WHAT: DocumentServer Conversion API 是什么
 
-**x2t-api.ts 已覆盖的核心参数** (对照 DocumentServer 9.3 `/converter` API):
+DocumentServer 的 `/converter` 端点是一个 **REST API**，接收 `POST` JSON 请求，
+由 **FileConverter** 组件接收 → 下载源文件 → 启动 x2t 进程 → 返回转换后的文件 URL。
 
-| 参数 | 支持 | 说明 |
-|------|:---:|------|
-| `filetype` | ✅ | inputName 扩展名自动检测 |
-| `outputtype` | ✅ | outputName 扩展名 |
-| `password` | ✅ | m_sPassword |
-| `codePage` | ✅ | CSV/TXT 编码 |
-| `delimiter` | ✅ | CSV 分隔符 (0=none, 1=tab, 2=;, 3=:, 4=,, 5=space) |
-| `async` | ❌ | 异步转换 (需 Web Worker) |
-| `key` | ❌ | 缓存 key (WASM 内不需要) |
-| `url` | ❌ | 远程 URL 下载 (需 fetch 层) |
-| `token` | ❌ | JWT 认证 |
-| `thumbnail` | ❌ | 缩略图 |
-| `watermark` | ❌ | 水印 |
-| `region` | ❌ | 本地化 |
-| `pdf` / `documentLayout` / `spreadsheetLayout` | ❌ | 布局控制 |
+**核心流程**:
+```
+Integrator → POST /converter → FileConverter Service
+                                     ↓
+                              下载源文件 (url)
+                                     ↓
+                              启动 x2t 子进程
+                                     ↓
+                              m_sFileFrom → m_sFileTo
+                                     ↓
+                              返回 {"fileUrl": "...", "endConvert": true}
+```
 
-**DocumentServer 标准错误码**:
-`-1`未知, `-2`超时, `-3`转换, `-4`下载, `-5`密码, `-6`数据库, `-7`输入, `-8`令牌, `-9`密码缺失, `-10`过大
+**与 x2t WASM 的关系**: DocumentServer 的 FileConverter 和我们的 x2t WASM 底层调用
+**完全相同的 C++ 引擎**（`x2t` binary）。区别仅在**运行环境和调用方式**：
+- Server: Node.js 启动子进程 → 真实文件系统 → HTTP 响应
+- Browser: JS `ccall("main1")` → Emscripten 虚拟 FS → 内存中完成
 
-**待做** (如决定推进):
-- [ ] **R5-1**: 设计 API 接口 (`POST /converter` JSON → 文件 ID)
-- [ ] **R5-2**: `async` 模式 (Web Worker)
-- [ ] **R5-3**: `url` 远程下载 + `token` 认证
-- [ ] **R5-4**: 错误码映射 (x2t 返回码 → -1..-10)
-- [ ] **R5-5**: `thumbnail` / `watermark` / 布局参数
-- [ ] **R5-6**: 全格式输入/输出验证 (65+ 格式)
+---
 
-**建议**: 作为独立仓库 `document-conversion-service`。**暂不纳入当前迭代。**
+#### WHY: 为什么这个项目需要考虑它
 
-**预计耗时**: 独立大项目 (40-80h)
+| 维度 | Server `/converter` | Browser x2t WASM |
+|------|---------------------|------------------|
+| **数据隐私** | ❌ 文件上传到服务器 | ✅ 数据从不出设备 |
+| **离线能力** | ❌ 依赖网络 | ✅ 完全离线 |
+| **部署复杂度** | ❌ DocumentServer 全栈 | ✅ 静态文件 |
+| **并发** | ✅ 多进程，可扩展 | ❌ 单线程，~50MB/文档 |
+| **格式覆盖** | ✅ 87 格式 | ✅ 相同引擎（同 C++ 编译） |
+| **异步/队列** | ✅ RabbitMQ | ❌ 无（需额外实现） |
+| **协作编辑** | ✅ 多人实时 | ❌ 单用户 |
+
+**这个项目已经选择了 browser 路径**，核心原因是隐私优先和零部署。
+但 `/converter` 兼容层有两个潜在场景：
+
+1. **Headless 模式**: 本项目未来如果需要被集成到 CI/CD pipeline、
+   批量转换脚本、或服务器端 Node.js 环境中，`/converter` 兼容 API 是标准接口
+2. **标准化互操作**: 现有 ONLYOFFICE 生态中大量工具（Nextcloud、Seafile 等）
+   通过 `/converter` + callback status 与 DocumentServer 通信。
+   如果能提供兼容 API，这些工具可以无缝迁移到 browser-local 方案
+
+---
+
+#### WHO: 谁会使用和谁会构建
+
+| 角色 | 需求 | 优先级 |
+|------|------|:---:|
+| **终端用户**（当前） | 浏览器中打开/编辑/保存文档 | P0 ✅ |
+| **集成开发者**（近期） | 在自己的 web app 中用 iframe 嵌入编辑器 | P1 |
+| **DevOps/CI**（远期） | 批量转换：`curl -X POST /converter -d '{"filetype":"docx","outputtype":"pdf"}'` | P3 |
+| **Nextcloud/Seafell 集成**（远期） | 通过标准 `/converter` + callback status 2/6/7 替换 DocumentServer | P4 |
+
+**构建方**: 需要 1 名熟悉 WASM + Node.js + ONLYOFFICE API 规范的开发者（40-80h）。
+
+---
+
+#### WHEN: 时间窗口与依赖关系
+
+```
+已完成                          当前窗口                    远期（独立立项）
+────┼─────────────────────────────┼───────────────────────────┼────
+    │  R1-R4 core adaptation     │                           │
+    │  9/9 E2E + 11/11 smoke     │                           │
+    │  x2t.wasm bit-identical    │                           │
+    │                             │  R5 不做                  │
+    │                             │  (PR #4 merge 优先)       │
+    │                             │                           │  R5 启动条件:
+    │                             │                           │  1. 有 headless 需求
+    │                             │                           │  2. 有集成方要求 /converter 兼容
+    │                             │                           │  3. x2t-api.ts 生产路径稳定
+```
+
+**启动条件**:
+1. 出现明确的 headless/CI/批量转换需求
+2. 外部集成方（如 Nextcloud 插件）要求标准 `/converter` 接口
+3. `x2t-api.ts` 在 browser 路径中充分稳定（至少 6 个月无重大变更）
+
+**不启动条件**:
+- 项目继续保持纯 browser-local 定位
+- 无外部集成方要求 `/converter` 兼容
+- 无 headless/CI 场景
+
+---
+
+#### WHERE: 架构位置
+
+```
+┌──────────────────────────────────────────────────────┐
+│                    当前架构                           │
+│                                                      │
+│  browser:  x2t.wasm ← ccall('main1') ← x2t-api.ts   │
+│            └── convertLocal({inputBytes, ...})        │
+│                                                      │
+│  R5 后:   增加一个 Node.js/Worker 适配层              │
+│                                                      │
+│  Node.js:  POST /converter JSON                       │
+│              → fetch(url) → inputBytes                │
+│              → convertLocal({...})                    │
+│              → 返回 {fileUrl, endConvert, percent}     │
+│            Worker:                                    │
+│              → 同流程，通过 postMessage 异步通信       │
+└──────────────────────────────────────────────────────┘
+```
+
+R5 是 **适配层**（Adapter），不是 **核心能力增强**。底层 x2t 引擎不变。
+所有 R5 的工作都是"包装"：把 `/converter` JSON 参数翻译成 `x2t-api.ts` 调用，
+把 `convertLocal` 返回值翻译成 DocumentServer 标准错误码。
+
+---
+
+#### HOW: 如何实现
+
+**Phase A: 最小可行兼容层 (~20h)**
+
+| # | 任务 | 说明 |
+|---|------|------|
+| A1 | `POST /converter` JSON → convertLocal | 解析 filetype/outputtype/password/codePage/delimiter |
+| A2 | `url` 参数支持 | fetch 远程文件 → ArrayBuffer → convertLocal |
+| A3 | 错误码映射 | x2t error code → DocumentServer -1..-10 |
+| A4 | 响应格式 | `{endConvert, fileUrl/fileBytes, percent}` |
+| A5 | E2E 验证 | 用已知文件测试所有转换组合 |
+
+**Phase B: 高级特性 (~30h)**
+
+| # | 任务 | 说明 |
+|---|------|------|
+| B1 | `async` 模式 | Web Worker + postMessage 消息队列 |
+| B2 | `key` 缓存 | 避免重复转换同一文件 |
+| B3 | 进度回调 | `c_spreadPercent` → `percent` 字段 |
+| B4 | `thumbnail` 生成 | 需要 x2t 支持缩略图参数 |
+| B5 | 格式发现 | `GET /meta/formats` 返回支持格式列表 |
+
+**Phase C: 完整兼容 (~30h)**
+
+| # | 任务 | 说明 |
+|---|------|------|
+| C1 | `watermark` 支持 | XML 参数注入水印属性 |
+| C2 | `region` 本地化 | 日期/货币格式化 |
+| C3 | `pdf/documentLayout/spreadsheetLayout` | 布局参数映射 |
+| C4 | JWT `token` | 可选认证层 |
+| C5 | Callback 集成 | Status 2(MustSave)/6(MustForceSave)/7(CorruptedForceSave) 回调 |
+| C6 | 87 格式全覆盖 | 格式枚举 + 格式发现 API |
+
+---
+
+#### 决策
+
+**当前**: 不纳入 R1-R6 主线迭代。`x2t-api.ts` 已覆盖核心转换能力（5/16 参数）。
+**触发条件**: 当出现 headless/CI/外部集成需求时，从 Phase A 开始。
+**实施方式**: 独立仓库 `document-conversion-service`（不是当前项目的一部分）。
+**预计耗时**: Phase A 20h + Phase B 30h + Phase C 30h = **80h**
+
+**核心判断**:
+> Conversion API 兼容层是"接口适配"问题，不是"核心能力缺失"问题。
+> x2t 引擎（WASM）已经能转换 87 种格式。
+> 缺少的只是一层 JSON → convertLocal 的翻译胶水。
+> 这层翻译胶水**不需要**和 browser-local editor 在同一个仓库中 —
+> 它是独立可部署的 Node.js/Worker 微服务。
 
 ---
 
