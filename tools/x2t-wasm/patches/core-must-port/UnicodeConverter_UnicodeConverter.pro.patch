@@ -1,0 +1,12 @@
+--- a/UnicodeConverter/UnicodeConverter.pro	2026-05-30 17:36:38.230211337 +0800
++++ b/UnicodeConverter/UnicodeConverter.pro	2026-05-29 12:08:52.046822161 +0800
+@@ -15,7 +15,8 @@
+ 
+ core_linux {    
+     QMAKE_LFLAGS += "-Wl,-rpath,\'\$$ORIGIN\'"
+-    QMAKE_LFLAGS += -Wl,--disable-new-dtags
++    # CryptPad: --disable-new-dtags does not exist in emscripten linker
++    # QMAKE_LFLAGS += -Wl,--disable-new-dtags
+ }
+ 
+ core_ios {

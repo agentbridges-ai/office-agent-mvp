@@ -1,0 +1,13 @@
+--- a/Fb2File/Fb2File.pro	2026-05-30 17:36:37.225716630 +0800
++++ b/Fb2File/Fb2File.pro	2026-05-29 12:08:50.083889859 +0800
+@@ -16,7 +16,9 @@
+ 
+ include($$CORE_ROOT_DIR/Common/3dParty/html/gumbo.pri)
+ 
+-ADD_DEPENDENCY(kernel, UnicodeConverter, graphics)
++# CryptPad: UnicodeConverter is linked in a later step. Do not link here.
++# ADD_DEPENDENCY(kernel, UnicodeConverter, graphics)
++ADD_DEPENDENCY(kernel, graphics)
+ 
+ CONFIG += core_boost_regex
+ include($$CORE_ROOT_DIR/Common/3dParty/boost/boost.pri)

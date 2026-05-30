@@ -1,0 +1,8 @@
+--- a/Common/3dParty/html/css/CssCalculator.pri	2026-05-30 17:28:43.761362143 +0800
++++ b/Common/3dParty/html/css/CssCalculator.pri	2026-05-29 12:08:47.158847639 +0800
+@@ -1,3 +1,5 @@
++QT       -= core gui #  CryptPad: Build this without UI
++
+ INCLUDEPATH += $$PWD
+ DEPENDPATH += $$PWD
+ 

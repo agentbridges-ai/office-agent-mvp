@@ -1,0 +1,17 @@
+--- a/X2tConverter/build/Qt/X2tConverter.pri	2026-05-30 17:31:01.473619032 +0800
++++ b/X2tConverter/build/Qt/X2tConverter.pri	2026-05-29 12:08:52.570554640 +0800
+@@ -133,7 +133,8 @@
+ 
+ #All dynamic libs
+ 
+-ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, Fb2File, PdfFile, HtmlFile2, EpubFile, XpsFile, OFDFile, DjVuFile, doctrenderer, DocxRenderer, IWorkFile, HWPFile, StarMathConverter, ooxmlsignature)
++# ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, Fb2File, PdfFile, HtmlFile2, EpubFile, XpsFile, DjVuFile, doctrenderer, DocxRenderer, IWorkFile, HWPFile)
++ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, HtmlFile2, EpubFile, XpsFile, DjVuFile, doctrenderer, DocxRenderer, IWorkFile, HWPFile)
+ 
+ #####################################################
+ # внешнее подключение сторонних библиотек
+@@ -146,4 +147,3 @@
+     LIBS += -lAdvapi32
+ }
+ ########################################################
+-

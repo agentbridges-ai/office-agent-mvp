@@ -1,0 +1,23 @@
+--- a/PdfFile/PdfFile.pro	2026-05-30 17:36:37.899618143 +0800
++++ b/PdfFile/PdfFile.pro	2026-05-29 12:08:51.471993829 +0800
+@@ -14,7 +14,8 @@
+ 
+ DEFINES += PDFFILE_USE_DYNAMIC_LIBRARY
+ 
+-ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network)
++# CryptPad: kernel & UnicodeConverter is linked in a later step. Do not link here.
++# ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network)
+ 
+ #CONFIG += use_openssl_hash
+ use_openssl_hash {
+@@ -111,7 +112,9 @@
+ # PdfWriter
+ DEFINES += CRYPTOPP_DISABLE_ASM \
+            NOMINMAX
+-LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCryptoPPLib
++# CryptPad: Do not link CryptoPPLib when building PdfFile. It is linked later.
++# This prevents duplicate symbol errors.
++LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH # -lCryptoPPLib
+ 
+ core_linux {
+     DEFINES += HAVE_UNISTD_H \

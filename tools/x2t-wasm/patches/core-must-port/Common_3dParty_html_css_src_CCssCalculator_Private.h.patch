@@ -1,0 +1,11 @@
+--- a/Common/3dParty/html/css/src/CCssCalculator_Private.h	2026-05-30 17:36:34.864942150 +0800
++++ b/Common/3dParty/html/css/src/CCssCalculator_Private.h	2026-05-29 12:08:47.163105239 +0800
+@@ -6,7 +6,7 @@
+ #include <set>
+ #include "CElement.h"
+ #include "StyleProperties.h"
+-#include "../../katana-parser/src/katana.h"
++#include "../../katana-parser/src/selector.h"
+ 
+ #ifdef CSS_CALCULATOR_WITH_XHTML
+ #include "CCompiledStyle.h"

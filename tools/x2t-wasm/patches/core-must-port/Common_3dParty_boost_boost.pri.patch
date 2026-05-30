@@ -1,0 +1,11 @@
+--- a/Common/3dParty/boost/boost.pri	2026-05-30 17:28:43.761362143 +0800
++++ b/Common/3dParty/boost/boost.pri	2026-05-29 12:08:47.112014035 +0800
+@@ -48,6 +48,7 @@
+     core_boost_date_time:LIBS += -L$$CORE_BOOST_LIBS -llibboost_date_time$$BOOST_POSTFIX
+ } else {
+     core_boost_libs:LIBS += -L$$CORE_BOOST_LIBS -lboost_system -lboost_filesystem
+-    core_boost_regex:LIBS += -L$$CORE_BOOST_LIBS -lboost_regex
++    # CryptPad: Do not link boost_regex. It does not need to be linked.
++    core_boost_regex:LIBS += -L$$CORE_BOOST_LIBS #-lboost_regex
+     core_boost_date_time:LIBS += -L$$CORE_BOOST_LIBS -lboost_date_time
+ }

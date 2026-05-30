@@ -1,0 +1,12 @@
+--- a/OOXML/Projects/Linux/DocxFormatLib/DocxFormatLib.pro	2026-05-30 17:36:37.645315685 +0800
++++ b/OOXML/Projects/Linux/DocxFormatLib/DocxFormatLib.pro	2026-05-29 12:08:50.820521721 +0800
+@@ -207,6 +207,9 @@
+ 	../../../Base/unicode_util.cpp \
+ 	../../../Base/Unit.cpp \
+ 	../../../Base/WinColor.cpp \
++	../../../DocxFormat/FileTypes.cpp \  # CryptPad needed in the build
++	../../../DocxFormat/File.cpp \ # CryptPad needed in the build
++	../../../DocxFormat/WritingElement.cpp \ # CryptPad needed in the build
+ 	../../../../Common/3dParty/pole/pole.cpp \
+ 	docx_format.cpp
+ 

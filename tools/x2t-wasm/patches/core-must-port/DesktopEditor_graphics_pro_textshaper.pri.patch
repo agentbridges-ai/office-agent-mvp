@@ -1,0 +1,12 @@
+--- a/DesktopEditor/graphics/pro/textshaper.pri	2026-05-30 17:33:57.266669144 +0800
++++ b/DesktopEditor/graphics/pro/textshaper.pri	2026-05-29 12:08:49.487771590 +0800
+@@ -9,7 +9,8 @@
+ }
+ 
+ core_linux {
+-    build_gcc_less_5:CONFIG -= enable_support_shaper
++    # CryptPad: We want this to be enabled (TODO do we need this change?)
++    # build_gcc_less_5:CONFIG -= enable_support_shaper
+ }
+ 
+ enable_support_shaper {

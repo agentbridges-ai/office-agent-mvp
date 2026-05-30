@@ -1,0 +1,14 @@
+--- a/Common/3dParty/icu/icu.pri	2026-05-30 17:28:43.761362143 +0800
++++ b/Common/3dParty/icu/icu.pri	2026-05-29 12:08:47.175878041 +0800
+@@ -21,8 +21,9 @@
+ core_linux {
+     INCLUDEPATH += $$PWD/$$CORE_BUILDS_PLATFORM_PREFIX/build/include
+ 
+-    LIBS        += $$PWD/$$CORE_BUILDS_PLATFORM_PREFIX/build/libicuuc.so.$$ICU_MAJOR_VER
+-    LIBS        += $$PWD/$$CORE_BUILDS_PLATFORM_PREFIX/build/libicudata.so.$$ICU_MAJOR_VER
++# CryptPad: Remove icu from dependencies, emscripten has a buildin libicu
++#    LIBS        += $$PWD/$$CORE_BUILDS_PLATFORM_PREFIX/build/libicuuc.so.$$ICU_MAJOR_VER
++#    LIBS        += $$PWD/$$CORE_BUILDS_PLATFORM_PREFIX/build/libicudata.so.$$ICU_MAJOR_VER
+ }
+ 
+ core_mac {

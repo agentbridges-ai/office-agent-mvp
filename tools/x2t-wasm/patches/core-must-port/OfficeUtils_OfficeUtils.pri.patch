@@ -1,0 +1,18 @@
+--- a/OfficeUtils/OfficeUtils.pri	2026-05-30 17:36:37.861472774 +0800
++++ b/OfficeUtils/OfficeUtils.pri	2026-05-29 12:08:51.408124015 +0800
+@@ -15,14 +15,13 @@
+     $$PWD/src/zlib-1.2.11 \
+     $$PWD/src
+ 
++# CryptPad: Remove c-files with a main() from the build to avoid duplicate symbols
+ SOURCES +=  \
+     $$PWD/src/OfficeUtils.cpp \
+     $$PWD/src/ZipBuffer.cpp \
+     $$PWD/src/ZipUtilsCP.cpp \
+     $$PWD/src/zlib_addon.c \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/ioapi.c \
+-    $$PWD/src/zlib-1.2.11/contrib/minizip/miniunz.c \
+-    $$PWD/src/zlib-1.2.11/contrib/minizip/minizip.c \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/mztools.c \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/unzip.c \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/zip.c \
