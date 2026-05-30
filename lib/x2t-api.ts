@@ -1,5 +1,5 @@
 import { sanitizeX2TFileName } from './x2t-paths';
-import { toStandaloneArrayBuffer } from './onlyoffice-compat/binary';
+import { toUint8Array } from './onlyoffice-compat/binary';
 import { X2TConverter } from './document-converter';
 
 // ── Public API types ────────────────────────────────────────────
@@ -125,8 +125,8 @@ export async function convertLocal(request: X2TConvertOptions): Promise<X2TConve
 
   // Read output
   const rawOutput = module.FS.readFile(outputFile);
-  const outputBytes = toStandaloneArrayBuffer(rawOutput as ArrayBuffer | ArrayBufferView);
-  if (!(outputBytes instanceof Uint8Array)) {
+  const outputBytes = toUint8Array(rawOutput);
+  if (!outputBytes) {
     throw new Error('x2t conversion produced unexpected output type');
   }
 

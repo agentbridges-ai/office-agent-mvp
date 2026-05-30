@@ -13,37 +13,48 @@ import type { Page, ConsoleMessage, Request } from '@playwright/test';
  */
 export const DOWNLOAD_CAPTURE_SCRIPT = `
 window.__ooDownloads = [];
+window.showSaveFilePicker = undefined;
 (function() {
+  // Trap URL.createObjectURL to capture blobs before the anchor.click→revoke race
+  const _blobs = new Map();
+  const _origCreateObjectURL = URL.createObjectURL.bind(URL);
+  URL.createObjectURL = function(blob) {
+    const url = _origCreateObjectURL(blob);
+    _blobs.set(url, blob);
+    return url;
+  };
+  // Neutralize URL.revokeObjectURL so blobs stay alive for capture
+  URL.revokeObjectURL = function(url) {
+    // Keep blob alive for 5s, then clean up
+    setTimeout(() => { _blobs.delete(url); _origRevoke(url); }, 5000);
+  };
+  const _origRevoke = URL.revokeObjectURL.bind(URL);
+
   const _origClick = HTMLAnchorElement.prototype.click;
   HTMLAnchorElement.prototype.click = function() {
     const href = this.href || '';
     const download = this.getAttribute('download');
     if (download && href.startsWith('blob:')) {
-      const anchor = this;
-      // Defer to allow the blob URL to be resolved
-      setTimeout(async () => {
-        try {
-          const response = await fetch(href);
-          const blob = await response.blob();
-          const reader = new FileReader();
-          reader.onload = function() {
-            window.__ooDownloads.push({
-              filename: download,
-              data: Array.from(new Uint8Array(reader.result)),
-              size: blob.size,
-              mimeType: blob.type || 'application/octet-stream',
-              timestamp: Date.now(),
-            });
-          };
-          reader.readAsArrayBuffer(blob);
-        } catch (e) {
+      const blob = _blobs.get(href);
+      if (blob) {
+        const reader = new FileReader();
+        reader.onload = function() {
           window.__ooDownloads.push({
             filename: download,
-            error: e.message,
+            data: Array.from(new Uint8Array(reader.result)),
+            size: blob.size,
+            mimeType: blob.type || 'application/octet-stream',
             timestamp: Date.now(),
           });
-        }
-      }, 0);
+        };
+        reader.readAsArrayBuffer(blob);
+      } else {
+        window.__ooDownloads.push({
+          filename: download,
+          error: 'blob not found in URL.createObjectURL trap',
+          timestamp: Date.now(),
+        });
+      }
     }
     return _origClick.apply(this, arguments);
   };
@@ -110,20 +121,43 @@ export async function waitForEditorReady(
   await page.waitForSelector('iframe[name="frameEditor"]', { timeout: 60_000 });
 
   // Wait for editor API to be available in the iframe
-  const apiMethod = editorType === 'cell' ? 'GetActiveSheet' :
-    editorType === 'slide' ? 'GetPresentation' : 'asc_AddText';
-
-  await page.waitForFunction(
-    ({ apiMethod }) => {
-      try {
-        const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement)?.contentWindow;
-        const api = (frame as any)?.Asc?.editor || (frame as any)?.editor;
-        return api && typeof api[apiMethod] === 'function';
-      } catch { return false; }
-    },
-    { apiMethod },
-    { timeout },
-  );
+  // Different editors expose APIs differently: Word uses Asc.editor.asc_AddText,
+  // XLSX uses frame.Api.GetActiveSheet, PPTX uses frame.Api.GetPresentation
+  if (editorType === 'cell') {
+    await page.waitForFunction(
+      () => {
+        try {
+          const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement)?.contentWindow;
+          return !!(frame as any)?.Api && typeof (frame as any).Api.GetActiveSheet === 'function';
+        } catch { return false; }
+      },
+      {},
+      { timeout },
+    );
+  } else if (editorType === 'slide') {
+    await page.waitForFunction(
+      () => {
+        try {
+          const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement)?.contentWindow;
+          return !!(frame as any)?.Api && typeof (frame as any).Api.GetPresentation === 'function';
+        } catch { return false; }
+      },
+      {},
+      { timeout },
+    );
+  } else {
+    await page.waitForFunction(
+      () => {
+        try {
+          const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement)?.contentWindow;
+          const api = (frame as any)?.Asc?.editor || (frame as any)?.editor;
+          return api && typeof api.asc_AddText === 'function';
+        } catch { return false; }
+      },
+      {},
+      { timeout },
+    );
+  }
 }
 
 // ── DOCX content verification ────────────────────────────────────
