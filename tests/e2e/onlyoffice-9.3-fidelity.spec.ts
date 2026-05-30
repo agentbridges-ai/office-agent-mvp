@@ -35,16 +35,19 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
 
     await waitForEditorReady(page, 'word');
 
-    // Type text via editor API
-    await page.evaluate(() => {
-      const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement).contentWindow!;
-      const api = (frame as any).Asc?.editor || (frame as any).editor;
-      if (api && typeof api.asc_AddText === 'function') {
-        api.asc_AddText('ONLYOFFICE 9.3 E2E Fidelity Test');
-      }
-    });
-    // Click editor canvas to focus, then type text via keyboard (triggers user gesture)
-    await page.waitForTimeout(500);
+    // Click editor canvas in iframe to focus, then type via keyboard (user-gesture)
+    const frame = page.frame({ name: 'frameEditor' });
+    if (frame) {
+      // Click in the center of the editor area to focus it
+      await frame.click('#editor_sdk', { timeout: 10_000 }).catch(() => {
+        // Fallback: click body
+        return frame.click('body', { timeout: 5_000 });
+      });
+      await page.waitForTimeout(300);
+      // Type text with keyboard — this triggers proper user-gesture context
+      await page.keyboard.type('ONLYOFFICE 9.3 E2E Fidelity Test');
+      await page.waitForTimeout(500);
+    }
 
     // Trigger save
     await page.evaluate(() => {
@@ -70,15 +73,16 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
     console.log(`Downloaded: ${docxDownload!.filename} (${docxDownload!.size} bytes)`);
     expect(docxDownload!.size).toBeGreaterThan(1000);
 
-    // Verify DOCX is a valid OOXML package with word/document.xml
+    // Verify DOCX is valid OOXML and contains typed text
     const docxBuffer = Buffer.from(docxDownload!.data);
     const documentXml = extractFileFromZip(docxBuffer, 'word/document.xml');
     expect(documentXml).not.toBeNull();
     const xmlText = documentXml!.toString('utf8');
-    // Verify it's well-formed OOXML (has w:document root element)
     expect(xmlText).toContain('<w:document');
     expect(xmlText).toContain('<w:body>');
-    console.log(`DOCX content verified: word/document.xml extracted (${xmlText.length} chars)`);
+    // Verify typed text is in the document (keyboard input triggers user gesture)
+    expect(xmlText).toContain('ONLYOFFICE 9.3 E2E Fidelity Test');
+    console.log(`DOCX content verified: typed text found (${xmlText.length} chars)`);
   });
 
   test('convertLocal real conversion — empty bin to DOCX', async ({ page }) => {

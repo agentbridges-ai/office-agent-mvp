@@ -52,9 +52,10 @@
 | 7-gate verification system | `pnpm run gate:onlyoffice` all PASS |
 | 11-scenario CDP smoke harness | `pnpm run smoke:onlyoffice` 11/11 PASS |
 | Playwright E2E 5/5 PASS | `pnpm run test:e2e:smoke` 5/5 PASS |
-| DOCX 下载捕获 + 结构验证 | __ooDownloads hook, word/document.xml 提取 |
+| DOCX 下载捕获 + 内容验证 | __ooDownloads hook, word/document.xml 提取 + typed-text 内容匹配 |
 | convertLocal 真转换 (空 bin → DOCX, 9024 bytes) | E2E test |
 | maxInputBytes 边界拒绝 | E2E test |
+| x2t build pipeline 入库 | `tools/x2t-wasm/` (Dockerfile + scripts + provenance.json), 待 repo 内重跑验证 |
 | 生产路径决策: P1 migration deferred | 双 X2TConverter 实例冲突; 旧主链保留, x2t-api.ts 为 optional API |
 
 ### 不能宣称完成的
@@ -66,7 +67,6 @@
 | **full font fidelity** | manifest.json / hash-lock / WOFF2 策略 / CJK/RTL/emoji 未闭环 | 独立立项 P5 |
 | **PDF export** | 字体管线未完成, PDF 输出质量未验证 | P5 后 |
 | **repo-owned x2t build pipeline** | 当前 `/tmp/cryptpad-x2t` 自构建成功但未入库 `tools/x2t-wasm/` | 独立立项 P4 |
-| **typed-text content verification** | `asc_AddText` 在 Playwright evaluate 中不触发 user-gesture, 产生空 `<w:r>` | 需 keyboard 模拟或其他方案 |
 | **DOCX/XLSX 并发打开** | XLSX `waitForEditorReady` 超时 (Api 路径差异), 已替换为 sequential DOCX-only | 后续 debug |
 
 ### 验证命令
@@ -139,11 +139,15 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
   - **Revisit条件**: X2TConverter 重构为真正的全局 singleton 或在 worker 中跑 x2t。
 - [x] Gate：不再允许业务边界直接 FS.writeFile 或 ccall('main1') — api boundary gate 已收窄为仅保护可选 API
 
-### P2: Repo-owned x2t build
-- [ ] 把 `/tmp/cryptpad-x2t` 构建上下文变成 `tools/x2t-wasm/`
-  - **Current state**: x2t WASM 已在 `/tmp/cryptpad-x2t` 成功自构建并 bit-identical 验证，但非 repo-owned pipeline。
-- [ ] Dockerfile + patch series + artifact hash/provenance 入库
-- [ ] CryptPad diff 分类: must-port / trim / risk / local-patch
+### P2: Repo-owned x2t build [~] — pipeline 已入库, 待重跑验证
+- [x] 把 `/tmp/cryptpad-x2t` 构建上下文变成 `tools/x2t-wasm/` (`ea82fe83` follow-up)
+  - Dockerfile + embuild.sh + build.sh + pre-js.js + wrap-main.cpp + patches/harfbuzz.patch
+  - `scripts/clone-core.sh` — fetch ONLYOFFICE/core at v9.3.0.140
+  - `scripts/verify-artifact.sh` — cross-check build output against `public/wasm/x2t/` hashes
+  - `provenance.json` — build metadata, patch list, artifact sha256
+  - `.gitignore` excludes `core/` (686MB)
+- [ ] 从 repo 内复跑完整 build (预计 1-2h, 需要 Docker + 686MB core clone)
+- [x] CryptPad diff 分类: must-port / trim / risk / local-patch — 见 `docs/cryptpad-delta.md`
 
 ### P3: 字体管线补齐
 - [ ] 9.3 同源工具生成 AllFonts.js + manifest.json + hash-lock.json
@@ -166,7 +170,7 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
   - 5/5 PASS: download capture (__ooDownloads hook + URL.createObjectURL trap), convertLocal empty bin→DOCX (9024 bytes), maxInputBytes boundary rejection, second context DOCX open, 9.3.1 version check
   - `tests/e2e/helpers/onlyoffice.ts` with download hook, evidence collectors, wait helpers, extractFileFromZip
   - Download: 25383 bytes DOCX captured, word/document.xml extracted (2124 chars)
-  - Known: typed-text verification not passing — `asc_AddText` produces empty <w:r> elements (user-gesture issue in Playwright evaluate). DOCX structural verification in place.
+  - Known: was failing — fixed by using `page.keyboard.type()` via iframe click instead of `page.evaluate(() => api.asc_AddText(...))` (user-gesture context required).
 - [ ] P6-3: 跟进 PR (after PR #4 merged)
 
 ---
