@@ -444,27 +444,27 @@ R5 是 **适配层**（Adapter），不是 **核心能力增强**。底层 x2t �
 
 ## DEFINITIVE DONE — Browser-Local 9.3 Adaptation (PR #4)
 
-**最终状态 (2026-05-30)**:
+**最终状态 (2026-05-31)**:
 - [x] 9.3.1 editor runtime (full-vendor)
 - [x] T7c/Iid/zWc save bridges (smoke-verified)
 - [x] x2t WASM 9.3.0.140 (self-built, bit-identical verified, vanilla core 独立构建, 32 patches)
 - [x] 7-gate verification system
 - [x] 17/22 CDP smoke harness (+4 ODF/text +1 binary DOC)
-- [x] 14/14 Playwright E2E (+5 PPTX/cross-format/corrupt/unsupported/stability)
-- [x] Font pipeline (24 fonts, manifest + hash-lock + verify)
+- [x] 15/15 Playwright E2E (+5 PPTX/cross-format/corrupt/unsupported/stability)
+- [x] Font pipeline (26 fonts: +Noto Color Emoji +Noto Naskh Arabic, manifest + hash-lock + verify)
 - [x] x2t build pipeline (tools/x2t-wasm/)
 - [x] Claim Boundary (4 invariants, evidence matrix, user-perspective audit)
 - [x] Password doc E2E (decrypt + wrong-password reject)
 - [x] R1-R6 prioritized roadmap executed
+- [x] R2-6 emoji/RTL fonts completed
+- [x] Binary format output investigated — confirmed x2t WASM read-only limitation (DocFormatLib/XlsFormatLib link OK, write path broken)
 
 **验证命令**: `pnpm run verify:onlyoffice9` + `pnpm run test:e2e:smoke`
 
 **Deferred（独立立项，非 9.3 适配必需）**:
 - R5: Conversion API 兼容层 (80h, 独立仓库)
-- XLS binary smoke: ⚠️ BIFF8 generator 已实现 (44行), smoke FAIL — x2t 无法识别, 需调试 BIFF record
-- PPT binary smoke: ⚠️ MS-PPT generator 已实现 (11行), smoke FAIL — x2t 检测为 .pot, 需调试 format identifier
-- PDF export: 架构限制 — 需要 server-side conversion, font preload 已实现但 x2t error 80
-- R2-6: emoji/RTL 字体扩展 — ✅ 完成, 26 fonts (+Noto Color Emoji +Noto Naskh Arabic)
+- PDF export: 架构限制 — 需要 server-side conversion
+- XLS/PPT binary output: x2t WASM read-only — DocFormatLib/XlsFormatLib 链接通过但写入路径挂死
 
 ### 逐项验证结果
 
