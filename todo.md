@@ -27,7 +27,7 @@
 
 - [x] **P0-1**: 审查 CryptPad v9.3.0+0 对 upstream core 的 56 文件变更 → `docs/cryptpad-delta.md`
   - 分类: must-port (14), optional-trim (8), skip (1), risk-needs-review (4)
-  - 关键发现: build_tools v8.3.0.91 vs core v9.3.0.140 mismatch; native ref 8.3.3 vs wasm 9.3
+  - 关键发现: build_tools v8.3.0.91 vs core v9.3.0.140 mismatch (known CryptPad quirk,不影响 bit-identical 构建); native ref 8.3.3 vs wasm 9.3
 - [x] **P0-2**: 提取 CryptPad 构建依赖清单 → 已内嵌在 `docs/cryptpad-delta.md` 的 Dependency Chain 节
   - emsdk 4.0.11, build_tools v8.3.0.91, Ubuntu 22.04, qmake6
   - 21 个依赖库逐阶段构建
@@ -67,12 +67,17 @@
 - [x] **P3-3**: 更新 gate → `bin/check_x2t_api_boundary.mjs`
 - [x] **P0-API**: x2t-api.ts boundary → maxInputBytes enforced, font path validated (`37b86f57`)
 
-### P1: 生产路径迁移 (P3-2)
-- [ ] 让 `lib/converter.ts` / `lib/document-converter.ts` 主链走 `x2t-api.ts`
-- [ ] Gate：不再允许业务边界直接 FS.writeFile 或 ccall('main1')
+### P1: 生产路径迁移 (P3-2) — DEFERRED/REJECTED for now
+- [~] 让 `lib/converter.ts` / `lib/document-converter.ts` 主链走 `x2t-api.ts`
+  - **Why reverted**: 双 X2TConverter 实例冲突 (converter.ts 用 singleton，x2t-api.ts 用独立 new X2TConverter())，
+    第二个实例无法复用 warm window.Module（onRuntimeInitialized 已触发）。
+  - **Current state**: 旧主链保留，x2t-api.ts 作为可选 API 受 gate 保护。
+  - **Revisit条件**: X2TConverter 重构为真正的全局 singleton 或在 worker 中跑 x2t。
+- [x] Gate：不再允许业务边界直接 FS.writeFile 或 ccall('main1') — api boundary gate 已收窄为仅保护可选 API
 
 ### P2: Repo-owned x2t build
 - [ ] 把 `/tmp/cryptpad-x2t` 构建上下文变成 `tools/x2t-wasm/`
+  - **Current state**: x2t WASM 已在 `/tmp/cryptpad-x2t` 成功自构建并 bit-identical 验证，但非 repo-owned pipeline。
 - [ ] Dockerfile + patch series + artifact hash/provenance 入库
 - [ ] CryptPad diff 分类: must-port / trim / risk / local-patch
 
@@ -93,10 +98,10 @@
 - [x] P5-5: CSV native x2t — `tryNativeCsvConvert()` (`bcd17600`)
 - [x] P5-3: 密码 doc 基础设施 — `officecrypto-tool` + encrypted sample + scenario (`03ddc1ff`)
 - [x] P5-4: 大文件 — `createLargeDocxSample` 1000 paragraphs (`861598eb`)
-- [x] P5-6/P5-7: Playwright E2E infrastructure → `tests/e2e/onlyoffice-9.3-fidelity.spec.ts` + `playwright.config.ts` (`c8156597`)
-  - Text fidelity: type+save+capture download+verify content
-  - Concurrency: parallel DOCX+XLSX browser contexts
-  - Requires: `npx playwright install chromium` (network)
+- [~] P5-6/P5-7: Playwright E2E — `tests/e2e/onlyoffice-9.3-fidelity.spec.ts` + `playwright.config.ts`
+  - 2 pass (concurrent, x2t-init-only), 1 KNOWN FAILING (download capture — save bridge uses createObjectURL+anchor.click, not intercepted by page.on('download'))
+  - convertLocal test is pseudo-coverage: only calls initX2T(), no actual conversion
+  - `tests/e2e/helpers/` not yet created — helpers planned but not implemented
 - [ ] P6-3: 跟进 PR (after PR #4 merged)
 
 ---

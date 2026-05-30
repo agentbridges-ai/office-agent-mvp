@@ -10,4 +10,6 @@ cache
 # vite
 vite.config.ts.timestamp*
 config.ts.timestamp*
-disttest-results/
+dist/
+test-results/
+public/web-apps/apps/*/mobile/dist/
