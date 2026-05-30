@@ -53,6 +53,41 @@ export async function initX2T(options: X2TInitOptions = {}): Promise<void> {
   _fontsManifestPath = options.fontsManifestPath;
   _fontsDir = options.fontsDir;
   _maxInputBytes = options.maxInputBytes;
+
+  // Preload fonts if fontsDir is set (needed for PDF export)
+  if (_fontsDir) {
+    await preloadFonts(x2t, _fontsDir);
+  }
+}
+
+/**
+ * Preload TTF font files from the server into the Emscripten virtual filesystem.
+ * Required for PDF export — x2t needs physical font files accessible at m_sFontDir.
+ */
+async function preloadFonts(x2t: X2TConverter, fontsDir: string): Promise<void> {
+  const module = await x2t.initialize();
+  const fontList = [
+    'LiberationSans-Regular.ttf',
+    'LiberationSans-Bold.ttf',
+    'LiberationSans-Italic.ttf',
+    'LiberationSans-BoldItalic.ttf',
+  ];
+
+  try { module.FS.mkdir(fontsDir); } catch { /* exists */ }
+
+  for (const fontFile of fontList) {
+    try {
+      const response = await fetch(`/fonts/${fontFile}`);
+      if (!response.ok) {
+        console.warn(`x2t: font ${fontFile} not found at /fonts/${fontFile}, PDF export may fail`);
+        continue;
+      }
+      const data = await response.arrayBuffer();
+      module.FS.writeFile(`${fontsDir}/${fontFile}`, new Uint8Array(data));
+    } catch (e) {
+      console.warn(`x2t: failed to preload font ${fontFile}:`, e);
+    }
+  }
 }
 
 /**
@@ -73,7 +108,7 @@ export async function convertLocal(request: X2TConvertOptions): Promise<X2TConve
 
   // Validate font paths (must be under /working/ or /fonts/)
   for (const [label, value] of [['fontsDir', _fontsDir], ['fontsManifestPath', _fontsManifestPath]] as const) {
-    if (value && !value.startsWith('/working/') && !value.startsWith('/fonts/')) {
+    if (value && !value.startsWith('/working') && !value.startsWith('/fonts')) {
       throw new Error(`x2t ${label} must be under /working/ or /fonts/: ${value}`);
     }
   }
