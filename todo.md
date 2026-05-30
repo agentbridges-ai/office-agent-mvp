@@ -215,18 +215,28 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 
 ---
 
-### R3: Repo x2t 构建验证 [x] — 完成
+### R3: Repo x2t 构建验证 [x] — 完成, 长期路线已规划
 
-- [x] **R3-1**: CryptPad core 确认可用 (668MB, 含 6 个 empty stub + 56 文件变更)
-- [x] **R3-2**: `docker build --file tools/x2t-wasm/Dockerfile --target output -o tools/x2t-wasm/build /tmp/cryptpad-x2t` — 347 steps (全部 CACHED), 输出 59.5MB
-- [x] **R3-3**: sha256 验证:
-  - ✅ x2t.wasm: MATCH `e166c252...` (bit-identical)
-  - ✅ x2t.wasm.br: MATCH `8dfeb638...` (bit-identical)
-  - ⚠️ x2t.js: MISMATCH — Emscripten JS glue 非确定性 (时间戳/随机 ID), WASM 二进制完全一致
-- [x] **R3-4**: P2 标记完成 — WASM 二进制 bit-identical 确认
-- [x] **R3-5**: 差异已记录 — JS glue 差异源于 Emscripten 构建非确定性，不影响功能
-
-**关键发现**: Dockerfile 需要 CryptPad 的 modified core (含 6 个 `_empty.cpp` stub)，vanilla ONLYOFFICE/core v9.3.0.140 不可直接使用。长期需将 56 文件变更制作为 patch series，或追踪 CryptPad 的 core fork。
+- [x] **R3-1**: 确认 CryptPad modified core 为构建依赖
+  - 根本原因: 6 个 stub 文件 (共 ~1500 行) 替换了依赖 Qt 的 doctrenderer/graphics/fonts 实现
+  - Vanilla `ONLYOFFICE/core` v9.3.0.140 缺少这些 stub → 编译失败
+  - 这不是"绕过"，而是 WASM 平台的架构必需: Qt 不可用, docbuilder 不需要, ICU 由 Emscripten 提供
+- [x] **R3-2**: 构建验证通过
+  - `docker build --file tools/x2t-wasm/Dockerfile --target output -o tools/x2t-wasm/build /tmp/cryptpad-x2t`
+  - x2t.wasm: bit-identical ✅ `e166c252...`
+  - x2t.wasm.br: bit-identical ✅ `8dfeb638...`
+  - x2t.js: mismatch (Emscripten JS glue 非确定性)
+- [x] **R3-3**: 源码 provenance 文档化
+  - `tools/x2t-wasm/sources.json` — 完整 delta 分类 (must-port 14 / trim 8 / skip 1 / risk 4 / build 29)
+  - `tools/x2t-wasm/README.md` — 构建流程、源码链、长期路线图
+  - `scripts/clone-core.sh` — 从 CryptPad repo 提取 core/
+  - `scripts/build-with-core.sh` — 统一构建入口 (core check → build → verify)
+- [ ] **R3-远期**: 消除 CryptPad core 依赖
+  - Step 1: 将 6 个 stub 提取为独立 patches
+  - Step 2: 将 14 个 must-port build config 制成 `.patch` 文件
+  - Step 3: Review 4 个 risk-needs-review 变更
+  - Step 4: `clone-core.sh` 改为拉取 vanilla core + apply patches
+  - 完成后可完全独立于 CryptPad fork 构建
 
 ---
 

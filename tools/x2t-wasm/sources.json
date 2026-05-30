@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "description": "Source provenance for the x2t WASM build. The Dockerfile requires CryptPad's modified ONLYOFFICE/core — vanilla core does NOT build directly (missing 6 stub files + build config changes).",
+  "coreSource": {
+    "primary": {
+      "source": "cryptpad/onlyoffice-x2t-wasm",
+      "ref": "v9.3.0+0",
+      "path": "core/",
+      "url": "https://github.com/cryptpad/onlyoffice-x2t-wasm",
+      "note": "CryptPad maintains a git subtree of ONLYOFFICE/core with 56 WASM-adaptation files changed"
+    },
+    "upstream": {
+      "source": "ONLYOFFICE/core",
+      "ref": "v9.3.0.140",
+      "url": "https://github.com/ONLYOFFICE/core",
+      "note": "Vanilla core cannot be used directly — see delta classification below"
+    }
+  },
+  "delta": {
+    "totalFilesChanged": 56,
+    "classification": {
+      "mustPort": {
+        "count": 14,
+        "description": "Essential for WASM compilation — empty stubs, build config, linker fixes",
+        "files": [
+          "X2tConverter/src/main.cpp (rlimit removal)",
+          "wrap-main.cpp (main1 entry point)",
+          "DesktopEditor/doctrenderer/doctrenderer_empty.cpp (827-line stub)",
+          "DesktopEditor/doctrenderer/docbuilder_empty.cpp (stub)",
+          "DesktopEditor/doctrenderer/docbuilder_p_empty.cpp (stub)",
+          "DesktopEditor/graphics/pro/js/qt/raster/pro_Graphics_empty.cpp (stub)",
+          "DesktopEditor/graphics/pro/js/qt/raster/pro_Fonts_empty.cpp (stub)",
+          "UnicodeConverter/UnicodeConverter_internal_empty.cpp (stub)",
+          "DesktopEditor/doctrenderer/doctrenderer.pri (build config)",
+          "DesktopEditor/doctrenderer/editors.h (stub header)",
+          "Common/3dParty/icu/icu.pri (Emscripten ICU)",
+          "DesktopEditor/graphics/pro/freetype.pri (dedup)",
+          "Common/base.pri (remove Windows)",
+          "Common/kernel.pro (WASM target)"
+        ]
+      },
+      "optionalTrim": {
+        "count": 8,
+        "description": "Removed functionality — not needed for x2t-only WASM. Dockerfile --target output already skips affected stages.",
+        "files": [
+          "DesktopEditor/doctrenderer/js_internal/js_base.pri",
+          "DesktopEditor/graphics/pro/textshaper.pri",
+          "DesktopEditor/graphics/pro/raster.pri",
+          "Fb2File/Fb2File.pro",
+          "HtmlFile2/htmlfile2.cpp",
+          "OOXML/Projects/Linux/DocxFormatLib/DocxFormatLib.pro",
+          "OdfFile/Projects/Linux/OdfFormatLib.pro",
+          "OfficeUtils/OfficeUtils.pri"
+        ]
+      },
+      "skip": {
+        "count": 1,
+        "description": "Test file rename — no functional impact",
+        "files": ["Test/.../DeleteRowsComplex.xlsx → .xlsx.ignore"]
+      },
+      "riskNeedsReview": {
+        "count": 4,
+        "description": "Behavioral changes — should be reviewed before adopting in production",
+        "files": [
+          "X2tConverter/src/lib/html.h (HTML conversion)",
+          "X2tConverter/src/lib/pdf_image.h (PDF image)",
+          "X2tConverter/build/Qt/X2tConverter.pri (linker flags)",
+          "MsBinaryFile/Common/Vml/PPTShape/BinaryReader.* (binary format)"
+        ]
+      },
+      "unclassifiedBuildConfig": {
+        "count": 29,
+        "description": "Additional build configuration files, inline edits in Dockerfile (3 sed commands), and other non-source changes"
+      }
+    },
+    "fullAudit": "docs/cryptpad-delta.md"
+  },
+  "stubFiles": {
+    "count": 6,
+    "description": "Empty/replacement implementations that remove Qt, docbuilder, and platform dependencies. These are the primary reason vanilla core cannot build.",
+    "list": [
+      "DesktopEditor/doctrenderer/doctrenderer_empty.cpp (827 lines — no-op doctrenderer)",
+      "DesktopEditor/doctrenderer/docbuilder_empty.cpp (no-op docbuilder)",
+      "DesktopEditor/doctrenderer/docbuilder_p_empty.cpp (no-op docbuilder internal)",
+      "DesktopEditor/graphics/pro/js/qt/raster/pro_Graphics_empty.cpp (no-op Qt graphics)",
+      "DesktopEditor/graphics/pro/js/qt/raster/pro_Fonts_empty.cpp (no-op Qt fonts)",
+      "UnicodeConverter/UnicodeConverter_internal_empty.cpp (stub Unicode internal)"
+    ]
+  },
+  "reproducibility": {
+    "x2t.wasm": "bit-identical (sha256: e166c252...)",
+    "x2t.wasm.br": "bit-identical (sha256: 8dfeb638...)",
+    "x2t.js": "non-deterministic (Emscripten JS glue — timestamps, random IDs). Functionally equivalent.",
+    "buildTime": "~1-2h (28 library stages + Emscripten link), ~1min with warm Docker cache"
+  }
+}

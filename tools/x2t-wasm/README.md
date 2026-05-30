@@ -1,49 +1,116 @@
 # x2t WASM Build Pipeline
 
-Self-contained Docker build for the ONLYOFFICE x2t WASM converter used in this project.
+Docker-based reproducible build for the ONLYOFFICE x2t WebAssembly converter.
 
 ## Quick Start
 
 ```bash
-# 1. Clone ONLYOFFICE core source (one-time, ~686MB)
-./scripts/clone-core.sh
+# Option A: Use local CryptPad checkout (fastest)
+CORE_SOURCE=/tmp/cryptpad-x2t/core ./scripts/build-with-core.sh
 
-# 2. Build (1-2 hours, 28 library stages + Emscripten link)
+# Option B: Clone CryptPad's modified core (network required, ~668MB)
+./scripts/clone-core.sh
+./scripts/build-with-core.sh
+```
+
+## Why CryptPad's Core Is Required
+
+The Dockerfile compiles ONLYOFFICE's C++ codebase to WebAssembly using Emscripten.
+**Vanilla `ONLYOFFICE/core` v9.3.0.140 does NOT build directly** for WASM due to:
+
+1. **Qt dependencies**: doctrenderer/graphics/fonts reference Qt classes not available in WASM. CryptPad provides 6 empty stubs (~1500 lines total) that implement the required API surfaces as no-ops.
+2. **Platform code**: Memory limits (`rlimit`), Windows version info, ICU linking — all need WASM-specific adjustments.
+3. **Build configuration**: 14 `must-port` changes to `.pri`/`.pro` files for the Emscripten toolchain.
+
+Full audit: [`docs/cryptpad-delta.md`](../../docs/cryptpad-delta.md) — 56 files changed, classified by category.
+
+## Source Provenance
+
+```
+ONLYOFFICE/core v9.3.0.140 (vanilla)
+        │
+        ├── git subtree ──→ cryptpad/onlyoffice-x2t-wasm v9.3.0+0
+        │                        │
+        │                  56 WASM-adaptation changes
+        │                        │
+        │                  6 empty stubs + 14 build config + 8 trims + 4 risk
+        │                        │
+        └── Dockerfile ────→ x2t.wasm (bit-identical: e166c252...)
+                             x2t.js   (Emscripten glue, non-deterministic)
+```
+
+See [`sources.json`](./sources.json) for detailed provenance metadata.
+
+## Building
+
+### Prerequisites
+- Docker with BuildKit
+- CryptPad's modified core (668MB)
+  - From local: `CORE_SOURCE=/path/to/core`
+  - From clone: `./scripts/clone-core.sh`
+  - From existing CryptPad checkout: `CRYPTAD_CONTEXT=/tmp/cryptpad-x2t`
+
+### Build Script
+
+```bash
+./scripts/build-with-core.sh
+# → ensures core, runs docker build (28 libs + Emscripten link), verifies output
+```
+
+Flags:
+- `CORE_SOURCE=/path` — use specific core copy
+- `CRYPTAD_CONTEXT=/path` — build from existing CryptPad checkout (fastest)
+- `SKIP_VERIFY=1` — skip artifact verification
+
+### Manual Docker Build
+
+```bash
+# From CryptPad checkout directory:
 docker build --target output -o build .
 
-# 3. Verify bit-identical output against committed artifacts
-./scripts/verify-artifact.sh build/
+# From tools/x2t-wasm with core/ present:
+docker build --target output -o build .
 ```
 
 ## Output
 
-| File | Size | sha256 |
-|------|------|--------|
-| x2t.js | 133 KB | e0abb599... |
-| x2t.wasm | 35 MB | e166c252... |
-| x2t.wasm.br | 6.5 MB | 8dfeb638... |
-| x2t.wasm.gz | 7.1 MB | 85b25f73... |
+| File | Expected sha256 | Notes |
+|------|----------------|-------|
+| x2t.js | non-deterministic | Emscripten JS glue (timestamps, random IDs) |
+| x2t.wasm | `e166c252...` | **Bit-identical** — the critical verification target |
+| x2t.wasm.br | `8dfeb638...` | **Bit-identical** |
+| x2t.wasm.gz | non-deterministic | gzip header contains timestamp |
 
-## Dependencies
+## Scripts
 
-- Docker with BuildKit enabled
-- ONLYOFFICE/core at v9.3.0.140 (cloned by `clone-core.sh`)
-- ONLYOFFICE/build_tools at v9.3.0.140 (cloned inside Dockerfile)
-- emscripten/emsdk:4.0.11 Docker image
+| Script | Purpose |
+|--------|---------|
+| `scripts/clone-core.sh` | Fetch CryptPad's modified core (CryptPad v9.3.0+0 → extract core/) |
+| `scripts/build-with-core.sh` | Full build pipeline: core check → docker build → verify |
+| `scripts/verify-artifact.sh` | Cross-check build output against `public/wasm/x2t/` |
 
-## Known Limitations
+## Long-term Roadmap
 
-- `build_tools` version mismatch: CryptPad's build used v8.3.0.91, core is v9.3.0.140. Artifact is bit-identical despite this.
-- Fb2File and OFDFile formats are not linked in WASM.
-- `gzip` output is non-deterministic (timestamps); `x2t.wasm.gz` may differ between builds.
-- The Dockerfile's `fb2file` and `log-symbols` stages have broken references — these are NOT on the build→output dependency chain.
+Current: CryptPad's modified core is the build source (56 file delta from upstream).
 
-## Provenance
+Goal: Reduce to a minimal patch series applied to vanilla `ONLYOFFICE/core`:
+1. Extract 6 stub files as independent patches (highest priority — the 827-line doctrenderer stub is the biggest)
+2. Capture 14 must-port build config changes as `.patch` files
+3. Review 4 risk-needs-review changes for behavioral impact
+4. Eliminate CryptPad core dependency entirely
 
-See [provenance.json](./provenance.json) for full build metadata, patch list, and artifact hashes.
+With a complete patch series, `./scripts/clone-core.sh` would fetch **vanilla** core and apply patches, removing the CryptPad fork dependency.
 
-## Related
+## Files
 
-- Upstream: [ONLYOFFICE/core](https://github.com/ONLYOFFICE/core) v9.3.0.140
-- CryptPad baseline: [onlyoffice-x2t-wasm v9.3.0+0](https://github.com/cryptpad/onlyoffice-x2t-wasm)
-- Project docs: `docs/cryptpad-delta.md` (56-file change audit)
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | Multi-stage build (28 libs → Emscripten link → output) |
+| `pre-js.js` | Emscripten pre-js: `Module.locateFile` patch, disable `currentScript.getAttribute` |
+| `wrap-main.cpp` | C++ wrapper: `main1(char* xmlPath)` entry point for JS `ccall` |
+| `embuild.sh` | Per-library Emscripten build invocation |
+| `build.sh` | Original CryptPad top-level build script (reference) |
+| `patches/harfbuzz.patch` | HarfBuzz text shaping fix for WASM |
+| `provenance.json` | Build metadata, artifact hashes, patch list |
+| `sources.json` | Source provenance — why CryptPad core is needed, delta classification |
+| `test.js` | Docker smoke test (required by Dockerfile step 45) |
