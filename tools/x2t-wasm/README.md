@@ -18,7 +18,7 @@ CORE_SOURCE=/tmp/cryptpad-x2t/core ./scripts/build-with-core.sh
 The Dockerfile compiles ONLYOFFICE's C++ codebase to WebAssembly using Emscripten.
 **Vanilla `ONLYOFFICE/core` v9.3.0.140 does NOT build directly** for WASM due to:
 
-1. **Qt dependencies**: doctrenderer/graphics/fonts reference Qt classes not available in WASM. CryptPad provides 6 empty stubs (~1500 lines total) that implement the required API surfaces as no-ops.
+1. **Qt dependencies**: doctrenderer/graphics/fonts reference Qt classes not available in WASM. CryptPad provides 6 empty stubs (1138 lines total) that implement the required API surfaces as no-ops.
 2. **Platform code**: Memory limits (`rlimit`), Windows version info, ICU linking — all need WASM-specific adjustments.
 3. **Build configuration**: 14 `must-port` changes to `.pri`/`.pro` files for the Emscripten toolchain.
 

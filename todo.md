@@ -38,7 +38,7 @@
 | # | 不变量 | 验证方式 |
 |---|--------|---------|
 | 1 | **版本同源** — Editor runtime 9.3.1，x2t 对齐 core v9.3.0.140，格式 ID/字体入口/save hook 不含 7.x | gate:format_table, gate:docs_consistency, smoke 11/11 |
-| 2 | **主链闭环** — 新建/打开/编辑/保存 DOCX/XLSX/PPTX/CSV 可用，失败时显式失败 | CDP smoke 11/11, Playwright E2E 5/5 |
+| 2 | **主链闭环** — 新建/打开/编辑/保存 DOCX/XLSX/PPTX/CSV 可用，失败时显式失败 | CDP smoke 11/11, Playwright E2E 9/9 |
 | 3 | **本地安全边界** — x2t WASM 只写受控 /working 路径，文件名/字体路径/格式参数不能任意 FS path 或 XML 注入 | gate:fs_sandbox, gate:path_behavior, gate:api_boundary |
 | 4 | **证据先于声明** — 每个完成项至少一个证据 | 见下方证据矩阵 |
 
@@ -51,7 +51,7 @@
 | x2t 9.3 WASM artifact (core v9.3.0.140) | bit-identical self-build, `docs/cryptpad-delta.md` |
 | 7-gate verification system | `pnpm run gate:onlyoffice` all PASS |
 | 11-scenario CDP smoke harness | `pnpm run smoke:onlyoffice` 11/11 PASS |
-| Playwright E2E 9/9 PASS | `pnpm run test:e2e:smoke` — DOCX typed-text + convertLocal + XLSX structure + concurrent + password decrypt/reject + version |
+| Playwright E2E 9/9 PASS | `pnpm run test:e2e:smoke` — DOCX typed-text + convertLocal + XLSX structure + concurrent + password decrypt(1248B) + wrong-password reject(code 91) + version(9.3.1) + oversized reject + second-context |
 | DOCX/XLSX 下载捕获 + 内容验证 | 6/6 PASS: DOCX (25429 bytes + typed text), XLSX (7854 bytes) |
 | convertLocal 真转换 (空 bin → DOCX, 9024 bytes) | E2E test |
 | maxInputBytes 边界拒绝 | E2E test |
@@ -154,15 +154,7 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 - [x] CryptPad diff 分类: must-port / trim / risk / local-patch — 见 `docs/cryptpad-delta.md`
 - [ ] 长期待做: 将 CryptPad 56 文件变更制成 patch series，使 vanilla ONLYOFFICE/core 可直接构建
 
-### P3: 字体管线补齐
-- [ ] 9.3 同源工具生成 AllFonts.js + manifest.json + hash-lock.json
-- [ ] WOFF2 策略 + CJK/RTL/emoji 验证 (9.0.4 已加入 WOFF2)
-
-### P4: 扩展格式与转换 API
-- [ ] Conversion API 兼容层 (/converter, shardkey, 错误码 -1..-10)
-- [ ] 密码文档 E2E, CSV native hard-fail 模式
-
-### Phase 4: 字体管线 [x] — 9.3 字体引擎已就绪
+### Phase 4: 字体管线 [x] — 9.3 字体引擎已就绪 (详见 R2)
 - `libfont/engine/fonts.wasm` + `AllFonts.js`(100行) + 24 TTF
 - `allfontsgen` from 9.3.1 .deb verified (`docker/Dockerfile.allfontsgen` for font expansion)
 
@@ -171,8 +163,8 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 - [x] P5-5: CSV native x2t — `tryNativeCsvConvert()` (`bcd17600`)
 - [x] P5-3: 密码 doc 基础设施 — `officecrypto-tool` + encrypted sample + scenario (`03ddc1ff`)
 - [x] P5-4: 大文件 — `createLargeDocxSample` 1000 paragraphs (`861598eb`)
-- [x] P5-6/P5-7: Playwright E2E — `tests/e2e/onlyoffice-9.3-fidelity.spec.ts` + `playwright.config.ts` (`cd84d29a`)
-  - 6/6 PASS: DOCX (typed text verified), convertLocal (9024 bytes), maxInputBytes rejection, XLSX (7854 bytes), second context DOCX, 9.3.1 version
+- [x] P5-6/P5-7: Playwright E2E — `tests/e2e/onlyoffice-9.3-fidelity.spec.ts` + `playwright.config.ts`
+  - 9/9 PASS (evolved through R1-R4: +password decrypt/reject +XLSX structure +concurrent)
 
 ---
 
@@ -218,7 +210,7 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 ### R3: Repo x2t 构建验证 [x] — 完成, 长期路线已规划
 
 - [x] **R3-1**: 确认 CryptPad modified core 为构建依赖
-  - 根本原因: 6 个 stub 文件 (共 ~1500 行) 替换了依赖 Qt 的 doctrenderer/graphics/fonts 实现
+  - 根本原因: 6 个 stub 文件 (共 1138 行) 替换了依赖 Qt 的 doctrenderer/graphics/fonts 实现
   - Vanilla `ONLYOFFICE/core` v9.3.0.140 缺少这些 stub → 编译失败
   - 这不是"绕过"，而是 WASM 平台的架构必需: Qt 不可用, docbuilder 不需要, ICU 由 Emscripten 提供
 - [x] **R3-2**: 构建验证通过
@@ -232,10 +224,10 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
   - `scripts/clone-core.sh` — 从 CryptPad repo 提取 core/
   - `scripts/build-with-core.sh` — 统一构建入口 (core check → build → verify)
 - [ ] **R3-远期**: 消除 CryptPad core 依赖
-  - Step 1: 将 6 个 stub 提取为独立 patches
-  - Step 2: 将 14 个 must-port build config 制成 `.patch` 文件
-  - Step 3: Review 4 个 risk-needs-review 变更
-  - Step 4: `clone-core.sh` 改为拉取 vanilla core + apply patches
+  - [x] Step 1: 将 6 个 stub 提取为独立 patches → `patches/core-stubs/` (1138 行, README + apply-stubs.sh)
+  - [ ] Step 2: 将 14 个 must-port build config 制成 `.patch` 文件
+  - [ ] Step 3: Review 4 个 risk-needs-review 变更
+  - [ ] Step 4: `clone-core.sh` 改为拉取 vanilla core + apply patches
   - 完成后可完全独立于 CryptPad fork 构建
 
 ---
@@ -305,8 +297,16 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 核心适配目标 100% 完成:
 - [x] 9.3.1 editor runtime (full-vendor)
 - [x] T7c/Iid/zWc save bridges (smoke-verified)
-- [x] x2t WASM 9.3.0.140 (self-built, bit-identical)
+- [x] x2t WASM 9.3.0.140 (self-built, bit-identical verified)
 - [x] 7-gate verification system
 - [x] 11-scenario CDP smoke harness
-- [x] 6/6 Playwright E2E (DOCX content + convertLocal + XLSX download)
-- [x] Documentation + Claim Boundary + provenance
+- [x] 9/9 Playwright E2E (DOCX typed-text + convertLocal + XLSX structure + concurrent + password decrypt/reject)
+- [x] Font pipeline (manifest + hash-lock + verify, 24 fonts/0 mismatch)
+- [x] x2t build pipeline (tools/x2t-wasm/, WASM bit-identical)
+- [x] Claim Boundary (can/cannot declare, 4 invariants, evidence matrix)
+- [x] R1-R4 prioritized roadmap executed
+
+Deferred (独立立项):
+- [ ] R3-远期: 消除 CryptPad core 依赖 (stub patches → vanilla core 构建)
+- [ ] R5: Conversion API 兼容层 (40-80h, 独立仓库)
+- [ ] R6: PR #4 merge + CI setup
