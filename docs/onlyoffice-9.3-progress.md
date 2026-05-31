@@ -21,7 +21,7 @@ Older plans under `docs/superpowers/plans/2026-05-20-*` and `docs/superpowers/pl
 | --- | --- | --- |
 | Editor runtime | `complete` | Full 9.3.1 `web-apps`/`sdkjs` resources present. Risk gate aligned. |
 | Adapter bridge | `complete` | T7c/Iid/zWc save bridges smoke-verified. Bridge contract gate PASS. |
-| x2t WASM | `complete` | CryptPad 9.3.0+0 applied with local locateFile patch. 11/11 smoke PASS. |
+| x2t WASM | `complete` | CryptPad 9.3.0+0 applied with local locateFile patch. Smoke: 20 scenarios configured (historical 11/11 baseline). |
 | Format table | `complete` | Required 9.3 IDs added. Format table gate PASS. |
 | FS sandbox | `complete` | `sanitizeX2TFileName` helper added. Static sandbox and behavior gates PASS. |
 
@@ -49,7 +49,7 @@ Older plans under `docs/superpowers/plans/2026-05-20-*` and `docs/superpowers/pl
 | L3-02 | x2t artifact replaced | completed | `d1e20624`: wasm/br from CryptPad, x2t.js with local locateFile patch |
 | L3-03 | x2t open smoke (DOCX/XLSX/CSV/PPTX) | completed | 4/4 PASS with 9.3 x2t |
 | L3-04 | x2t save smoke (DOCX/XLSX/PPTX) | completed | 3/3 PASS: T7c(65)/Iid(257)/zWc(129) bridges verified |
-| L3-05 | Full 11-scenario smoke | completed | 11/11 PASS, 0 failures, 0 exceptions |
+| L3-05 | Full smoke (historical baseline) | completed | 11/11 PASS (historical; expanded to 20 scenarios) |
 
 ## Remaining
 

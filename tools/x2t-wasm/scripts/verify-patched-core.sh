@@ -124,8 +124,7 @@ if [ -f "$MANIFEST_FILE" ]; then
     echo "  Current: $CURRENT_DIGEST"
     echo "  If this is intentional, update with:"
     echo "    sha256sum /tmp/patch-manifest-current.txt | awk '{print \$1}' > $MANIFEST_FILE"
-    # Not a hard failure — patches may legitimately change during development
-    # But it IS a noteworthy signal for provenance
+    FAILURES=$((FAILURES + 1))
   fi
 else
   echo "  No stored manifest. Generating..."

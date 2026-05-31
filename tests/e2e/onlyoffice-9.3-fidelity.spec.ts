@@ -409,6 +409,9 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
 
   test('convertLocal rejects wrong password', async ({ page }) => {
     test.setTimeout(120_000);
+    if (!encryptAvailable) {
+      throw new Error('officecrypto-tool is required for password E2E tests. Install: npm install officecrypto-tool');
+    }
 
     await page.goto(BASE_URL, { timeout: 120_000 });
     await waitForOnlyOfficeShell(page);

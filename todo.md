@@ -125,7 +125,7 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
   - 产物: `x2t.js`, `x2t.wasm`, `x2t.wasm.br`, `x2t.zip`
 - [x] **P12-2**: 验证 WASM 产物 — bit-identical to CryptPad pre-built, `_main1`/`ccall`/`FS` OK
 - [x] **P12-3**: 重新应用 `locateFile` patch — confirmed applied, no `currentScript.getAttribute`
-- [x] **P12-4**: 跑 11-scenario smoke 验证 — 11/11 PASS, 0 failures
+- [x] **P12-4**: 跑 11-scenario smoke 验证 — 11/11 PASS (historical; current: 20 scenarios)
 - [x] **P12-5**: 更新 docs 和 gate 中的 hashes — gz hash 已更新, wasm/br/js unchanged (bit-identical)
 - [x] **P12-6**: 验证 x2t XML 参数契约 — ✅ matches X2tConverter/README.md (m_sFileFrom/To, m_nFormatFrom/To, m_sAllFontsPath/m_sFontDir)
 - [x] **P12-7**: 格式枚举与 `OfficeFileFormats.h` 交叉验证 — ✅ hex scheme (0x0040 base), all 20 IDs match
