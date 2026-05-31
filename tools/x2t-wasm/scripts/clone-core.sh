@@ -38,8 +38,8 @@ echo "Cloning $ONLYOFFICE_CORE_REPO at $ONLYOFFICE_CORE_REF..."
 git clone --depth=1 --branch "$ONLYOFFICE_CORE_REF" "$ONLYOFFICE_CORE_REPO" "$TOOLS_DIR/core"
 echo "Vanilla core cloned ($(du -sh "$TOOLS_DIR/core" | cut -f1))."
 
-echo "Applying WASM patches..."
-"$TOOLS_DIR/patches/apply-all.sh" "$TOOLS_DIR/core"
+echo "Applying WASM patches (STRICT_MODE=1 — all 26 must apply)..."
+STRICT_MODE=1 "$TOOLS_DIR/patches/apply-all.sh" "$TOOLS_DIR/core"
 
 echo ""
 echo "=== Core ready: vanilla ONLYOFFICE/core v9.3.0.140 + 32 patches ==="

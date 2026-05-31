@@ -31,7 +31,7 @@ check_file "UnicodeConverter/UnicodeConverter_internal_empty.cpp"
 # Build config patches
 check_contains "X2tConverter/src/main.cpp" "main1"
 check_contains "Common/3dParty/icu/icu.pri" "emscripten"
-check_contains "X2tConverter/build/Qt/X2tConverter.pri" "DocFormatLib\|XlsFormatLib\|PdfFile"
+check_contains "X2tConverter/build/Qt/X2tConverter.pri" "DocFormatLib|XlsFormatLib|PdfFile"
 check_contains "DesktopEditor/graphics/pro/freetype.pri" "duplicate"
 
 # Optional but recommended

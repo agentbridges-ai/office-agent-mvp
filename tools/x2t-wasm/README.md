@@ -47,21 +47,20 @@ See [`sources.json`](./sources.json) for detailed provenance metadata.
 
 ### Prerequisites
 - Docker with BuildKit
-- CryptPad's modified core (668MB)
-  - From local: `CORE_SOURCE=/path/to/core`
-  - From clone: `./scripts/clone-core.sh`
-  - From existing CryptPad checkout: `CRYPTAD_CONTEXT=/tmp/cryptpad-x2t`
+- ONLYOFFICE/core v9.3.0.140 (auto-cloned by clone-core.sh)
+  - Default: `./scripts/clone-core.sh` → vanilla + patches (668MB clone + apply-all.sh)
+  - Fallback: `X2T_CORE_MODE=cryptpad ./scripts/clone-core.sh` → CryptPad modified core
 
 ### Build Script
 
 ```bash
 ./scripts/build-with-core.sh
-# → ensures core, runs docker build (28 libs + Emscripten link), verifies output
+# → ensures core (auto-clone if missing), verify patches, docker build, verify hashes
 ```
 
 Flags:
-- `CORE_SOURCE=/path` — use specific core copy
-- `CRYPTAD_CONTEXT=/path` — build from existing CryptPad checkout (fastest)
+- `X2T_CORE_MODE=cryptpad` — use CryptPad modified core (historical fallback)
+- `SKIP_VERIFY=1` — skip artifact hash verification
 - `SKIP_VERIFY=1` — skip artifact verification
 
 ### Manual Docker Build
@@ -87,21 +86,19 @@ docker build --target output -o build .
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/clone-core.sh` | Fetch CryptPad's modified core (CryptPad v9.3.0+0 → extract core/) |
-| `scripts/build-with-core.sh` | Full build pipeline: core check → docker build → verify |
+| `scripts/clone-core.sh` | Clone vanilla ONLYOFFICE/core v9.3.0.140 + apply-all.sh patches (default). X2T_CORE_MODE=cryptpad for fallback. |
+| `scripts/build-with-core.sh` | Full pipeline: auto-clone if needed → verify patches → docker build → verify x2t.wasm/x2t.wasm.br hashes |
+| `scripts/verify-patched-core.sh` | Pre-build integrity check: stubs present, build config patches applied |
 | `scripts/verify-artifact.sh` | Cross-check build output against `public/wasm/x2t/` |
 
-## Long-term Roadmap
+## Long-term Roadmap ✅ — Completed
 
-Current: CryptPad's modified core is the build source (56 file delta from upstream).
+Vanilla core is now the default build source. The patch series (26 `.patch` + 6 stubs) is repo-owned and auto-applied by `clone-core.sh`. CryptPad fork is retained as `X2T_CORE_MODE=cryptpad` fallback.
 
-Goal: Reduce to a minimal patch series applied to vanilla `ONLYOFFICE/core`:
-1. Extract 6 stub files as independent patches (highest priority — the 827-line doctrenderer stub is the biggest)
-2. Capture 14 must-port build config changes as `.patch` files
-3. Review 4 risk-needs-review changes for behavioral impact
-4. Eliminate CryptPad core dependency entirely
-
-With a complete patch series, `./scripts/clone-core.sh` would fetch **vanilla** core and apply patches, removing the CryptPad fork dependency.
+Remaining stretch goals:
+- Extend `verify-patched-core.sh` to cover all 56 delta files (currently covers critical stubs + build config)
+- Add WOFF2 font conversion to the build pipeline
+- Automate upstream version bump (ONLYOFFICE/core tag → regenerate patches)
 
 ## Files
 

@@ -13,6 +13,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PATCHES_DIR="$SCRIPT_DIR"
+STRICT_MODE="${STRICT_MODE:-0}"  # Set STRICT_MODE=1 to fail on skipped patches too
 
 echo "=== Applying WASM patches to $TARGET ==="
 echo ""
@@ -92,6 +93,13 @@ if [ "$FAILED" -gt 0 ]; then
   echo "ERROR: $FAILED patches failed to apply. Core is NOT ready for build."
   echo "This may indicate a version mismatch between the patches and the core source."
   echo "Try: X2T_CORE_MODE=cryptpad ./scripts/clone-core.sh for CryptPad fallback."
+  exit 1
+fi
+
+if [ "$STRICT_MODE" = "1" ] && [ "$SKIPPED" -gt 0 ]; then
+  echo "ERROR: STRICT_MODE=1 and $SKIPPED patches were skipped (target files not in core)."
+  echo "The expected patch set is 26 patches. Missing files may indicate wrong core version."
+  echo "Core version should be ONLYOFFICE/core v9.3.0.140."
   exit 1
 fi
 

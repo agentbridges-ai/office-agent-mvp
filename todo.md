@@ -162,10 +162,10 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
   - **x2t.wasm.br**: bit-identical ✅ `8dfeb638...`
   - **x2t.js**: mismatch ⚠️ — Emscripten JS glue 非确定性，功能等价
 - [x] CryptPad diff 分类: must-port / trim / risk / local-patch — 见 `docs/cryptpad-delta.md`
-- [ ] 长期待做: 将 CryptPad 56 文件变更制成 patch series，使 vanilla ONLYOFFICE/core 可直接构建
+- [x] 长期待做: 将 CryptPad 56 文件变更制成 patch series → 已完成: 26 patches + 6 stubs, clone-core.sh 默认 vanilla
 
 ### Phase 4: 字体管线 [x] — 9.3 字体引擎已就绪 (详见 R2)
-- `libfont/engine/fonts.wasm` + `AllFonts.js`(100行) + 24 TTF
+- `libfont/engine/fonts.wasm` + `AllFonts.js`(100行) + 26 TTF (+Noto Color Emoji +Noto Naskh Arabic)
 - `allfontsgen` from 9.3.1 .deb verified (`docker/Dockerfile.allfontsgen` for font expansion)
 
 ### Phase 5+6: Improvement Tickets (核心完成) [x]
@@ -203,7 +203,7 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 - [x] **R2-1**: `fonts/manifest.json` — 24 fonts, family/style/weight/coverage/license/source
   - 19 registered (in AllFonts.js), 5 unregistered (on disk, available)
   - Coverage: Latin/Cyrillic/Greek complete, CJK (SC/TC/JP/KR) complete, Arabic/Hebrew basic (DejaVu)
-- [x] **R2-2**: `fonts/hash-lock.json` — sha256 for all 24 TTF files (24 match, 0 mismatch)
+- [x] **R2-2**: `fonts/hash-lock.json` — sha256 for all 26 TTF files (26 match, 0 mismatch) 
 - [x] **R2-3**: WOFF2 strategy — documented in manifest.json: not converted, evaluate during next font refresh. 9.3.1 supports WOFF2.
 - [x] **R2-4**: CJK/RTL/emoji — documented in manifest.json coverageSummary
   - CJK: complete (Noto Sans/Serif SC/TC/JP/KR variable fonts)
@@ -213,7 +213,7 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 - [ ] **R2-6** (optional): Expand fonts (emoji/RTL/Arabic) — deferred, not blocking
 - [x] **R2-7**: Claim Boundary updated
 
-**验证**: `node bin/verify-font-pack.mjs --root .` → 24 match, 0 mismatch
+**验证**: `node bin/verify-font-pack.mjs --root .` → 26 match, 0 mismatch
 
 ---
 
@@ -238,7 +238,7 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
   - [x] Step 2: 26 个 `.patch` 文件覆盖全部文件差异 → `patches/core-must-port/` (1960 行)
   - [x] Step 3: 4 个 risk 变更评审完成
   - [x] Step 4: vanilla core + apply-all.sh → docker build → x2t.wasm bit-identical 验证通过
-  - **默认构建源仍为 CryptPad modified core**；vanilla+patches 路径已验证但非默认。消除 fork 依赖需后续工程（clone-core.sh 默认切到 vanilla + apply-all）
+  - **默认构建源已切换为 vanilla ONLYOFFICE/core**；clone-core.sh 默认拉 vanilla + apply-all.sh；CryptPad 保留为 X2T_CORE_MODE=cryptpad fallback
 
 ---
 
