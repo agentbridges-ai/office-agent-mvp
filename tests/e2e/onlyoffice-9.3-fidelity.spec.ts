@@ -103,7 +103,7 @@ test.use({
 
 test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   test('new-docx type and save — capture download via __ooDownloads hook', async ({ page }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(360_000);
 
     // Inject download capture hook before page load
     await page.addInitScript(DOWNLOAD_CAPTURE_SCRIPT);
@@ -169,7 +169,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   });
 
   test('convertLocal real conversion — empty bin to DOCX', async ({ page }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(360_000);
 
     await page.goto(BASE_URL, { timeout: 300_000 });
     await waitForOnlyOfficeShell(page);
@@ -215,7 +215,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   });
 
   test('convertLocal rejects oversized input', async ({ page }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(120_000);
 
     await page.goto(BASE_URL, { timeout: 120_000 });
     await waitForOnlyOfficeShell(page);
@@ -243,7 +243,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   });
 
   test('new-xlsx save — capture download via __ooDownloads hook', async ({ page }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(360_000);
 
     await page.addInitScript(DOWNLOAD_CAPTURE_SCRIPT);
 
@@ -293,7 +293,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   });
 
   test('second context opens DOCX independently', async ({ browser }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(360_000);
 
     // First context: open DOCX and verify
     const ctx1 = await browser.newContext();
@@ -317,7 +317,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   });
 
   test('concurrent DOCX and XLSX in parallel contexts', async ({ browser }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(360_000);
 
     const docxCtx = await browser.newContext();
     const xlsxCtx = await browser.newContext();
@@ -356,7 +356,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   });
 
   test('9.3.1 version check', async ({ page }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(120_000);
 
     await page.goto(BASE_URL, { timeout: 120_000 });
     await waitForOnlyOfficeShell(page);
@@ -368,7 +368,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   // ── R1: Password-protected DOCX E2E ──────────────────────────────
 
   test('convertLocal decrypts password-protected DOCX', async ({ page }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(360_000);
     if (!encryptAvailable) {
       throw new Error('officecrypto-tool is required for password E2E tests. Install: npm install officecrypto-tool');
     }
@@ -408,7 +408,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   });
 
   test('convertLocal rejects wrong password', async ({ page }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(360_000);
     if (!encryptAvailable) {
       throw new Error('officecrypto-tool is required for password E2E tests. Install: npm install officecrypto-tool');
     }
@@ -443,7 +443,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   // ── Phase 2: PPTX save + structure verification ─────────────────
 
   test('new-pptx save — capture download and verify structure', async ({ page }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(360_000);
 
     await page.addInitScript(DOWNLOAD_CAPTURE_SCRIPT);
     await page.goto(BASE_URL, { timeout: 300_000 });
@@ -484,7 +484,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   // ── Phase 2: Cross-format conversion DOCX → ODT ─────────────────
 
   test('convertLocal cross-format — DOCX to ODT roundtrip', async ({ page }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(120_000);
 
     await page.goto(BASE_URL, { timeout: 120_000 });
     await waitForOnlyOfficeShell(page);
@@ -524,7 +524,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   // ── Phase 2: Corrupt file graceful failure ──────────────────────
 
   test('convertLocal handles corrupt input with clear error', async ({ page }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(120_000);
 
     await page.goto(BASE_URL, { timeout: 120_000 });
     await waitForOnlyOfficeShell(page);
@@ -558,7 +558,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   // ── Phase 2: Unsupported format error message ───────────────────
 
   test('convertLocal rejects unsupported format with clear error', async ({ page }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(120_000);
 
     await page.goto(BASE_URL, { timeout: 120_000 });
     await waitForOnlyOfficeShell(page);
@@ -634,7 +634,7 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   // ── Phase 3: Editor stability after save ────────────────────────
 
   test('editor API remains functional after save completes', async ({ page }) => {
-    test.setTimeout(1800_000);
+    test.setTimeout(120_000);
 
     await page.goto(BASE_URL, { timeout: 120_000 });
     await waitForOnlyOfficeShell(page);
