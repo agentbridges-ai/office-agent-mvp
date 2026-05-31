@@ -614,15 +614,12 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
       }
     });
 
-    if (result.ok) {
-      expect(result.header).toBe('%PDF-');
-      expect(result.size).toBeGreaterThan(1000);
-      console.log(`PDF export via API: ${result.size} bytes ✅`);
-    } else {
-      // Font preload may fail if Vite dev server isn't serving /fonts/.
-      // This is an environment issue, not a code regression.
-      console.log(`PDF not available (env limitation): ${result.error}`);
-    }
+    // Hard assertion: PDF export via API with font preload must produce valid output.
+    // If this fails, check that Vite dev server is serving /fonts/ (public/fonts/).
+    expect(result.ok).toBe(true);
+    expect(result.header).toBe('%PDF-');
+    expect(result.size).toBeGreaterThan(1000);
+    console.log(`PDF export via API: ${result.size} bytes ✅`);
   });
 
   // ── Phase 3: Editor stability after save ────────────────────────

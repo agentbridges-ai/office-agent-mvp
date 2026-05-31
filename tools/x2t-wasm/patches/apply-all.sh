@@ -87,5 +87,13 @@ else
 fi
 
 echo ""
-echo "=== All patches applied ==="
+
+if [ "$FAILED" -gt 0 ]; then
+  echo "ERROR: $FAILED patches failed to apply. Core is NOT ready for build."
+  echo "This may indicate a version mismatch between the patches and the core source."
+  echo "Try: X2T_CORE_MODE=cryptpad ./scripts/clone-core.sh for CryptPad fallback."
+  exit 1
+fi
+
+echo "=== All patches applied ($APPLIED OK, $SKIPPED skipped, 0 failed) ==="
 echo "Core at $TARGET is ready for docker build."

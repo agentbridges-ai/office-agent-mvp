@@ -5,18 +5,20 @@ Docker-based reproducible build for the ONLYOFFICE x2t WebAssembly converter.
 ## Quick Start
 
 ```bash
-# Option A: Use local CryptPad checkout (fastest)
-CORE_SOURCE=/tmp/cryptpad-x2t/core ./scripts/build-with-core.sh
-
-# Option B: Clone CryptPad's modified core (network required, ~668MB)
+# Default: vanilla ONLYOFFICE/core v9.3.0.140 + repo-owned patches
 ./scripts/clone-core.sh
 ./scripts/build-with-core.sh
+
+# Fallback: CryptPad modified core
+X2T_CORE_MODE=cryptpad ./scripts/clone-core.sh
+X2T_CORE_MODE=cryptpad ./scripts/build-with-core.sh
 ```
 
-## Why CryptPad's Core Is Required
+## Why Patches Are Needed
 
 The Dockerfile compiles ONLYOFFICE's C++ codebase to WebAssembly using Emscripten.
-**Vanilla `ONLYOFFICE/core` v9.3.0.140 does NOT build directly** for WASM due to:
+**Vanilla `ONLYOFFICE/core` v9.3.0.140 needs 32 patches (26 `.patch` + 6 stubs)**
+to compile for WASM:
 
 1. **Qt dependencies**: doctrenderer/graphics/fonts reference Qt classes not available in WASM. CryptPad provides 6 empty stubs (1138 lines total) that implement the required API surfaces as no-ops.
 2. **Platform code**: Memory limits (`rlimit`), Windows version info, ICU linking — all need WASM-specific adjustments.

@@ -66,12 +66,8 @@ export async function initX2T(options: X2TInitOptions = {}): Promise<void> {
  */
 async function preloadFonts(x2t: X2TConverter, fontsDir: string): Promise<void> {
   const module = await x2t.initialize();
-  const fontList = [
-    'LiberationSans-Regular.ttf',
-    'LiberationSans-Bold.ttf',
-    'LiberationSans-Italic.ttf',
-    'LiberationSans-BoldItalic.ttf',
-  ];
+  // Minimal set for PDF; full set (24 fonts) would be ~130MB — too slow for E2E.
+  const fontList = ['LiberationSans-Regular.ttf'];
 
   try { module.FS.mkdir(fontsDir); } catch { /* exists */ }
 

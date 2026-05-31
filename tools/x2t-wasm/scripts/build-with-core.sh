@@ -2,92 +2,75 @@
 set -euo pipefail
 
 # Canonical x2t WASM build script.
-#
-# The Dockerfile requires CryptPad's modified ONLYOFFICE/core.
-# This script ensures the core source is available, builds, and verifies.
+# Default: vanilla ONLYOFFICE/core v9.3.0.140 + repo-owned patches/stubs.
+# Fallback: X2T_CORE_MODE=cryptpad uses CryptPad modified core.
 #
 # Usage:
-#   ./scripts/build-with-core.sh              # build + verify
-#   CORE_SOURCE=/tmp/cryptpad-x2t/core ./scripts/build-with-core.sh  # use local
-#   SKIP_VERIFY=1 ./scripts/build-with-core.sh  # build only
-#
-# Prerequisites:
-#   - Docker with BuildKit
-#   - CryptPad's modified core (see sources.json)
-#     Either: set CORE_SOURCE to a local copy
-#     Or:     run ./scripts/clone-core.sh first
+#   ./scripts/clone-core.sh && ./scripts/build-with-core.sh   # vanilla (default)
+#   X2T_CORE_MODE=cryptpad ./scripts/build-with-core.sh        # CryptPad fallback
+#   SKIP_VERIFY=1 ./scripts/build-with-core.sh                 # build only
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TOOLS_DIR="$(dirname "$SCRIPT_DIR")"
-CORE_SOURCE="${CORE_SOURCE:-}"
+X2T_CORE_MODE="${X2T_CORE_MODE:-vanilla}"
 CRYPTAD_CONTEXT="${CRYPTAD_CONTEXT:-/tmp/cryptpad-x2t}"
 
 # ── Step 1: Ensure core is available ───────────────────────────────
 
-if [ -n "$CORE_SOURCE" ] && [ -d "$CORE_SOURCE" ]; then
-  echo "Using CORE_SOURCE=$CORE_SOURCE"
-  rm -rf "$TOOLS_DIR/core"
-  cp -a "$CORE_SOURCE" "$TOOLS_DIR/core"
-elif [ -d "$CRYPTAD_CONTEXT/core" ]; then
-  echo "Using CryptPad context: $CRYPTAD_CONTEXT"
-  # Fast path: build from the CryptPad checkout directly
+if [ "$X2T_CORE_MODE" = "cryptpad" ]; then
+  echo "=== Mode: CryptPad fallback ==="
+  if [ ! -d "$CRYPTAD_CONTEXT/core" ]; then
+    echo "ERROR: CryptPad context not found at $CRYPTAD_CONTEXT"
+    echo "Clone cryptpad/onlyoffice-x2t-wasm first, or use vanilla default:"
+    echo "  X2T_CORE_MODE=vanilla ./scripts/build-with-core.sh"
+    exit 1
+  fi
   BUILD_CONTEXT="$CRYPTAD_CONTEXT"
   USE_DIRECT_CONTEXT=true
-elif [ -d "$TOOLS_DIR/core" ]; then
-  echo "Using existing tools/x2t-wasm/core/"
 else
-  echo "ERROR: No core source found."
-  echo ""
-  echo "Options:"
-  echo "  1. Run: ./scripts/clone-core.sh"
-  echo "  2. Set CORE_SOURCE=/path/to/cryptpad-x2t/core"
-  echo "  3. Set CRYPTAD_CONTEXT=/path/to/cryptpad-x2t"
-  echo ""
-  echo "See sources.json for why CryptPad's modified core is required."
-  exit 1
-fi
+  echo "=== Mode: vanilla ONLYOFFICE/core + patches (default) ==="
+  if [ ! -d "$TOOLS_DIR/core" ]; then
+    echo "core/ not found. Running clone-core.sh..."
+    "$SCRIPT_DIR/clone-core.sh"
+  fi
 
-# ── Step 2: Prepare build context ──────────────────────────────────
+  # Pre-build integrity check
+  echo "Verifying patched core..."
+  "$SCRIPT_DIR/verify-patched-core.sh" "$TOOLS_DIR/core"
 
-if [ "${USE_DIRECT_CONTEXT:-false}" = "true" ]; then
-  # Build from CryptPad checkout — all files already in place
-  echo "Building from direct context: $BUILD_CONTEXT"
-  DOCKERFILE="$TOOLS_DIR/Dockerfile"
-  CONTEXT="$BUILD_CONTEXT"
-else
-  # Build from tools/x2t-wasm/ — need test.js (Dockerfile step 45)
-  cd "$TOOLS_DIR"
-  if [ ! -f test.js ]; then
+  # Ensure test.js exists (Dockerfile step 45)
+  if [ ! -f "$TOOLS_DIR/test.js" ]; then
     if [ -f "$CRYPTAD_CONTEXT/test.js" ]; then
-      cp "$CRYPTAD_CONTEXT/test.js" .
+      cp "$CRYPTAD_CONTEXT/test.js" "$TOOLS_DIR/"
     else
-      touch test.js  # empty fallback
+      touch "$TOOLS_DIR/test.js"
     fi
   fi
-  DOCKERFILE="$TOOLS_DIR/Dockerfile"
-  CONTEXT="$TOOLS_DIR"
+  BUILD_CONTEXT="$TOOLS_DIR"
+  USE_DIRECT_CONTEXT=false
 fi
 
-# ── Step 3: Docker build ───────────────────────────────────────────
+DOCKERFILE="$TOOLS_DIR/Dockerfile"
+
+# ── Step 2: Docker build ───────────────────────────────────────────
 
 echo ""
 echo "=== Starting docker build ==="
 echo "Dockerfile: $DOCKERFILE"
-echo "Context:    $CONTEXT"
+echo "Context:    $BUILD_CONTEXT"
 echo ""
 
 docker build \
   --file "$DOCKERFILE" \
   --target output \
   -o "$TOOLS_DIR/build" \
-  "$CONTEXT"
+  "$BUILD_CONTEXT"
 
 echo ""
 echo "=== Build complete ==="
-echo "Artifacts:"
 ls -lh "$TOOLS_DIR/build"/x2t.* 2>/dev/null || echo "  (check $TOOLS_DIR/build/)"
 
-# ── Step 4: Verify (unless skipped) ─────────────────────────────────
+# ── Step 3: Verify hashes ───────────────────────────────────────────
 
 if [ "${SKIP_VERIFY:-0}" = "1" ]; then
   echo "Skipping verification (SKIP_VERIFY=1)"
@@ -95,36 +78,44 @@ if [ "${SKIP_VERIFY:-0}" = "1" ]; then
 fi
 
 echo ""
-echo "=== Verifying artifacts ==="
-PUBLIC_DIR="$(cd "$TOOLS_DIR/../../public/wasm/x2t" && pwd)"
+echo "=== Verifying artifact hashes ==="
+
+EXPECTED_WASM="e166c252adbd603e5e3abf65cf3b37bf0424a33edd9ae1b4b791176ce7fd2caa"
+EXPECTED_BR="8dfeb638225fff59547eaca1ae6d24e0123aa90a2688c73d246e2ba1127d689e"
 PASS=0; FAIL=0
 
-for name in x2t.js x2t.wasm x2t.wasm.br x2t.wasm.gz; do
-  if [ ! -f "$TOOLS_DIR/build/$name" ]; then continue; fi
-  build_hash=$(sha256sum "$TOOLS_DIR/build/$name" | awk '{print $1}')
-  public_hash=$(sha256sum "$PUBLIC_DIR/$name" 2>/dev/null | awk '{print $1}')
-  if [ "$build_hash" = "$public_hash" ]; then
-    echo "  MATCH: $name"
+check_hash() {
+  local file="$1" expected="$2" label="$3"
+  local actual
+  actual=$(sha256sum "$TOOLS_DIR/build/$file" | awk '{print $1}')
+  if [ "$actual" = "$expected" ]; then
+    echo "  MATCH: $file"
     PASS=$((PASS + 1))
   else
-    echo "  DIFF:  $name (build: ${build_hash:0:16}..., public: ${public_hash:0:16}...)"
+    echo "  MISMATCH: $file"
+    echo "    expected: $expected"
+    echo "    actual:   $actual"
     FAIL=$((FAIL + 1))
   fi
-done
+}
+
+check_hash "x2t.wasm" "$EXPECTED_WASM" "WASM binary"
+check_hash "x2t.wasm.br" "$EXPECTED_BR" "Brotli WASM"
 
 echo ""
 echo "Results: $PASS match, $FAIL mismatch"
+
 if [ "$FAIL" -gt 0 ]; then
   echo ""
-  echo "x2t.wasm/x2t.wasm.br should be bit-identical."
-  echo "x2t.js may differ (Emscripten JS glue is non-deterministic)."
-  echo "x2t.wasm.gz may differ (gzip timestamp in header)."
-  echo ""
-  echo "See provenance.json for expected hashes."
+  echo "Bit-identical verification FAILED."
+  echo "This may indicate patch application issues or build environment differences."
+  echo "x2t.js and x2t.wasm.gz may differ (Emscripten glue / gzip non-deterministic)."
+  exit 1
 fi
 
-# ── Step 5: Cleanup temp core copy ──────────────────────────────────
-
-if [ "${USE_DIRECT_CONTEXT:-false}" != "true" ] && [ -n "${CORE_SOURCE:-}" ]; then
-  rm -rf "$TOOLS_DIR/core"
-fi
+echo ""
+echo "=== Vanilla core + patches → bit-identical x2t.wasm confirmed ==="
+echo "Copy artifacts to public/wasm/x2t/ with:"
+echo "  cp $TOOLS_DIR/build/x2t.wasm public/wasm/x2t/"
+echo "  cp $TOOLS_DIR/build/x2t.wasm.br public/wasm/x2t/"
+echo "  cp $TOOLS_DIR/build/x2t.js public/wasm/x2t/"
