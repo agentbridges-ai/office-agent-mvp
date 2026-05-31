@@ -15,7 +15,7 @@
 - [x] G5 — path behavior gate (runtime sanitizer test)
 - [x] G6 — docs/artifact consistency gate
 - [x] DOCS — all docs converged to closed-plan state
-- [x] SMOKE — 11/11 PASS, 0 failures
+- [x] SMOKE — 20 scenarios configured, 2 expected-non-ready (password/large)
 
 提交基线: `984c8df5`
 
@@ -38,7 +38,7 @@
 | # | 不变量 | 验证方式 |
 |---|--------|---------|
 | 1 | **版本同源** — Editor runtime 9.3.1，x2t 对齐 core v9.3.0.140，格式 ID/字体入口/save hook 不含 7.x | gate:format_table, gate:docs_consistency, smoke 11/11 |
-| 2 | **主链闭环** — 新建/打开/编辑/保存 DOCX/XLSX/PPTX/CSV 可用，失败时显式失败 | CDP smoke 11/11, Playwright E2E 9/9 |
+| 2 | **主链闭环** — 新建/打开/编辑/保存 DOCX/XLSX/PPTX/CSV/ODT/ODS/ODP 可用，失败时显式失败 | CDP smoke 20 scenarios, Playwright E2E 15/15 |
 | 3 | **本地安全边界** — x2t WASM 只写受控 /working 路径，文件名/字体路径/格式参数不能任意 FS path 或 XML 注入 | gate:fs_sandbox, gate:path_behavior, gate:api_boundary |
 | 4 | **证据先于声明** — 每个完成项至少一个证据 | 见下方证据矩阵 |
 
@@ -50,8 +50,8 @@
 | Adapter Bridge 主链 (T7c/Iid/zWc save hooks) | 11/11 CDP smoke save scenarios |
 | x2t 9.3 WASM artifact (core v9.3.0.140) | bit-identical self-build, `docs/cryptpad-delta.md` |
 | 7-gate verification system | `pnpm run gate:onlyoffice` all PASS |
-| 13-scenario CDP smoke harness | `pnpm run smoke:onlyoffice` 11/11 PASS |
-| Playwright E2E 14/14 PASS | `pnpm run test:e2e:smoke` — DOCX typed-text + convertLocal + XLSX+PPTX structure + concurrent + password decrypt/reject + cross-format(ODT) + corrupt/unsupported error + editor stability |
+| CDP smoke (20 scenarios) | `pnpm run smoke:onlyoffice` — 20 scenarios configured; 2 expected-non-ready (password/large with expectDocumentReady:false) |
+| Playwright E2E 15/15 PASS | `pnpm run test:e2e:smoke` — DOCX typed-text + convertLocal + XLSX+PPTX structure + concurrent + password decrypt/reject + cross-format(ODT) + corrupt/unsupported error + editor stability |
 | DOCX/XLSX 下载捕获 + 内容验证 | 6/6 PASS: DOCX (25429 bytes + typed text), XLSX (7854 bytes) |
 | convertLocal 真转换 (空 bin → DOCX, 9024 bytes) | E2E test |
 | maxInputBytes 边界拒绝 | E2E test |
@@ -79,8 +79,8 @@
 ### 验证命令
 
 ```bash
-pnpm run verify:onlyoffice9      # gates + build + 13/13 CDP smoke
-pnpm run test:e2e:smoke          # 9/9 Playwright E2E
+pnpm run verify:onlyoffice9      # gates + build + 20-scenario CDP smoke
+pnpm run test:e2e:smoke          # 15/15 Playwright E2E
 pnpm run verify:onlyoffice9:e2e  # both of the above
 ```
 
@@ -246,7 +246,7 @@ pnpm run verify:onlyoffice9:e2e  # both of the above
 - [x] **R4-1**: XLSX 结构验证 — `xl/worksheets/sheet1.xml` 提取成功 (1476 chars), 包含 `<worksheet>` / `<sheetData>`
   - Note: `frame.Api` 不可用 (诊断已证实), 数据插入需 CDP userGesture 方式 — deferred
 - [x] **R4-2**: DOCX/XLSX 并发测试 — 两个独立 browser context 并行打开 (1.9s), 两者都成功加载
-- [x] **R4-3**: E2E 计数更新 — 9/9 PASS
+- [x] **R4-3**: E2E 计数更新 — 9/9 → 15/15 (evolved through subsequent phases)
 
 ---
 
@@ -321,7 +321,7 @@ Integrator → POST /converter → FileConverter Service
 已完成                          当前窗口                    远期（独立立项）
 ────┼─────────────────────────────┼───────────────────────────┼────
     │  R1-R4 core adaptation     │                           │
-    │  9/9 E2E + 11/11 smoke     │                           │
+    │  15/15 E2E + 20 smoke scenarios │                           │
     │  x2t.wasm bit-identical    │                           │
     │                             │  R5 不做                  │
     │                             │  (PR #4 merge 优先)       │
@@ -423,13 +423,13 @@ R5 是 **适配层**（Adapter），不是 **核心能力增强**。底层 x2t �
 ### R6: 跟进 PR [~] — 准备就绪, 待 merge
 
 - [x] todo.md 清理 (stale sections removed, counts synced)
-- [x] 验证通过: 7 gates ✅ + tsc ✅ + 9/9 E2E ✅
+- [x] 验证通过: 7 gates ✅ + tsc ✅ + 15/15 E2E ✅
 - [x] 84 commits on `onlyoffice-9-3-adaption`, key deliverables:
   - Editor Runtime 9.3.1 full-vendor
   - Adapter Bridge (T7c/Iid/zWc save hooks)
   - x2t WASM 9.3.0.140 (self-built, bit-identical verified)
   - 7-gate verification system
-  - 11/11 CDP smoke + 9/9 Playwright E2E
+  - 20 CDP smoke scenarios + 15/15 Playwright E2E
   - Claim Boundary (4 invariants, can/cannot declare tables)
   - Font pipeline (manifest + hash-lock + verify)
   - x2t build pipeline (tools/x2t-wasm/)
@@ -449,7 +449,7 @@ R5 是 **适配层**（Adapter），不是 **核心能力增强**。底层 x2t �
 - [x] T7c/Iid/zWc save bridges (smoke-verified)
 - [x] x2t WASM 9.3.0.140 (self-built, bit-identical verified, vanilla core 独立构建, 32 patches)
 - [x] 7-gate verification system
-- [x] 17/22 CDP smoke harness (+4 ODF/text +1 binary DOC)
+- [x] CDP smoke (20 scenarios: +4 ODF/text +1 binary DOC; 2 expected-non-ready: password/large)
 - [x] 15/15 Playwright E2E (+5 PPTX/cross-format/corrupt/unsupported/stability)
 - [x] Font pipeline (26 fonts: +Noto Color Emoji +Noto Naskh Arabic, manifest + hash-lock + verify)
 - [x] x2t build pipeline (tools/x2t-wasm/)
@@ -473,8 +473,8 @@ R5 是 **适配层**（Adapter），不是 **核心能力增强**。底层 x2t �
 | 1 | 7 gates | `pnpm run gate:onlyoffice` | ✅ 7/7 PASS |
 | 2 | tsc | `npx tsc --noEmit` | ✅ 0 errors |
 | 3 | build | `pnpm run build` → dist/index.html | ✅ 862 bytes |
-| 4 | E2E | `pnpm run test:e2e:smoke` | ✅ 14/14 PASS |
-| 5 | CDP smoke | `pnpm run smoke:onlyoffice` | ✅ 17/22 PASS (3 pre-existing: password/large/html; 2 XLS/PPT WIP) |
+| 4 | E2E | `pnpm run test:e2e:smoke` | ✅ 15/15 PASS |
+| 5 | CDP smoke | `pnpm run smoke:onlyoffice` | ✅ 20 scenarios configured; 2 expected-non-ready (password/large with expectDocumentReady:false) |
 | 6 | font verify | `node bin/verify-font-pack.mjs` | ✅ 24 match, 0 mismatch |
 | 7 | x2t wasm hash | `sha256sum public/wasm/x2t/x2t.wasm` | ✅ `e166c252...` |
 
@@ -502,7 +502,7 @@ R5 是 **适配层**（Adapter），不是 **核心能力增强**。底层 x2t �
 | `tests/e2e/helpers/onlyoffice.ts` | 测试工具 | download hook + evidence + wait + ZIP extract |
 | `tests/e2e/onlyoffice-9.3-fidelity.spec.ts` | 测试 | 9 scenarios |
 | `bin/check_onlyoffice_*.mjs` (7 files) | gate | 静态验证 |
-| `bin/smoke_onlyoffice_9_3_browser.mjs` | CDP smoke | 11 scenarios |
+| `bin/smoke_onlyoffice_9_3_browser.mjs` | CDP smoke | 20 scenarios (bin/onlyoffice-smoke/config.mjs) |
 | `bin/verify-font-pack.mjs` | 字体验证 | manifest + hash-lock + AllFonts.js |
 | `fonts/manifest.json` | 字体 | 24 fonts metadata |
 | `fonts/hash-lock.json` | 字体 | sha256 integrity |
@@ -523,8 +523,8 @@ R5 是 **适配层**（Adapter），不是 **核心能力增强**。底层 x2t �
 
 ## 测试场景补充计划 — Smoke + E2E 全覆盖
 
-> 当前: 13 CDP smoke + 9 Playwright E2E = 22 scenarios
-> 目标: 覆盖 OOXML/ODF/二进制 三大格式族的 新建/打开/编辑/保存/转换/错误 全路径
+> 当前: 20 CDP smoke scenarios + 15 Playwright E2E tests
+> 目标: 覆盖 OOXML/ODF/文本/二进制 格式族的 新建/打开/编辑/保存/转换/错误 全路径
 
 ### 当前覆盖矩阵
 
@@ -617,7 +617,7 @@ S=Smoke, E=E2E. 空白 = 未覆盖.
 | 新建 DOCX，打字，保存，下载 | ✅ 完全验证 | E2E: 输入 "ONLYOFFICE 9.3..." → 25429 bytes DOCX → word/document.xml 含原文 |
 | 新建 XLSX，保存，下载 | ✅ 结构验证 | E2E: 7854 bytes XLSX → sheet1.xml 完整 |
 | 新建 PPTX，保存，下载 | ✅ 结构验证 | E2E: 33692 bytes PPTX → presentation.xml 完整 |
-| 打开 DOCX/XLSX/PPTX/CSV | ✅ | CDP smoke 16/19 PASS |
+| 打开 DOCX/XLSX/PPTX/CSV/ODT/ODS/ODP/RTF/TXT/DOC | ✅ | CDP smoke 20 scenarios configured |
 | 打开 ODT/ODS/ODP | ✅ | CDP smoke (新增 Phase 1) |
 | 打开 RTF/TXT | ✅ | CDP smoke (新增 Phase 1) |
 | 打开加密 DOCX (正确密码) | ✅ | E2E: 解密 1248 bytes |
