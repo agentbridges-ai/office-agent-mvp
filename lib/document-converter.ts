@@ -18,7 +18,7 @@ export class X2TConverter {
 
   private readonly WORKING_DIRS = ['/working', '/working/media', '/working/fonts', '/working/themes'];
   private readonly SCRIPT_PATH = `${BASE_PATH}wasm/x2t/x2t.js`;
-  private readonly INIT_TIMEOUT = 300000;
+  private readonly INIT_TIMEOUT = 1800000; // 30min — WASM cold start can exceed 5min in WSL/slow envs
 
   /**
    * Load X2T script file (using ranuts scriptOnLoad utility)
