@@ -118,13 +118,36 @@ export async function convertLocal(request: X2TConvertOptions): Promise<X2TConve
   const outputFile = `${outputDir}/${safeOutput}`;
   module.FS.writeFile(inputFile, request.inputBytes);
 
-  // Build params XML
+  // Validate numeric params (must be safe integers, not arbitrary strings)
+  if (request.formatFrom !== undefined) {
+    if (!Number.isSafeInteger(request.formatFrom) || request.formatFrom < 0) {
+      throw new Error(`x2t formatFrom must be a non-negative integer, got: ${request.formatFrom}`);
+    }
+  }
+  if (request.formatTo !== undefined) {
+    if (!Number.isSafeInteger(request.formatTo) || request.formatTo < 0) {
+      throw new Error(`x2t formatTo must be a non-negative integer, got: ${request.formatTo}`);
+    }
+  }
+  if (request.delimiter !== undefined) {
+    const d = Number(request.delimiter);
+    if (!Number.isSafeInteger(d) || d < 0 || d > 5) {
+      throw new Error(`x2t delimiter must be 0-5 (none/tab/;/:/,/space), got: ${request.delimiter}`);
+    }
+  }
+  if (request.codePage !== undefined) {
+    if (!Number.isSafeInteger(Number(request.codePage)) || Number(request.codePage) <= 0) {
+      throw new Error(`x2t codePage must be a positive integer, got: ${request.codePage}`);
+    }
+  }
+
+  // Build params XML (password is XML-escaped; numeric params validated above)
   let additionalParams = '';
-  if (request.formatFrom) additionalParams += `<m_nFormatFrom>${request.formatFrom}</m_nFormatFrom>\n`;
-  if (request.formatTo) additionalParams += `<m_nFormatTo>${request.formatTo}</m_nFormatTo>\n`;
+  if (request.formatFrom !== undefined) additionalParams += `<m_nFormatFrom>${request.formatFrom}</m_nFormatFrom>\n`;
+  if (request.formatTo !== undefined) additionalParams += `<m_nFormatTo>${request.formatTo}</m_nFormatTo>\n`;
   if (request.password) additionalParams += `<m_sPassword>${escapeXml(request.password)}</m_sPassword>\n`;
-  if (_fontsDir) additionalParams += `<m_sFontDir>${_fontsDir}</m_sFontDir>\n`;
-  if (_fontsManifestPath) additionalParams += `<m_sAllFontsPath>${_fontsManifestPath}</m_sAllFontsPath>\n`;
+  if (_fontsDir) additionalParams += `<m_sFontDir>${escapeXml(_fontsDir)}</m_sFontDir>\n`;
+  if (_fontsManifestPath) additionalParams += `<m_sAllFontsPath>${escapeXml(_fontsManifestPath)}</m_sAllFontsPath>\n`;
   if (request.delimiter !== undefined) {
     additionalParams += `<m_nCsvDelimiter>${request.delimiter}</m_nCsvDelimiter>\n`;
   }

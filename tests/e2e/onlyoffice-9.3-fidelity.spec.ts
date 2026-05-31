@@ -80,13 +80,17 @@ function crc32(buf: Buffer): number {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-// Pre-compute encrypted DOCX at module load (Node.js side)
+// Pre-compute encrypted DOCX at module load (Node.js side).
+// No silent fallback — if officecrypto-tool is missing, the test must fail explicitly.
 let encryptedDocx: Buffer;
+let encryptAvailable = false;
 try {
   const { encrypt } = require('officecrypto-tool');
   encryptedDocx = encrypt(createMinimalDocx(), { password: PASSWORD });
+  encryptAvailable = true;
 } catch {
-  encryptedDocx = createMinimalDocx(); // fallback: plain docx
+  encryptedDocx = Buffer.alloc(0); // Will cause password tests to fail with clear message
+  console.warn('WARNING: officecrypto-tool not available — password E2E tests will fail.');
 }
 
 const BASE_URL = process.env.APP_URL || 'http://127.0.0.1:5173';
@@ -365,11 +369,13 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
 
   test('convertLocal decrypts password-protected DOCX', async ({ page }) => {
     test.setTimeout(120_000);
+    if (!encryptAvailable) {
+      throw new Error('officecrypto-tool is required for password E2E tests. Install: npm install officecrypto-tool');
+    }
 
     await page.goto(BASE_URL, { timeout: 120_000 });
     await waitForOnlyOfficeShell(page);
 
-    // Pass encrypted bytes as array to browser context
     const encBytes = Array.from(new Uint8Array(encryptedDocx));
     const result = await page.evaluate(async ({ encBytes, password }) => {
       try {

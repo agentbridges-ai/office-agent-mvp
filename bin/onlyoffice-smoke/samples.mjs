@@ -350,7 +350,7 @@ function createOdtSample() {
 <office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
   xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
   xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0">
-  <office:body><office:text><text:p>ONLYOFFICE 9.3 ODT Smoke Test 中文测试</text:p></text:body></office:text>
+  <office:body><office:text><text:p>ONLYOFFICE 9.3 ODT Smoke Test 中文测试</text:p></office:text></office:body>
 </office:document-content>`),
     },
   ]);
