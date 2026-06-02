@@ -1,0 +1,21 @@
+{
+  "name": "Office Agent Bridge",
+  "guid": "asc.{A11CE0FF-1CE0-4A6E-8E11-B0A000000001}",
+  "version": "0.1.0",
+  "baseUrl": "",
+  "variations": [
+    {
+      "description": "Browser Excel agent bridge",
+      "url": "index.html",
+      "icons": [],
+      "EditorsSupport": ["cell"],
+      "isVisual": false,
+      "isModal": false,
+      "isInsideMode": false,
+      "initDataType": "none",
+      "initData": "",
+      "buttons": []
+    }
+  ]
+}
+

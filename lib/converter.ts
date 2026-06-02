@@ -84,7 +84,7 @@ export async function handleDocumentOperation(options: {
     await createEditorInstance({
       fileName,
       fileType,
-      binData: getOnlyOfficeBinData(documentData),
+      binData: getOnlyOfficeBinData(documentData) as ArrayBuffer | string,
       media: documentData.media,
     });
   } catch (error: any) {

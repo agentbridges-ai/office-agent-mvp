@@ -41,6 +41,7 @@
                     ],
                     favorite: '<file is favorite>' // true/false/undefined (undefined - don't show fav. button)
                 },
+<<<<<<< HEAD
                 permissions: {
                     edit: <can edit>, // default = true
                     download: <can download>, // default = true
@@ -427,6 +428,288 @@ this.frame.blur())};window.AscEmbed.initWorker=function(a){window.AscEmbed.worke
                 window.addEventListener("mouseup", onMouseUp, false)
             } else if (window.attachEvent) {
                 window.attachEvent("onmouseup", onMouseUp);
+=======
+                s = i.word;
+              if ('string' == typeof e.documentType) {
+                if (
+                  ((s = i[e.documentType.toLowerCase()]),
+                  'desktop' == e.type && e.document && 'string' == typeof e.document.fileType)
+                )
+                  (d = /^(?:(pdf|djvu|xps|oxps))$/.exec(e.document.fileType)) && 'string' == typeof d[1] && (s = i.pdf);
+              } else if (e.document && 'string' == typeof e.document.fileType) {
+                var d;
+                ((d =
+                  /^(?:(xls|xlsx|ods|csv|xlst|xlsy|gsheet|xlsm|xlt|xltm|xltx|fods|ots|xlsb)|(pps|ppsx|ppt|pptx|odp|pptt|ppty|gslides|pot|potm|potx|ppsm|pptm|fodp|otp))$/.exec(
+                    e.document.fileType,
+                  )) && ('string' == typeof d[1] ? (s = i.cell) : 'string' == typeof d[2] && (s = i.slide)),
+                  'desktop' == e.type &&
+                    (d = /^(?:(pdf|djvu|xps|oxps))$/.exec(e.document.fileType)) &&
+                    'string' == typeof d[1] &&
+                    (s = i.pdf));
+              }
+              n += s + '/';
+              const r =
+                'mobile' === e.type
+                  ? 'mobile'
+                  : 'embedded' === e.type
+                    ? 'embed'
+                    : e.document &&
+                        'string' == typeof e.document.fileType &&
+                        'oform' === e.document.fileType.toLowerCase()
+                      ? 'forms'
+                      : 'main';
+              n += r;
+              var a = '/index.html';
+              if (e.editorConfig && 'forms' !== r) {
+                var c = e.editorConfig.customization;
+                'object' == typeof c &&
+                (c.toolbarNoTabs || ('desktop' !== e.editorConfig.targetApp && (c.loaderName || c.loaderLogo)))
+                  ? (a = '/index_loader.html')
+                  : ('editdiagram' !== e.editorConfig.mode &&
+                      'editmerge' !== e.editorConfig.mode &&
+                      'editole' !== e.editorConfig.mode) ||
+                    (a = '/index_internal.html');
+              }
+              return (n += a);
+            })(e) +
+            (function (e) {
+              var t = '?_dc=' + Date.now();
+              e.editorConfig && e.editorConfig.lang && (t += '&lang=' + e.editorConfig.lang);
+              e.editorConfig &&
+                'desktop' !== e.editorConfig.targetApp &&
+                ('object' == typeof e.editorConfig.customization && e.editorConfig.customization.loaderName
+                  ? 'none' !== e.editorConfig.customization.loaderName &&
+                    (t += '&customer=' + encodeURIComponent(e.editorConfig.customization.loaderName))
+                  : (t += '&customer=ONLYOFFICE'),
+                'object' == typeof e.editorConfig.customization &&
+                  (e.editorConfig.customization.loaderLogo &&
+                    '' !== e.editorConfig.customization.loaderLogo &&
+                    (t += '&logo=' + encodeURIComponent(e.editorConfig.customization.loaderLogo)),
+                  e.editorConfig.customization.logo &&
+                    ('embedded' == e.type &&
+                    (e.editorConfig.customization.logo.image || e.editorConfig.customization.logo.imageEmbedded)
+                      ? (t +=
+                          '&headerlogo=' +
+                          encodeURIComponent(
+                            e.editorConfig.customization.logo.image || e.editorConfig.customization.logo.imageEmbedded,
+                          ))
+                      : 'embedded' != e.type &&
+                        (e.editorConfig.customization.logo.image || e.editorConfig.customization.logo.imageDark) &&
+                        (e.editorConfig.customization.logo.image &&
+                          (t += '&headerlogo=' + encodeURIComponent(e.editorConfig.customization.logo.image)),
+                        e.editorConfig.customization.logo.imageDark &&
+                          (t +=
+                            '&headerlogodark=' + encodeURIComponent(e.editorConfig.customization.logo.imageDark))))));
+              !e.editorConfig ||
+                ('editdiagram' != e.editorConfig.mode &&
+                  'editmerge' != e.editorConfig.mode &&
+                  'editole' != e.editorConfig.mode) ||
+                (t += '&internal=true');
+              e.frameEditorId && (t += '&frameEditorId=' + e.frameEditorId);
+              var o = /^(?:(pdf))$/.exec(e.document.fileType);
+              (o && 'string' == typeof o[1]) ||
+                !(
+                  (e.editorConfig && 'view' == e.editorConfig.mode) ||
+                  (e.document &&
+                    e.document.permissions &&
+                    !1 === e.document.permissions.edit &&
+                    !e.document.permissions.review)
+                ) ||
+                (t += '&mode=view');
+              e.editorConfig &&
+                e.editorConfig.customization &&
+                e.editorConfig.customization.compactHeader &&
+                (t += '&compact=true');
+              e.editorConfig &&
+                e.editorConfig.customization &&
+                !1 === e.editorConfig.customization.toolbar &&
+                (t += '&toolbar=false');
+              e.parentOrigin && (t += '&parentOrigin=' + e.parentOrigin);
+              e.editorConfig &&
+                e.editorConfig.customization &&
+                e.editorConfig.customization.uiTheme &&
+                (t += '&uitheme=' + e.editorConfig.customization.uiTheme);
+              return (
+                (t += '&_document=' + encodeURIComponent(JSON.stringify(e.document))),
+                (t += '&_config=' + encodeURIComponent(JSON.stringify(e.editorConfig))),
+                t
+              );
+            })(e)),
+            (t.width = e.width),
+            (t.height = e.height),
+            (t.align = 'top'),
+            (t.frameBorder = 0),
+            (t.name = 'frameEditor'),
+            e.title && 'string' == typeof e.title && (t.title = e.title),
+            (t.allowFullscreen = !0),
+            t.setAttribute('allowfullscreen', ''),
+            t.setAttribute('onmousewheel', ''),
+            t.setAttribute('allow', 'autoplay; camera; microphone; display-capture; clipboard-write;'),
+            'mobile' == e.type &&
+              ((t.style.position = 'fixed'),
+              (t.style.overflow = 'hidden'),
+              (o.body.style.overscrollBehaviorY = 'contain')));
+          return t;
+        })(a)),
+        a.editorConfig.customization &&
+          'embed' === a.editorConfig.customization.integrationMode &&
+          t.AscEmbed &&
+          t.AscEmbed.initWorker(p),
+        p.src)
+      ) {
+        var l = p.src.split('/');
+        this.frameOrigin = l[0] + '//' + l[2];
+      }
+      g.parentNode && g.parentNode.replaceChild(p, g);
+      var C = new MessageDispatcher(function (e) {
+        if (e)
+          if ('onExternalPluginMessage' === e.type) v(e);
+          else if (t.parent !== t && 'onExternalPluginMessageCallback' === e.type) i(t.parent, e);
+          else if (e.frameEditorId == n) {
+            var s = (a.events || {})[e.event];
+            'onRequestEditRights' !== e.event || s
+              ? ('onAppReady' === e.event &&
+                  ('mobile' === a.type &&
+                    (o.body.onfocus = function (e) {
+                      setTimeout(function () {
+                        (p.contentWindow.focus(), v({ command: 'resetFocus', data: {} }));
+                      }, 10);
+                    }),
+                  u(),
+                  a.editorConfig && y(a.editorConfig),
+                  a.document && h(a.document)),
+                s && 'function' == typeof s && s.call(r, { target: r, data: e.data }))
+              : x(!1, "handler isn't defined");
+          }
+      }, this);
+    }
+    var v = function (e) {
+        p && p.contentWindow && i(p.contentWindow, e);
+      },
+      y = function (e) {
+        v({ command: 'init', data: { config: e } });
+      },
+      h = function (e) {
+        v({ command: 'openDocument', data: { doc: e } });
+      },
+      x = function (e, t) {
+        v({ command: 'applyEditRights', data: { allowed: e, message: t } });
+      },
+      R = function (e) {
+        var t = p.getBoundingClientRect(),
+          o = { type: e.type, x: e.x - t.left, y: e.y - t.top, event: e };
+        v({ command: 'processMouse', data: o });
+      };
+    return {
+      showMessage: function (e, t) {
+        v({ command: 'showMessage', data: { msg: (t = t || e) } });
+      },
+      processSaveResult: function (e, t) {
+        v({ command: 'processSaveResult', data: { result: e, message: t } });
+      },
+      processRightsChange: function (e, t) {
+        v({ command: 'processRightsChange', data: { enabled: e, message: t } });
+      },
+      denyEditingRights: function (e) {
+        v({ command: 'processRightsChange', data: { enabled: !1, message: e } });
+      },
+      refreshHistory: function (e, t) {
+        v({ command: 'refreshHistory', data: { data: e, message: t } });
+      },
+      setHistoryData: function (e, t) {
+        v({ command: 'setHistoryData', data: { data: e, message: t } });
+      },
+      setEmailAddresses: function (e) {
+        v({ command: 'setEmailAddresses', data: { data: e } });
+      },
+      setActionLink: function (e) {
+        v({ command: 'setActionLink', data: { url: e } });
+      },
+      processMailMerge: function (e, t) {
+        v({ command: 'processMailMerge', data: { enabled: e, message: t } });
+      },
+      downloadAs: function (e) {
+        v({ command: 'downloadAs', data: e });
+      },
+      serviceCommand: function (e, t) {
+        v({ command: 'internalCommand', data: { command: e, data: t } });
+      },
+      attachMouseEvents: u,
+      detachMouseEvents: f,
+      destroyEditor: function (e) {
+        var t = o.createElement('div');
+        (t.setAttribute('id', n), p && (C && C.unbindEvents(), f(), p.parentNode && p.parentNode.replaceChild(t, p)));
+      },
+      setUsers: function (e) {
+        v({ command: 'setUsers', data: e });
+      },
+      showSharingSettings: function (e) {
+        v({ command: 'showSharingSettings', data: e });
+      },
+      setSharingSettings: function (e) {
+        v({ command: 'setSharingSettings', data: e });
+      },
+      insertImage: function (e) {
+        v({ command: 'insertImage', data: e });
+      },
+      setMailMergeRecipients: function (e) {
+        v({ command: 'setMailMergeRecipients', data: e });
+      },
+      setRevisedFile: function (e) {
+        v({ command: 'setRevisedFile', data: e });
+      },
+      setFavorite: function (e) {
+        v({ command: 'setFavorite', data: e });
+      },
+      requestClose: function (e) {
+        v({ command: 'requestClose', data: e });
+      },
+      grabFocus: function (e) {
+        setTimeout(function () {
+          v({ command: 'grabFocus', data: e });
+        }, 10);
+      },
+      blurFocus: function (e) {
+        v({ command: 'blurFocus', data: e });
+      },
+      setReferenceData: function (e) {
+        v({ command: 'setReferenceData', data: e });
+      },
+      setRequestedDocument: function (e) {
+        v({ command: 'setRequestedDocument', data: e });
+      },
+      setRequestedSpreadsheet: function (e) {
+        v({ command: 'setRequestedSpreadsheet', data: e });
+      },
+      setReferenceSource: function (e) {
+        v({ command: 'setReferenceSource', data: e });
+      },
+      sendCommand: v,
+    };
+  }),
+    (e.DocEditor.defaultConfig = {
+      type: 'desktop',
+      width: '100%',
+      height: '100%',
+      editorConfig: { lang: 'en', canCoAuthoring: !0, customization: { about: !0, feedback: !1 } },
+    }),
+    (e.DocEditor.version = function () {
+      return '7.4.1';
+    }),
+    (MessageDispatcher = function (e, o) {
+      var n = e,
+        i = o || t,
+        s = function (e) {
+          d(e);
+        },
+        d = function (e) {
+          if (e && t.JSON && i.frameOrigin == e.origin)
+            try {
+              e = e.data;
+              n && n.call(i, e);
+            } catch (e) {
+              console.error(e);
+>>>>>>> origin/main
             }
         };
 

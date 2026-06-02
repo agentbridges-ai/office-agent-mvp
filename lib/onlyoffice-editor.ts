@@ -1,31 +1,57 @@
 import 'ranui/message';
+import { createObjectURL } from 'ranuts/utils';
+import { getDocmentObj } from '../store';
 import { getOnlyOfficeLang, t } from './i18n';
 import type { SaveEvent } from './document-types';
-import { prepareOnlyOfficeBuffer, type OnlyOfficeBinData } from './onlyoffice-compat/binary';
-import {
-  createLocalOnlyOfficeDocument,
-  createSingleUserEditorConfig,
-  ensureOnlyOfficeHostSizing,
-  openLocalDocument,
-} from './onlyoffice-compat/runtime';
-import { installLocalBinaryBridge } from './onlyoffice-compat/local-binary';
-import { handleLocalSaveDocument, installLocalDownloadBridge } from './onlyoffice-compat/save';
-import {
-  sendOnlyOfficeImageUrlsAfterReady,
-  sendWriteFileCallback,
-  sendWriteFileFailure,
-  writeImageToMediaMap,
-} from './onlyoffice-compat/media';
+import { getMimeTypeFromExtension } from './document-utils';
 
+
+// Save adapter — delegates download bridge to onlyoffice-compat/save.ts
+import { handleLocalSaveDocument, installLocalDownloadBridge } from './onlyoffice-compat/save';
+
+function getEditorCleanupDelayMs(hasExistingEditor: boolean, fileType: string): number {
+  const isPresentation = fileType === 'pptx' || fileType === 'ppt';
+  return hasExistingEditor && isPresentation ? 400 : hasExistingEditor ? 250 : 150;
+}
 // Import converter function to avoid circular dependency
 let convertBinToDocumentAndDownloadFn:
   | ((bin: Uint8Array, fileName: string, targetExt?: string) => Promise<any>)
   | null = null;
 
+interface PendingSaveCapture {
+  resolve: (value: { bin: Uint8Array; fileName: string; outputFormat: number }) => void;
+  reject: (error: Error) => void;
+  timeout: number;
+}
+
+let pendingSaveCapture: PendingSaveCapture | null = null;
+
 export function setConverterCallback(
   callback: (bin: Uint8Array, fileName: string, targetExt?: string) => Promise<any>,
 ): void {
   convertBinToDocumentAndDownloadFn = callback;
+}
+
+export function captureNextSaveAsBin(timeoutMs = 20000): Promise<{
+  bin: Uint8Array;
+  fileName: string;
+  outputFormat: number;
+}> {
+  cancelPendingSaveCapture(new Error('A newer save capture request replaced this one.'));
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      pendingSaveCapture = null;
+      reject(new Error('Timed out while waiting for workbook checkpoint data.'));
+    }, timeoutMs);
+    pendingSaveCapture = { resolve, reject, timeout };
+  });
+}
+
+export function cancelPendingSaveCapture(error = new Error('Save capture cancelled.')): void {
+  if (!pendingSaveCapture) return;
+  window.clearTimeout(pendingSaveCapture.timeout);
+  pendingSaveCapture.reject(error);
+  pendingSaveCapture = null;
 }
 
 // Global media mapping object
@@ -34,11 +60,15 @@ const media: Record<string, string> = {};
 // Editor operation queue to prevent concurrent operations
 let editorOperationQueue: Promise<void> = Promise.resolve();
 
-const DOWNLOAD_BRIDGE_INSTALL_TIMEOUT_MS = 10000;
-const DOWNLOAD_BRIDGE_INSTALL_INTERVAL_MS = 50;
-const EDITOR_CLEANUP_DELAY_MS = 150;
-const EDITOR_SWITCH_CLEANUP_DELAY_MS = 250;
-const PRESENTATION_CLEANUP_DELAY_MS = 400;
+function forceOfficeLightTheme(): void {
+  try {
+    window.localStorage.setItem('ui-theme-id', 'theme-classic-light');
+    window.localStorage.setItem('content-theme', 'light');
+    window.localStorage.removeItem('ui-theme');
+  } catch (error) {
+    console.warn('Unable to persist ONLYOFFICE light theme preference:', error);
+  }
+}
 
 /**
  * Queue editor operations to prevent concurrent editor creation/destruction
@@ -89,65 +119,123 @@ async function queueEditorOperation<T>(operation: () => Promise<T>): Promise<T> 
 async function handleWriteFile(event: any) {
   try {
     console.log('Write file event:', event);
-    const result = await writeImageToMediaMap(event, media);
-    sendOnlyOfficeImageUrlsAfterReady(window.editor, media);
-    sendWriteFileCallback(window.editor, result);
-    console.log(`Successfully processed image: ${result.fileName}, URL: ${media}`);
-  } catch (error) {
-    const normalizedError = error instanceof Error ? error : new Error('Unknown writeFile error');
+
+    const { data: eventData } = event;
+    if (!eventData) {
+      console.warn('No data provided in writeFile event');
+      return;
+    }
+
+    const {
+      data: imageData, // Uint8Array image data
+      file: fileName, // File name, e.g., "display8image-174799443357-0.png"
+      _target, // Target object containing frameOrigin and other info
+    } = eventData;
+
+    // Validate data
+    if (!imageData || !(imageData instanceof Uint8Array)) {
+      throw new Error('Invalid image data: expected Uint8Array');
+    }
+
+    if (!fileName || typeof fileName !== 'string') {
+      throw new Error('Invalid file name');
+    }
+
+    // Extract extension from file name
+    const fileExtension = fileName.split('.').pop()?.toLowerCase() || 'png';
+    const mimeType = getMimeTypeFromExtension(fileExtension);
+
+    // Create Blob object
+    const blob = new Blob([imageData as unknown as BlobPart], { type: mimeType });
+
+    // Create object URL
+    const objectUrl = await createObjectURL(blob);
+    // Add image URL to media mapping using original file name as key
+    media[`media/${fileName}`] = objectUrl;
+    ;(window.editor as any).sendCommand({
+      command: 'asc_setImageUrls',
+      data: {
+        urls: media,
+      },
+    });
+
+    ;(window.editor as any).sendCommand({
+      command: 'asc_writeFileCallback',
+      data: {
+        // Image base64
+        path: objectUrl,
+        imgName: fileName,
+      },
+    });
+    console.log(`Successfully processed image: ${fileName}, URL: ${media}`);
+  } catch (error: any) {
     console.error('Error handling writeFile:', error);
-    sendWriteFileFailure(window.editor, event, normalizedError);
+
+    // Notify editor that file processing failed
+    if (window.editor && typeof window.editor.sendCommand === 'function') {
+      window.editor.sendCommand({
+        command: 'asc_writeFileCallback',
+        data: {
+          success: false,
+          error: error.message,
+        },
+      });
+    }
+
+    if (event.callback && typeof event.callback === 'function') {
+      event.callback({
+        success: false,
+        error: error.message,
+      });
+    }
   }
 }
 
 async function handleSaveDocument(event: SaveEvent) {
   console.log('Save document event:', event);
-  await handleLocalSaveDocument({
-    event,
-    editor: window.editor,
-    convert: convertBinToDocumentAndDownloadFn,
-    onError: showLocalSaveError,
-  });
-}
 
-function showLocalSaveError(message: string): void {
-  alert(message);
-}
+  if (event.data && event.data.data) {
+    const { data, option } = event.data;
+    const { fileName } = getDocmentObj() || {};
 
-function isPresentationFileType(fileType: string): boolean {
-  return fileType === 'pptx' || fileType === 'ppt';
-}
-
-function getEditorCleanupDelayMs(hasExistingEditor: boolean, fileType: string): number {
-  if (!hasExistingEditor) return EDITOR_CLEANUP_DELAY_MS;
-  return isPresentationFileType(fileType) ? PRESENTATION_CLEANUP_DELAY_MS : EDITOR_SWITCH_CLEANUP_DELAY_MS;
-}
-
-function installLocalDownloadBridgeWhenReady(): void {
-  const started = Date.now();
-  const tryInstall = () => {
-    try {
-      installLocalDownloadBridge({
-        editor: window.editor,
-        convert: convertBinToDocumentAndDownloadFn,
-        onError: showLocalSaveError,
+    if (pendingSaveCapture) {
+      const capture = pendingSaveCapture;
+      pendingSaveCapture = null;
+      window.clearTimeout(capture.timeout);
+      capture.resolve({
+        bin: data.data instanceof Uint8Array ? data.data : new Uint8Array(data.data),
+        fileName,
+        outputFormat: option.outputformat,
       });
-    } catch (error) {
-      if (Date.now() - started >= DOWNLOAD_BRIDGE_INSTALL_TIMEOUT_MS) {
-        throw error;
+    } else {
+      // Phase 1 is Excel-only: always save edited workbooks as XLSX.
+      const targetFormat = 'XLSX';
+      console.log(
+        `Saving as ${targetFormat} format (original file: ${fileName}, editor format: ${option.outputformat})`,
+      );
+
+      // Create download
+      if (convertBinToDocumentAndDownloadFn) {
+        await convertBinToDocumentAndDownloadFn(data.data, fileName, targetFormat);
+      } else {
+        throw new Error('Converter callback not set');
       }
-      window.setTimeout(tryInstall, DOWNLOAD_BRIDGE_INSTALL_INTERVAL_MS);
     }
-  };
-  tryInstall();
+  }
+
+  // Notify editor that save is complete
+  ;(window.editor as any).sendCommand({
+    command: 'asc_onSaveCallback',
+    data: { err_code: 0 },
+  });
 }
 
 // Public editor creation method
 export function createEditorInstance(config: {
   fileName: string;
   fileType: string;
-  binData: OnlyOfficeBinData;
-  media?: Record<string, string>;
+  binData: ArrayBuffer | string;
+  media?: any;
 }): Promise<void> {
   return queueEditorOperation(async () => {
     const { fileName, fileType, binData, media: mediaUrls } = config;
@@ -161,8 +249,14 @@ export function createEditorInstance(config: {
         console.log('Destroying previous editor instance...');
         window.editor.destroyEditor();
 
+        // When switching between document types, especially from/to PPT,
+        // we need more time for cleanup. PPT editors are particularly resource-intensive.
+        // Use longer delay when switching editors or when dealing with presentations
+        const isPresentation = fileType === 'pptx' || fileType === 'ppt';
+        const destroyDelay = hasExistingEditor && isPresentation ? 400 : hasExistingEditor ? 250 : 150;
+
         // Wait a bit for destroy to complete
-        await new Promise((resolve) => setTimeout(resolve, getEditorCleanupDelayMs(hasExistingEditor, fileType)));
+        await new Promise((resolve) => setTimeout(resolve, destroyDelay));
       } catch (error) {
         console.warn('Error destroying previous editor:', error);
       }
@@ -178,30 +272,71 @@ export function createEditorInstance(config: {
       }
     }
 
-    await new Promise((resolve) => setTimeout(resolve, getEditorCleanupDelayMs(hasExistingEditor, fileType)));
+    // Additional delay to ensure cleanup completes before creating new editor
+    // This is especially important when switching between different document types
+    // When switching editors, especially involving PPT, we need more time
+    const isPresentation = fileType === 'pptx' || fileType === 'ppt';
+    const cleanupDelay = hasExistingEditor && isPresentation ? 400 : hasExistingEditor ? 250 : 150;
+    await new Promise((resolve) => setTimeout(resolve, cleanupDelay));
 
     const editorLang = getOnlyOfficeLang();
     console.log('Creating new editor instance for:', fileName, 'type:', fileType);
+    forceOfficeLightTheme();
 
     try {
-      ensureOnlyOfficeHostSizing();
       window.editor = new window.DocsAPI.DocEditor('iframe', {
-        document: createLocalOnlyOfficeDocument(fileName, fileType),
-        editorConfig: createSingleUserEditorConfig(editorLang),
+        document: {
+          title: fileName,
+          url: fileName, // Use file name as identifier
+          fileType: fileType,
+          permissions: {
+            edit: true,
+            chat: false,
+            protect: false,
+          },
+        },
+        editorConfig: {
+          lang: editorLang,
+          customization: {
+            uiTheme: 'theme-classic-light',
+            help: false,
+            about: false,
+            hideRightMenu: false,
+            plugins: false,
+            features: {
+              spellcheck: {
+                change: false,
+              },
+            },
+            anonymous: {
+              request: false,
+              label: 'Guest',
+	            },
+	          },
+	        },
         events: {
           onAppReady: () => {
-            installLocalBinaryBridge();
-            openLocalDocument(window.editor, prepareOnlyOfficeBuffer(binData));
-            installLocalDownloadBridgeWhenReady();
+            // Set media resources
+            if (mediaUrls) {
+              ;(window.editor as any).sendCommand({
+                command: 'asc_setImageUrls',
+                data: { urls: mediaUrls },
+              });
+            }
+
+            // Load document content
+            ;(window.editor as any).sendCommand({
+              
+              data: { buf: binData },
+            });
           },
-          onDocumentReady: () => {
-            console.log(`${t('documentLoaded')}${fileName}`);
-            // Note: For CSV files, the save dialog may show XLSX format,
+	          onDocumentReady: () => {
+	            console.log(`${t('documentLoaded')}${fileName}`);
+	            window.dispatchEvent(new CustomEvent('office-agent:document-ready', { detail: { fileName, fileType } }));
+	            // Note: For CSV files, the save dialog may show XLSX format,
             // but the actual save will be forced to CSV format in handleSaveDocument
-            sendOnlyOfficeImageUrlsAfterReady(window.editor, mediaUrls);
           },
           onSave: handleSaveDocument,
-          onSaveDocument: handleSaveDocument,
           // writeFile
           // TODO: writeFile - handle when pasting images from external sources
           writeFile: handleWriteFile,
@@ -224,7 +359,7 @@ export function loadEditorApi(): Promise<void> {
 
     // Load editor API
     const script = document.createElement('script');
-    script.src = './web-apps/apps/api/documents/api.js';
+    script.src = './web-apps/apps/api/documents/api.js?v=office-agent-align-fix-1';
     script.onload = () => resolve();
     script.onerror = (error) => {
       console.error('Failed to load OnlyOffice API:', error);

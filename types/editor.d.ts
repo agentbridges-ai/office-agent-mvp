@@ -80,7 +80,7 @@ interface WriteFileEvent {
 }
 
 interface DocEditor {
-  sendCommand?: (params: {
+  sendCommand: (params: {
     command: string;
     data: {
       err_code?: number;

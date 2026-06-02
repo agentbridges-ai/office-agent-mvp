@@ -73,7 +73,13 @@ if (documentUrl) {
 }
 
 // Register Service Worker for PWA
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && import.meta.env.DEV) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => registration.unregister());
+  });
+}
+
+if ('serviceWorker' in navigator && !import.meta.env.DEV) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('./sw.js')
@@ -98,9 +104,9 @@ const initPwaInstall = () => {
   pwaInstall.setAttribute('use-local-storage', '');
 
   // Professional branding
-  pwaInstall.setAttribute('name', 'Document Editor');
-  pwaInstall.setAttribute('description', 'A privacy-focused, local web-based document editor.');
-  pwaInstall.setAttribute('install-description', 'Install the App for a better offline experience and quick access.');
+  pwaInstall.setAttribute('name', 'Excel Office Agent');
+  pwaInstall.setAttribute('description', 'A browser-only Excel editor with an AI agent.');
+  pwaInstall.setAttribute('install-description', 'Install the Excel Office Agent for a better local experience.');
 
   // Use the browser's native resolution from the existing link tags
   const manifest = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
