@@ -1,8 +1,1281 @@
 @import 'tailwindcss';
 
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+  --primary: oklch(0.21 0.006 285.885);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);
+  --accent: oklch(0.94 0.001 286.375);
+  --accent-foreground: oklch(0.21 0.006 285.885);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.705 0.015 286.067);
+}
+
 html,
 body {
   height: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: var(--foreground);
+  background: var(--background);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+button,
+textarea,
+input {
+  font: inherit;
+}
+
+.office-agent-app {
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  background: #f4f6f8;
+}
+
+.editor-pane {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  background: #f8fafc;
+}
+
+#iframe,
+.editor-pane > iframe {
+  width: 100%;
+  height: 100%;
+}
+
+.editor-pane > iframe {
+  display: block;
+  border: 0;
+}
+
+.agent-panel {
+  min-width: 0;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  border-left: 1px solid #d7dde4;
+  background: #ffffff;
+  box-shadow: -2px 0 12px rgba(30, 42, 56, 0.06);
+}
+
+.agent-header {
+  min-height: 68px;
+  padding: 14px 16px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e6eaf0;
+}
+
+.agent-header h1 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.agent-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7684;
+}
+
+.agent-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.agent-icon-button,
+.agent-send-button,
+.agent-primary-button,
+.agent-secondary-button {
+  border: 1px solid #cfd7e2;
+  background: #ffffff;
+  color: #263442;
+  cursor: pointer;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agent-icon-button:hover,
+.agent-secondary-button:hover {
+  background: #eef3f8;
+}
+
+.agent-icon-button:disabled,
+.agent-send-button:disabled,
+.agent-primary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.agent-status {
+  padding: 10px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid #e6eaf0;
+}
+
+.agent-status span,
+.agent-selection-chip {
+  min-height: 26px;
+  border-radius: 6px;
+  border: 1px solid #d7dde4;
+  background: #f8fafc;
+  color: #52606d;
+  padding: 4px 8px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+}
+
+.agent-status .ok {
+  color: #116149;
+  background: #e8f6f1;
+  border-color: #b8e4d5;
+}
+
+.agent-status .warn {
+  color: #7a4d00;
+  background: #fff5d6;
+  border-color: #ead48b;
+}
+
+.agent-selection-chip {
+  cursor: pointer;
+}
+
+.agent-messages {
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agent-empty {
+  color: #6b7684;
+  background: #f7f9fb;
+  border: 1px solid #e1e7ee;
+  border-radius: 8px;
+  padding: 14px;
+  line-height: 1.55;
+  font-size: 14px;
+}
+
+.agent-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e1e7ee;
+}
+
+.agent-message.user {
+  margin-left: 34px;
+  background: #eef6ff;
+  border-color: #c9dff8;
+}
+
+.agent-message.assistant {
+  margin-right: 20px;
+  background: #ffffff;
+}
+
+.agent-message-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.agent-stream-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 1.05em;
+  margin-left: 2px;
+  border-radius: 2px;
+  background: #65758b;
+  vertical-align: -2px;
+  animation: agentCursorPulse 1s steps(2, start) infinite;
+}
+
+.agent-tool-summary {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #52606d;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 9px 0 0;
+  padding: 3px 0;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.agent-tool-summary:hover {
+  color: #1f2933;
+}
+
+.agent-tool-summary-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #7b8794;
+  flex: 0 0 auto;
+}
+
+.agent-tool-summary.streaming .agent-tool-summary-dot {
+  background: #d97706;
+  animation: agentStatusPulse 1.1s ease-in-out infinite;
+}
+
+.agent-tool-summary.attention .agent-tool-summary-dot {
+  background: #c84630;
+}
+
+.agent-tool-summary-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-tool-summary-chevron {
+  color: #91a0b2;
+  font-size: 16px;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 0.16s ease;
+}
+
+.agent-tool-summary.expanded .agent-tool-summary-chevron {
+  transform: rotate(90deg);
+}
+
+.agent-tool-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.agent-tool-call {
+  border-left: 3px solid #9fb3c8;
+  padding-left: 8px;
+  color: #52606d;
+}
+
+.agent-tool-call.ok {
+  border-left-color: #1f8f67;
+}
+
+.agent-tool-call.running {
+  border-left-color: #d97706;
+}
+
+.agent-tool-call.error,
+.agent-tool-call.unsupported {
+  border-left-color: #c84630;
+}
+
+.agent-tool-call-summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 4px 0;
+  list-style: none;
+}
+
+.agent-tool-call-summary::-webkit-details-marker {
+  display: none;
+}
+
+.agent-tool-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #91a0b2;
+  flex: 0 0 auto;
+}
+
+.agent-tool-call.ok .agent-tool-dot {
+  background: #1f8f67;
+}
+
+.agent-tool-call.running .agent-tool-dot {
+  background: #d97706;
+  animation: agentStatusPulse 1.1s ease-in-out infinite;
+}
+
+.agent-tool-call.error .agent-tool-dot,
+.agent-tool-call.unsupported .agent-tool-dot {
+  background: #c84630;
+}
+
+.agent-tool-name {
+  flex: 0 0 auto;
+  max-width: 96px;
+  color: #1f2933;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-tool-brief {
+  min-width: 0;
+  flex: 1;
+  color: #6b7684;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.agent-tool-status {
+  flex: 0 0 auto;
+  color: #7b8794;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.agent-tool-body {
+  display: grid;
+  gap: 6px;
+  padding: 2px 0 8px;
+}
+
+.agent-tool-error,
+.agent-tool-result {
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.agent-tool-error {
+  color: #9f2a1f;
+  background: #fff1f0;
+}
+
+.agent-tool-result {
+  color: #116149;
+  background: #e8f6f1;
+}
+
+.agent-tool-json-wrap {
+  display: grid;
+  gap: 3px;
+}
+
+.agent-tool-json-label {
+  color: #7b8794;
+  font-size: 11px;
+}
+
+.agent-tool-json {
+  max-height: 150px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-radius: 6px;
+  background: #f6f8fa;
+  color: #334e68;
+  padding: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.agent-logs {
+  border-top: 1px solid #e6eaf0;
+  background: #f8fafc;
+  max-height: 170px;
+  overflow: auto;
+}
+
+.agent-logs summary {
+  cursor: pointer;
+  padding: 8px 16px;
+  color: #52606d;
+  font-size: 12px;
+}
+
+.agent-log-list {
+  padding: 0 16px 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.agent-log-empty,
+.agent-log-entry {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.agent-log-entry {
+  border-left: 3px solid #9fb3c8;
+  padding-left: 8px;
+}
+
+.agent-log-entry.ok {
+  border-left-color: #1f8f67;
+}
+
+.agent-log-entry.fail {
+  border-left-color: #c84630;
+}
+
+.agent-log-top {
+  color: #334e68;
+  font-weight: 600;
+}
+
+.agent-log-detail {
+  color: #6b7684;
+  overflow-wrap: anywhere;
+}
+
+.agent-composer {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px 36px;
+  gap: 8px;
+  border-top: 1px solid #e6eaf0;
+}
+
+.agent-composer textarea {
+  min-width: 0;
+  min-height: 72px;
+  max-height: 160px;
+  resize: vertical;
+  border: 1px solid #cfd7e2;
+  border-radius: 8px;
+  padding: 9px 10px;
+  line-height: 1.45;
+}
+
+.agent-send-button,
+.agent-primary-button {
+  background: #1264a3;
+  color: #ffffff;
+  border-color: #1264a3;
+}
+
+.agent-send-button:hover,
+.agent-primary-button:hover {
+  background: #0f568d;
+}
+
+.agent-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(15, 23, 42, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.agent-modal {
+  width: min(560px, 100%);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.22);
+}
+
+.agent-modal h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.agent-modal-warning {
+  margin: 0;
+  color: #7a4d00;
+  background: #fff5d6;
+  border: 1px solid #ead48b;
+  border-radius: 6px;
+  padding: 10px;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.agent-field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #52606d;
+}
+
+.agent-field input {
+  height: 38px;
+  border-radius: 6px;
+  border: 1px solid #cfd7e2;
+  padding: 0 10px;
+  color: #1f2933;
+}
+
+.agent-check-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #52606d;
+  font-size: 13px;
+}
+
+.agent-file-import {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #cfd7e2;
+  border-radius: 6px;
+  height: 34px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  background: #ffffff;
+}
+
+.agent-file-import input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.agent-settings-feedback {
+  min-height: 20px;
+  color: #52606d;
+  font-size: 13px;
+}
+
+.agent-settings-feedback.ok {
+  color: #116149;
+}
+
+.agent-settings-feedback.fail {
+  color: #b42318;
+}
+
+.agent-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.agent-primary-button,
+.agent-secondary-button {
+  padding: 0 12px;
+  min-width: 68px;
+}
+
+@keyframes agentCursorPulse {
+  0%,
+  45% {
+    opacity: 1;
+  }
+
+  46%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes agentStatusPulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Open Agents-inspired chat panel shell */
+.office-agent-app {
+  grid-template-columns: minmax(0, 1fr) clamp(380px, 32vw, 560px);
+  background: var(--background);
+}
+
+.agent-panel {
+  color: var(--foreground);
+  background: var(--background);
+  border-left: 1px solid var(--border);
+  box-shadow: none;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+}
+
+.agent-header {
+  min-height: 46px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.agent-header-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-chat-tab {
+  height: 46px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted-foreground);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  cursor: default;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.agent-chat-tab.active {
+  border-bottom-color: var(--foreground);
+  color: var(--foreground);
+}
+
+.agent-subtitle {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.agent-header-actions {
+  gap: 4px;
+}
+
+.agent-icon-button,
+.agent-send-button,
+.agent-primary-button,
+.agent-secondary-button,
+.agent-composer-tool-button {
+  height: 32px;
+  min-width: 32px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted-foreground);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.agent-icon-button:hover,
+.agent-secondary-button:hover,
+.agent-composer-tool-button:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.agent-status {
+  padding: 8px 12px;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+}
+
+.agent-status-chip,
+.agent-status span,
+.agent-selection-chip {
+  min-height: 26px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--muted-foreground);
+  gap: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  line-height: 1.1;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.02);
+}
+
+.agent-status-chip.ok,
+.agent-status .ok {
+  color: var(--foreground);
+  background: var(--secondary);
+  border-color: transparent;
+}
+
+.agent-status-chip.warn,
+.agent-status .warn {
+  color: #7a4d00;
+  background: #fff8df;
+  border-color: #ead48b;
+}
+
+.agent-status-chip.ok::before,
+.agent-status-chip.warn::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.7;
+  flex: 0 0 auto;
+}
+
+.agent-messages {
+  gap: 4px;
+  padding: 16px 18px 8px;
+  background: var(--background);
+}
+
+.agent-empty {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  padding: 0;
+  font-size: 14px;
+}
+
+.agent-message {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  white-space: normal;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.agent-message.user {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0;
+  background: transparent;
+  border-color: transparent;
+  padding: 6px 0;
+}
+
+.agent-message.user .agent-message-text {
+  max-width: 80%;
+  border-radius: 24px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  padding: 8px 16px;
+}
+
+.agent-message.assistant {
+  width: 100%;
+  margin: 0;
+  background: transparent;
+  padding: 4px 0;
+}
+
+.agent-message.assistant .agent-message-text {
+  color: var(--foreground);
+  padding: 8px 0;
+}
+
+.agent-message-text {
+  min-width: 0;
+}
+
+.agent-stream-cursor {
+  width: 6px;
+  background: var(--muted-foreground);
+}
+
+.agent-tool-summary {
+  width: auto;
+  max-width: 100%;
+  margin: 2px 0 4px;
+  padding: 4px 2px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.agent-tool-summary:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.agent-tool-summary-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--muted-foreground);
+}
+
+.agent-tool-summary.attention .agent-tool-summary-dot,
+.agent-tool-call.error .agent-tool-dot,
+.agent-tool-call.unsupported .agent-tool-dot {
+  background: var(--destructive);
+}
+
+.agent-tool-summary-chevron {
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+
+.agent-tool-list {
+  gap: 2px;
+  margin: 2px 0 8px;
+}
+
+.agent-tool-call {
+  border-left: 0;
+  padding-left: 22px;
+  color: var(--muted-foreground);
+}
+
+.agent-tool-call-summary {
+  margin-left: -22px;
+  padding: 5px 6px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.agent-tool-call-summary:hover {
+  background: var(--accent);
+}
+
+.agent-tool-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--muted-foreground);
+}
+
+.agent-tool-call.ok .agent-tool-dot {
+  background: #22a06b;
+}
+
+.agent-tool-call.running .agent-tool-dot {
+  background: #ca8a04;
+}
+
+.agent-tool-name {
+  max-width: 86px;
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.agent-tool-brief {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.agent-tool-status {
+  color: var(--muted-foreground);
+  opacity: 0.78;
+}
+
+.agent-tool-body {
+  gap: 6px;
+  padding: 2px 0 8px;
+}
+
+.agent-tool-error,
+.agent-tool-result,
+.agent-tool-json {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.agent-tool-error {
+  color: var(--destructive);
+  background: color-mix(in oklch, var(--destructive) 8%, var(--background));
+  border-color: color-mix(in oklch, var(--destructive) 24%, var(--border));
+}
+
+.agent-tool-result {
+  color: #116149;
+  background: #eefbf6;
+  border-color: #cdeee2;
+}
+
+.agent-tool-json-label {
+  color: var(--muted-foreground);
+}
+
+.agent-tool-json {
+  max-height: 168px;
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.agent-logs {
+  border-top: 1px solid var(--border);
+  background: var(--background);
+  max-height: 180px;
+}
+
+.agent-logs summary {
+  padding: 8px 16px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  list-style: none;
+}
+
+.agent-logs summary::-webkit-details-marker {
+  display: none;
+}
+
+.agent-log-list {
+  padding: 0 16px 12px;
+}
+
+.agent-log-entry {
+  border-left: 0;
+  border-radius: 8px;
+  padding: 7px 8px;
+  background: var(--muted);
+}
+
+.agent-log-top {
+  color: var(--foreground);
+}
+
+.agent-log-detail,
+.agent-log-empty {
+  color: var(--muted-foreground);
+}
+
+.agent-composer {
+  display: block;
+  padding: 14px 16px 18px;
+  border-top: 0;
+  background: var(--background);
+}
+
+.agent-composer-box {
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  background: var(--muted);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.agent-composer-box:focus-within {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 28%, transparent);
+}
+
+.agent-composer-input {
+  padding: 13px 16px 8px;
+}
+
+.agent-composer textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 24px;
+  max-height: 160px;
+  resize: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--foreground);
+  padding: 0;
+  line-height: 1.5;
+  outline: none;
+}
+
+.agent-composer textarea::placeholder {
+  color: var(--muted-foreground);
+}
+
+.agent-composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px 8px;
+}
+
+.agent-composer-tools,
+.agent-composer-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.agent-composer-tools {
+  flex: 1 1 auto;
+}
+
+.agent-composer-actions {
+  flex: 0 0 auto;
+}
+
+.agent-composer-modes {
+  display: inline-flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.agent-reasoning-mode-control {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 9px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.agent-reasoning-mode-control {
+  flex: 0 1 auto;
+  position: relative;
+  max-width: min(96px, 32vw);
+}
+
+.agent-reasoning-mode-select {
+  width: auto;
+  min-width: 0;
+  max-width: 96px;
+  border: 0;
+  appearance: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  outline: none;
+  cursor: pointer;
+}
+
+.agent-composer-tool-button {
+  width: 32px;
+  padding: 0;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.agent-send-button,
+.agent-stop-button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  padding: 0;
+}
+
+.agent-send-button,
+.agent-primary-button {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.agent-send-button:hover,
+.agent-primary-button:hover {
+  background: color-mix(in oklch, var(--primary) 90%, var(--background));
+}
+
+.agent-stop-button {
+  background: var(--destructive);
+  border-color: var(--destructive);
+  color: var(--destructive-foreground);
+}
+
+.agent-stop-button:hover {
+  background: color-mix(in oklch, var(--destructive) 90%, var(--background));
+}
+
+.agent-modal-backdrop {
+  background: rgb(0 0 0 / 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.agent-modal {
+  width: min(540px, 100%);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  padding: 24px;
+  gap: 16px;
+  box-shadow:
+    0 18px 50px rgb(0 0 0 / 0.16),
+    0 0 0 1px rgb(0 0 0 / 0.02);
+}
+
+.agent-modal h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.agent-modal-warning {
+  color: #7a4d00;
+  background: #fff8df;
+  border-color: #ead48b;
+  border-radius: 8px;
+}
+
+.agent-field {
+  color: var(--muted-foreground);
+}
+
+.agent-field input {
+  height: 36px;
+  border-radius: 8px;
+  border-color: var(--input);
+  color: var(--foreground);
+  background: transparent;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.agent-field input:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 28%, transparent);
+}
+
+.agent-check-row,
+.agent-settings-feedback {
+  color: var(--muted-foreground);
+}
+
+.agent-file-import,
+.agent-secondary-button {
+  border-color: var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  border-radius: 8px;
+}
+
+@media (max-width: 920px) {
+  .office-agent-app {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(260px, 42vh);
+  }
+
+  .agent-panel {
+    height: auto;
+    min-height: 260px;
+    border-left: none;
+    border-top: 1px solid #d7dde4;
+  }
+}
+
+/* Dock the Agent inside the Excel editor surface. */
+.office-agent-app {
+  grid-template-columns: 1fr;
+}
+
+.editor-pane {
+  --agent-panel-width: clamp(360px, 24vw, 420px);
+  --agent-panel-ready-top: 198px;
+  --agent-panel-ready-bottom: 30px;
+  overflow: hidden;
+}
+
+#iframe {
+  width: 100%;
+  height: 100%;
+}
+
+.editor-pane > .agent-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  width: var(--agent-panel-width);
+  height: auto;
+  min-height: 0;
+  border-top: 0;
+  border-left: 1px solid var(--border);
+  box-shadow: -10px 0 24px rgb(0 0 0 / 0.08);
+}
+
+.editor-pane > .agent-panel.is-excel-ready {
+  top: var(--agent-panel-ready-top);
+  bottom: var(--agent-panel-ready-bottom);
+  border-top: 1px solid var(--border);
+  box-shadow: -8px 0 18px rgb(0 0 0 / 0.08);
+}
+
+@media (max-width: 920px) {
+  .office-agent-app {
+    grid-template-rows: 1fr;
+  }
+
+  .editor-pane {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) minmax(280px, 42vh);
+    --agent-panel-width: 100%;
+    --agent-panel-ready-top: 0;
+    --agent-panel-ready-bottom: 0;
+  }
+
+  #iframe,
+  .editor-pane > iframe {
+    width: 100%;
+    min-height: 0;
+  }
+
+  .editor-pane > .agent-panel {
+    position: relative;
+    inset: auto;
+    z-index: 1;
+    width: 100%;
+    height: auto;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -10px 24px rgb(0 0 0 / 0.04);
+  }
 }
 
 a {
@@ -240,4 +1513,3219 @@ r-button[type='text']::part(ran-btn-content) {
   white-space: nowrap;
   flex-shrink: 0;
   transform: scale(1);
+}
+
+.office-agent-plugin-body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--background);
+}
+
+.office-agent-plugin-body .agent-panel {
+  width: 100%;
+  height: 100vh;
+  min-height: 0;
+  border-left: 0;
+  box-shadow: none;
+}
+
+.office-agent-plugin-body .agent-header {
+  min-height: 52px;
+  padding: 12px 14px 8px;
+}
+
+.office-agent-plugin-body .agent-subtitle {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-status {
+  padding: 8px 14px;
+}
+
+.office-agent-plugin-body .agent-messages {
+  padding: 14px;
+}
+
+.office-agent-plugin-body .agent-logs summary {
+  padding: 8px 14px;
+}
+
+.office-agent-plugin-body .agent-log-list {
+  padding: 0 14px 10px;
+}
+
+.office-agent-plugin-body .agent-composer {
+  padding: 12px 14px 14px;
+}
+
+.office-agent-plugin-body .agent-modal-backdrop {
+  align-items: flex-start;
+  overflow: auto;
+  padding: 12px;
+}
+
+.office-agent-plugin-body .agent-modal {
+  width: 100%;
+  padding: 16px;
+}
+
+.agent-panel {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.agent-tool-summary.success .agent-tool-summary-dot,
+.agent-tool-call.ok .agent-tool-dot {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px color-mix(in oklch, #22c55e 18%, transparent);
+}
+
+.agent-tool-summary.attention .agent-tool-summary-dot,
+.agent-tool-call.error .agent-tool-dot,
+.agent-tool-call.unsupported .agent-tool-dot {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px color-mix(in oklch, #ef4444 18%, transparent);
+}
+
+.agent-tool-summary.streaming .agent-tool-summary-dot,
+.agent-tool-call.running .agent-tool-dot {
+  background: #f59e0b;
+}
+
+.agent-tool-call .agent-tool-result {
+  display: none;
+}
+
+.agent-message.assistant .agent-message-text p,
+.agent-message.assistant .agent-message-text ul,
+.agent-message.assistant .agent-message-text ol,
+.agent-message.assistant .agent-message-text blockquote,
+.agent-message.assistant .agent-message-text pre {
+  margin: 0 0 10px;
+}
+
+.agent-message.assistant .agent-message-text p:last-child,
+.agent-message.assistant .agent-message-text ul:last-child,
+.agent-message.assistant .agent-message-text ol:last-child,
+.agent-message.assistant .agent-message-text blockquote:last-child,
+.agent-message.assistant .agent-message-text pre:last-child {
+  margin-bottom: 0;
+}
+
+.agent-message.assistant .agent-message-text h3,
+.agent-message.assistant .agent-message-text h4,
+.agent-message.assistant .agent-message-text h5 {
+  margin: 12px 0 6px;
+  color: var(--foreground);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.agent-message.assistant .agent-message-text ul,
+.agent-message.assistant .agent-message-text ol {
+  padding-left: 20px;
+}
+
+.agent-message.assistant .agent-message-text code {
+  border-radius: 4px;
+  background: var(--muted);
+  color: var(--foreground);
+  padding: 1px 4px;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.92em;
+}
+
+.agent-message.assistant .agent-message-text a {
+  color: #8ab4ff;
+  text-decoration: none;
+}
+
+.agent-message.assistant .agent-message-text a:hover {
+  text-decoration: underline;
+}
+
+.agent-message.assistant .agent-message-text blockquote {
+  border-left: 2px solid var(--border);
+  color: var(--muted-foreground);
+  padding-left: 10px;
+}
+
+.agent-markdown-code,
+.agent-tool-json {
+  max-height: 220px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklch, var(--muted) 82%, black);
+  color: var(--foreground);
+  padding: 9px;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.agent-tool-json .json-key {
+  color: #93c5fd;
+}
+
+.agent-tool-json .json-string {
+  color: #86efac;
+}
+
+.agent-tool-json .json-number {
+  color: #fbbf24;
+}
+
+.agent-tool-json .json-boolean {
+  color: #c4b5fd;
+}
+
+.agent-tool-json .json-null {
+  color: #94a3b8;
+}
+
+.office-agent-plugin-body .agent-tool-json-preview {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--agent-radius-sm);
+  background: color-mix(in oklch, var(--muted) 82%, black);
+  overflow: hidden;
+}
+
+.office-agent-plugin-body .agent-tool-json-preview-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 9px;
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  list-style: none;
+}
+
+.office-agent-plugin-body .agent-tool-json-preview-summary::-webkit-details-marker,
+.office-agent-plugin-body .agent-json-property > summary::-webkit-details-marker {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-tool-json-preview-note {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.office-agent-plugin-body .agent-tool-json-preview .agent-tool-json {
+  max-height: 260px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  padding: 8px 0;
+}
+
+.office-agent-plugin-body .agent-tool-json-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px 8px 0;
+  background: inherit;
+}
+
+.office-agent-plugin-body .agent-tool-json-copy {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in oklch, var(--muted) 86%, white);
+  color: var(--foreground);
+  padding: 2px 7px;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.office-agent-plugin-body .agent-tool-json-copy:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.office-agent-plugin-body .agent-tool-json-copy:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.office-agent-plugin-body .agent-json-line {
+  min-height: 18px;
+  padding-left: calc(9px + (var(--agent-json-depth, 0) * 14px));
+  padding-right: 9px;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.office-agent-plugin-body .agent-json-property > summary.agent-json-line {
+  cursor: pointer;
+}
+
+.office-agent-plugin-body .agent-json-property > summary.agent-json-line:hover {
+  background: #3f3f3f;
+}
+
+.office-agent-plugin-body .agent-json-property[open] > summary .agent-json-collapsed-preview {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-json-collapsed-preview {
+  color: #94a3b8;
+}
+
+.office-agent-plugin-root,
+.office-agent-plugin-body {
+  color-scheme: dark;
+  --background: #404040;
+  --foreground: #f4f4f5;
+  --primary: #f4f4f5;
+  --primary-foreground: #18181b;
+  --secondary: #4a4a4a;
+  --secondary-foreground: #f4f4f5;
+  --muted: #303030;
+  --muted-foreground: #b8b8b8;
+  --accent: #505050;
+  --accent-foreground: #f4f4f5;
+  --destructive: #ef4444;
+  --destructive-foreground: #fff7f7;
+  --border: #565656;
+  --input: #5b5b5b;
+  --ring: #8ab4ff;
+}
+
+.office-agent-plugin-body .agent-panel,
+.office-agent-plugin-body .agent-header,
+.office-agent-plugin-body .agent-status,
+.office-agent-plugin-body .agent-messages,
+.office-agent-plugin-body .agent-composer {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.office-agent-plugin-body .agent-panel {
+  border-left: 0;
+  border-right: 1px solid var(--border);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  position: relative;
+}
+
+.office-agent-plugin-body .agent-status-chip.warn,
+.office-agent-plugin-body .agent-status .warn,
+.office-agent-plugin-body .agent-modal-warning {
+  color: #fde68a;
+  background: #3b2f16;
+  border-color: #735c22;
+}
+
+.office-agent-plugin-body .agent-modal-backdrop {
+  background: rgb(0 0 0 / 0.58);
+}
+
+.office-agent-plugin-body .agent-field input,
+.office-agent-plugin-body .agent-composer-box,
+.office-agent-plugin-body .agent-file-import,
+.office-agent-plugin-body .agent-secondary-button {
+  background: var(--muted);
+}
+
+.office-agent-plugin-body .agent-header {
+  border-bottom-color: transparent;
+}
+
+.office-agent-plugin-body .agent-chat-tab {
+  height: 52px;
+  border-bottom-color: transparent;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.office-agent-plugin-body .agent-header-actions .agent-icon-button {
+  color: var(--foreground);
+}
+
+.agent-session-popover,
+.agent-checkpoint-popover {
+  position: absolute;
+  top: 58px;
+  left: 10px;
+  right: 10px;
+  z-index: 30;
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #373737;
+  padding: 10px;
+  box-shadow: 0 16px 36px rgb(0 0 0 / 0.32);
+}
+
+.agent-session-popover[hidden],
+.agent-checkpoint-popover[hidden] {
+  display: none;
+}
+
+.agent-checkpoint-form {
+  display: flex;
+  gap: 8px;
+}
+
+.agent-checkpoint-name {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #303030;
+  color: var(--foreground);
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.agent-checkpoint-create,
+.agent-checkpoint-action {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #4a4a4a;
+  color: var(--foreground);
+  padding: 0 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.agent-checkpoint-create {
+  border-color: #107c41;
+  background: #107c41;
+  color: #ffffff;
+  font-weight: 650;
+}
+
+.agent-checkpoint-create:not(:disabled):hover {
+  border-color: #0b5a2c;
+  background: #0b5a2c;
+}
+
+.agent-checkpoint-create:disabled,
+.agent-checkpoint-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.agent-checkpoint-list {
+  display: grid;
+  gap: 4px;
+}
+
+.agent-checkpoint-empty {
+  color: var(--muted-foreground);
+  padding: 10px 4px;
+  font-size: 13px;
+}
+
+.agent-checkpoint-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 6px;
+}
+
+.agent-checkpoint-row:hover {
+  background: #4a4a4a;
+}
+
+.agent-checkpoint-main {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.agent-checkpoint-title {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-checkpoint-meta {
+  margin-top: 2px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.agent-checkpoint-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.agent-checkpoint-action.primary {
+  border-color: #6bb6ff;
+  color: #9dceff;
+}
+
+.agent-checkpoint-action .geist-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.agent-session-popover-heading {
+  padding: 0 2px 6px;
+}
+
+.agent-session-back,
+.agent-session-open,
+.agent-session-delete {
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.agent-session-back {
+  height: 32px;
+  padding: 0 6px;
+  color: var(--muted-foreground);
+}
+
+.agent-session-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-radius: 10px;
+}
+
+.agent-session-row.active {
+  background: #4a4a4a;
+}
+
+.agent-session-open {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.agent-session-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-session-time {
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.agent-session-delete {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--muted-foreground);
+}
+
+.agent-session-delete:hover,
+.agent-session-open:hover,
+.agent-session-back:hover {
+  background: var(--accent);
+}
+
+.office-agent-plugin-body .agent-composer {
+  position: relative;
+  padding: 12px 14px 14px;
+}
+
+.office-agent-plugin-body .agent-composer-box {
+  border-radius: 0;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.office-agent-plugin-body .agent-composer-box:focus-within {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.office-agent-plugin-body .agent-composer-input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 4px;
+}
+
+.agent-composer-selection-chip {
+  align-self: flex-start;
+  min-height: 26px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 7px;
+  background: #171717;
+  color: #c7c7c7;
+  padding: 3px 9px;
+  box-shadow: none;
+}
+
+.agent-composer-selection-chip::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  background: currentColor;
+  opacity: 0.82;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 3h18v18H3V3Zm2 2v6h6V5H5Zm8 0v6h6V5h-6ZM5 13v6h6v-6H5Zm8 0v6h6v-6h-6Z'/%3E%3C/svg%3E") center/14px 14px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 3h18v18H3V3Zm2 2v6h6V5H5Zm8 0v6h6V5h-6ZM5 13v6h6v-6H5Zm8 0v6h6v-6h-6Z'/%3E%3C/svg%3E") center/14px 14px no-repeat;
+}
+
+.office-agent-plugin-body .agent-composer textarea {
+  min-height: 30px;
+  color: var(--foreground);
+  font-size: 15px;
+}
+
+.office-agent-plugin-body .agent-composer-toolbar {
+  padding: 4px 8px 8px;
+}
+
+.agent-connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.agent-connection-status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.agent-connection-status.ok {
+  color: #51d88a;
+}
+
+.agent-connection-status.warn {
+  color: #f4c866;
+}
+
+.agent-sheet-popover {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: calc(100% - 6px);
+  z-index: 35;
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #373737;
+  padding: 12px;
+  box-shadow: 0 16px 36px rgb(0 0 0 / 0.32);
+}
+
+.agent-sheet-popover[hidden] {
+  display: none;
+}
+
+.agent-sheet-popover-heading {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+  padding: 0 2px 4px;
+}
+
+.agent-sheet-popover-status,
+.agent-sheet-option {
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: var(--foreground);
+}
+
+.agent-sheet-popover-status {
+  color: var(--muted-foreground);
+}
+
+.agent-sheet-option {
+  border: 0;
+  background: #494949;
+  cursor: pointer;
+  text-align: left;
+}
+
+.agent-sheet-option:hover,
+.agent-sheet-option.active {
+  background: #575757;
+}
+
+@media (max-width: 920px) {
+  .office-agent-app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .editor-pane {
+    display: block;
+    grid-template-rows: none;
+    min-height: 0;
+  }
+
+  #iframe,
+  .editor-pane > iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .editor-pane > .agent-panel {
+    display: none;
+  }
+}
+
+.geist-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.fab-button .geist-icon,
+.fab-menu-button .geist-icon,
+.control-panel-button .geist-icon,
+.menu-guide-close .geist-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.fab-menu-button,
+.control-panel-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.office-agent-plugin-root,
+.office-agent-plugin-body,
+.office-agent-plugin-body .agent-panel,
+.office-agent-plugin-body .agent-header,
+.office-agent-plugin-body .agent-messages,
+.office-agent-plugin-body .agent-composer {
+  background: #404040;
+}
+
+.office-agent-plugin-body .agent-panel,
+.office-agent-plugin-body button,
+.office-agent-plugin-body textarea,
+.office-agent-plugin-body input {
+  font-size: 14px;
+}
+
+.office-agent-plugin-body .agent-panel {
+  border: 0;
+  box-shadow: none;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.office-agent-plugin-body .agent-header {
+  min-height: 42px;
+  padding: 0 10px;
+  border-bottom: 0;
+}
+
+.office-agent-plugin-body .agent-chat-tab {
+  height: 42px;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.office-agent-plugin-body .agent-header-actions {
+  gap: 6px;
+}
+
+.office-agent-plugin-body .agent-icon-button,
+.office-agent-plugin-body .agent-send-button,
+.agent-session-delete {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+
+.office-agent-plugin-body .agent-header-actions .agent-icon-button {
+  border-color: transparent;
+  background: transparent;
+}
+
+.office-agent-plugin-body .agent-header-actions .agent-icon-button:hover,
+.office-agent-plugin-body .agent-icon-button:hover,
+.office-agent-plugin-body .agent-secondary-button:hover {
+  background: #4b4b4b;
+}
+
+.office-agent-plugin-body .agent-messages {
+  padding: 10px 12px;
+  gap: 10px;
+}
+
+.office-agent-plugin-body .agent-empty,
+.office-agent-plugin-body .agent-status,
+.agent-connection-status {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-message {
+  font-size: 14px;
+}
+
+.office-agent-plugin-body .agent-composer {
+  padding: 10px 10px 12px;
+}
+
+.office-agent-plugin-body .agent-composer-box {
+  border-radius: 16px;
+  border: 1px solid #505050;
+  background: #303030;
+  box-shadow: none;
+}
+
+.office-agent-plugin-body .agent-composer-box:focus-within {
+  border-color: #6b7280;
+  box-shadow: 0 0 0 1px rgb(138 180 255 / 0.22);
+}
+
+.office-agent-plugin-body .agent-composer-input {
+  gap: 8px;
+  padding: 10px 12px 4px;
+}
+
+.agent-composer-selection-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.agent-composer-selection-chip::before {
+  content: none;
+}
+
+.agent-composer-selection-chip .geist-icon {
+  width: 15px;
+  height: 15px;
+  opacity: 0.82;
+}
+
+.office-agent-plugin-body .agent-composer textarea {
+  min-height: 28px;
+  font-size: 14px;
+}
+
+.office-agent-plugin-body .agent-composer textarea::placeholder {
+  font-size: 14px;
+}
+
+.office-agent-plugin-body .agent-attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.office-agent-plugin-body .agent-attachment-list[hidden] {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-height: 24px;
+  border-radius: 8px;
+  background: #1f1f1f;
+  color: var(--foreground);
+  padding: 0 4px 0 8px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.office-agent-plugin-body .agent-attachment-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.office-agent-plugin-body .agent-attachment-remove {
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.office-agent-plugin-body .agent-attachment-remove:hover {
+  background: #333;
+  color: var(--foreground);
+}
+
+.office-agent-plugin-body .agent-attachment-remove .geist-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.office-agent-plugin-body .agent-output-files {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.office-agent-plugin-body .agent-output-file-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #5a5a5a;
+  border-radius: var(--agent-radius-sm);
+  background: #343434;
+  padding: 8px 10px;
+}
+
+.office-agent-plugin-body .agent-output-file-main {
+  min-width: 0;
+}
+
+.office-agent-plugin-body .agent-output-file-name {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.office-agent-plugin-body .agent-output-file-meta {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.office-agent-plugin-body .agent-output-file-download {
+  border: 1px solid #5f6368;
+  border-radius: var(--agent-radius-xs);
+  color: #7dbbff;
+  padding: 4px 8px;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.office-agent-plugin-body .agent-output-file-download:hover {
+  background: #404b5a;
+  text-decoration: none;
+}
+
+.office-agent-plugin-body .agent-file-cards {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.office-agent-plugin-body .agent-file-card {
+  border: 1px solid #5a5a5a;
+  border-radius: var(--agent-radius-sm);
+  background: #343434;
+  overflow: hidden;
+}
+
+.office-agent-plugin-body .agent-file-card-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.office-agent-plugin-body .agent-file-card-summary::-webkit-details-marker {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-file-card-main {
+  min-width: 0;
+}
+
+.office-agent-plugin-body .agent-file-card-name {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.office-agent-plugin-body .agent-file-card-meta {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.office-agent-plugin-body .agent-file-card-download {
+  border: 1px solid #5f6368;
+  border-radius: var(--agent-radius-xs);
+  color: #7dbbff;
+  padding: 4px 8px;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.office-agent-plugin-body .agent-file-card-download:hover {
+  background: #404b5a;
+  text-decoration: none;
+}
+
+.office-agent-plugin-body .agent-file-preview {
+  border-top: 1px solid #505050;
+  background: #2d2d2d;
+  padding: 8px;
+}
+
+.office-agent-plugin-body .agent-file-preview-markdown {
+  max-height: 260px;
+  overflow: auto;
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.office-agent-plugin-body .agent-file-preview-code {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid #4e4e4e;
+  border-radius: var(--agent-radius-xs);
+  background: #1f1f1f;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.office-agent-plugin-body .agent-file-code-line {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.office-agent-plugin-body .agent-file-code-line-number {
+  border-right: 1px solid #3f3f3f;
+  color: #8b8b8b;
+  padding: 0 7px;
+  text-align: right;
+  user-select: none;
+}
+
+.office-agent-plugin-body .agent-file-code-line-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 0 8px;
+  white-space: pre-wrap;
+}
+
+.office-agent-plugin-body .agent-file-preview-note {
+  margin-top: 8px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.office-agent-plugin-body .agent-composer-toolbar {
+  padding: 5px 8px 8px;
+}
+
+.agent-composer-tool-button {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  border-radius: 999px;
+}
+
+.agent-send-button {
+  border-radius: 999px;
+}
+
+.agent-tool-summary {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) 16px;
+  column-gap: 8px;
+  align-items: center;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.agent-tool-summary-label {
+  min-width: 0;
+  font-size: 14px;
+}
+
+.agent-tool-summary-chevron {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.16s ease;
+}
+
+.agent-tool-summary.expanded .agent-tool-summary-chevron {
+  transform: rotate(180deg);
+}
+
+.agent-tool-list {
+  display: grid;
+  gap: 4px;
+  margin: 2px 0 8px;
+}
+
+.agent-tool-call {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.agent-tool-call-summary {
+  display: grid;
+  grid-template-columns: 16px auto minmax(0, 1fr) auto;
+  column-gap: 8px;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.agent-tool-name,
+.agent-tool-brief,
+.agent-tool-status {
+  font-size: 14px;
+}
+
+.agent-tool-name {
+  max-width: 120px;
+  color: var(--foreground);
+}
+
+.agent-tool-brief,
+.agent-tool-status {
+  color: var(--muted-foreground);
+}
+
+.agent-tool-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.agent-tool-icon.ok {
+  color: #22c55e;
+}
+
+.agent-tool-icon.error,
+.agent-tool-icon.unsupported {
+  color: #ef4444;
+}
+
+.agent-tool-icon.running {
+  color: #f59e0b;
+  animation: agentSpin 0.9s linear infinite;
+}
+
+.agent-tool-icon.idle {
+  color: var(--muted-foreground);
+}
+
+.agent-tool-summary-dot,
+.agent-tool-dot {
+  display: none;
+}
+
+.agent-session-popover {
+  top: 46px;
+  left: 12px;
+  right: 12px;
+  gap: 4px;
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.agent-session-popover-heading {
+  padding: 0 0 3px;
+}
+
+.agent-session-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 6px;
+  font-size: 13px;
+}
+
+.agent-session-back-icon {
+  transform: rotate(90deg);
+}
+
+.agent-session-row {
+  border-radius: 8px;
+}
+
+.agent-session-open {
+  padding: 7px 8px;
+  gap: 8px;
+}
+
+.agent-session-title,
+.agent-session-time {
+  font-size: 13px;
+}
+
+.agent-session-delete {
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+.agent-sheet-popover {
+  left: 16px;
+  right: 16px;
+  bottom: calc(100% - 3px);
+  gap: 4px;
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.agent-sheet-popover-heading {
+  padding: 0 2px 2px;
+  font-size: 11px;
+}
+
+.agent-sheet-popover-status,
+.agent-sheet-option {
+  border-radius: 7px;
+  padding: 7px 8px;
+  font-size: 13px;
+}
+
+.agent-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: 100%;
+}
+
+.agent-field-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  cursor: help;
+  outline: none;
+}
+
+.agent-field-tip:hover,
+.agent-field-tip:focus,
+.agent-field-tip:focus-visible {
+  color: var(--foreground);
+  background: var(--accent);
+}
+
+.agent-field-tip .geist-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.agent-field-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  width: min(270px, calc(100vw - 48px));
+  transform: translate(-50%, 4px);
+  opacity: 0;
+  pointer-events: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #202020;
+  color: var(--foreground);
+  padding: 8px 10px;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.32);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: normal;
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+.agent-field-tip:hover .agent-field-tooltip,
+.agent-field-tip:focus .agent-field-tooltip,
+.agent-field-tip:focus-visible .agent-field-tooltip {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
+.office-agent-plugin-body {
+  --agent-radius-xs: 6px;
+  --agent-radius-sm: 8px;
+  --agent-radius-md: 10px;
+  --agent-radius-lg: 12px;
+}
+
+.office-agent-plugin-body .agent-composer-box,
+.office-agent-plugin-body .agent-message.user .agent-message-text {
+  border-radius: var(--agent-radius-lg);
+}
+
+.office-agent-plugin-body .agent-message.user .agent-message-text {
+  max-width: 78%;
+  padding: 7px 12px;
+}
+
+.office-agent-plugin-body .agent-composer-selection-chip,
+.office-agent-plugin-body .agent-tool-summary,
+.office-agent-plugin-body .agent-tool-call-summary,
+.office-agent-plugin-body .agent-session-open,
+.office-agent-plugin-body .agent-session-delete,
+.office-agent-plugin-body .agent-sheet-option {
+  border-radius: var(--agent-radius-sm);
+}
+
+.office-agent-plugin-body .agent-session-popover,
+.office-agent-plugin-body .agent-sheet-popover,
+.office-agent-plugin-body .agent-field-tooltip {
+  border-radius: var(--agent-radius-md);
+}
+
+.office-agent-plugin-body .agent-session-popover {
+  top: 46px;
+  left: 10px;
+  right: 10px;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.office-agent-plugin-body .agent-session-popover-heading {
+  min-width: 0;
+  padding: 0 0 4px;
+}
+
+.office-agent-plugin-body .agent-session-back {
+  width: max-content;
+  max-width: 100%;
+  height: 28px;
+  padding: 0 6px;
+}
+
+.office-agent-plugin-body .agent-session-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  border-radius: var(--agent-radius-md);
+  background: transparent;
+  overflow: hidden;
+}
+
+.office-agent-plugin-body .agent-session-row.active {
+  background: transparent;
+}
+
+.office-agent-plugin-body .agent-session-row:not(:has(.agent-session-delete)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.office-agent-plugin-body .agent-session-row.active .agent-session-open {
+  background: #4b4b4b;
+}
+
+.office-agent-plugin-body .agent-session-open {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 8px;
+  align-items: center;
+  padding: 0 8px;
+  overflow: hidden;
+}
+
+.office-agent-plugin-body .agent-session-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.office-agent-plugin-body .agent-session-time {
+  min-width: max-content;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.office-agent-plugin-body .agent-session-delete {
+  justify-self: center;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.office-agent-plugin-body .agent-session-delete .geist-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.office-agent-plugin-body .agent-tool-summary {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 16px;
+  gap: 8px;
+  align-items: center;
+  margin: 4px 0 2px;
+  padding: 4px 0;
+}
+
+.office-agent-plugin-body .agent-tool-list {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.office-agent-plugin-body .agent-tool-call {
+  min-width: 0;
+  padding-left: 0;
+}
+
+.office-agent-plugin-body .agent-tool-call-summary {
+  display: grid;
+  grid-template-columns: 18px minmax(76px, max-content) minmax(0, 1fr) max-content;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 5px 0;
+}
+
+.office-agent-plugin-body .agent-tool-call-summary::-webkit-details-marker {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-tool-name {
+  max-width: 118px;
+  min-width: 0;
+}
+
+.office-agent-plugin-body .agent-tool-brief {
+  min-width: 0;
+}
+
+.office-agent-plugin-body .agent-tool-status {
+  min-width: max-content;
+}
+
+.office-agent-plugin-body .agent-tool-body {
+  padding: 2px 0 8px 26px;
+}
+
+.office-agent-plugin-body .agent-tool-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.office-agent-plugin-body .agent-tool-summary-icon.ok {
+  color: #22c55e;
+}
+
+.office-agent-plugin-body .agent-tool-summary-icon.error,
+.office-agent-plugin-body .agent-tool-summary-icon.unsupported {
+  color: #ef4444;
+}
+
+.office-agent-plugin-body .agent-tool-call-icon.tool-read.ok {
+  color: #60a5fa;
+}
+
+.office-agent-plugin-body .agent-tool-call-icon.tool-write.ok {
+  color: #f59e0b;
+}
+
+.office-agent-plugin-body .agent-tool-call-icon.tool-batch.ok {
+  color: #a78bfa;
+}
+
+.office-agent-plugin-body .agent-tool-call-icon.tool-capability.ok {
+  color: #2dd4bf;
+}
+
+.office-agent-plugin-body .agent-tool-call-icon.tool-tool.ok {
+  color: #a3a3a3;
+}
+
+.office-agent-plugin-body .agent-tool-call-icon.running {
+  color: #f59e0b;
+  animation: agentSpin 0.9s linear infinite;
+}
+
+.office-agent-plugin-body .agent-tool-call-icon.error,
+.office-agent-plugin-body .agent-tool-call-icon.unsupported {
+  color: #ef4444;
+}
+
+.office-agent-plugin-body .agent-modal-backdrop {
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.office-agent-plugin-body .agent-modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(620px, calc(100vh - 32px));
+  overflow: visible;
+}
+
+.office-agent-plugin-body .agent-field-tooltip {
+  position: fixed;
+  top: 50vh;
+  bottom: auto;
+  left: 50vw;
+  width: min(360px, calc(100vw - 48px));
+  transform: translate(-50%, calc(-50% + 8px));
+  text-align: left;
+}
+
+.office-agent-plugin-body .agent-field-tip:hover .agent-field-tooltip,
+.office-agent-plugin-body .agent-field-tip:focus .agent-field-tooltip,
+.office-agent-plugin-body .agent-field-tip:focus-visible .agent-field-tooltip {
+  transform: translate(-50%, -50%);
+}
+
+.office-agent-plugin-body .agent-session-popover,
+.office-agent-plugin-body .agent-checkpoint-popover {
+  gap: 4px;
+  overflow: hidden;
+}
+
+.office-agent-plugin-body .agent-session-popover-heading,
+.office-agent-plugin-body .agent-session-back {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-session-row {
+  grid-template-columns: minmax(0, 1fr) 30px;
+  gap: 0;
+  border-radius: var(--agent-radius-sm);
+  overflow: hidden;
+}
+
+.office-agent-plugin-body .agent-session-row:not(:has(.agent-session-delete)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.office-agent-plugin-body .agent-session-open {
+  height: 38px;
+  border-radius: 0;
+  padding: 0 8px;
+}
+
+.office-agent-plugin-body .agent-session-row:not(:has(.agent-session-delete)) .agent-session-open {
+  border-radius: var(--agent-radius-sm);
+}
+
+.office-agent-plugin-body .agent-session-delete {
+  align-self: stretch;
+  justify-self: stretch;
+  width: 30px;
+  min-width: 30px;
+  height: 38px;
+  border-radius: 0;
+  padding: 0;
+}
+
+.office-agent-plugin-body .agent-session-row.active {
+  background: #4b4b4b;
+}
+
+.office-agent-plugin-body .agent-session-row.active .agent-session-open {
+  background: transparent;
+}
+
+.office-agent-plugin-body .agent-session-open:hover,
+.office-agent-plugin-body .agent-session-delete:hover {
+  background: #555;
+}
+
+.office-agent-plugin-body .agent-tool-summary {
+  grid-template-columns: minmax(0, 1fr) 16px;
+  gap: 8px;
+}
+
+.office-agent-plugin-body .agent-tool-call-summary {
+  grid-template-columns: minmax(76px, max-content) minmax(0, 1fr) max-content;
+  gap: 8px;
+}
+
+.office-agent-plugin-body .agent-tool-call-summary::marker {
+  content: '';
+}
+
+.office-agent-plugin-body .agent-tool-name,
+.office-agent-plugin-body .agent-tool-brief,
+.office-agent-plugin-body .agent-tool-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.office-agent-plugin-body .agent-tool-call.ok .agent-tool-name {
+  color: #22c55e;
+}
+
+.office-agent-plugin-body .agent-tool-call.running .agent-tool-name {
+  color: #f59e0b;
+}
+
+.office-agent-plugin-body .agent-tool-call.error .agent-tool-name,
+.office-agent-plugin-body .agent-tool-call.unsupported .agent-tool-name {
+  color: #ef4444;
+}
+
+.office-agent-plugin-body .agent-tool-body {
+  padding-left: 0;
+}
+
+.office-agent-plugin-body .agent-tool-icon {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-send-button {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #f5f5f5;
+  border-color: #f5f5f5;
+  color: #111;
+}
+
+.office-agent-plugin-body .agent-send-button:hover {
+  background: #fff;
+  border-color: #fff;
+}
+
+.office-agent-plugin-body .agent-composer-tool-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  padding: 0;
+  background: #575757;
+  color: #f5f5f5;
+  line-height: 1;
+}
+
+.office-agent-plugin-body .agent-composer-tool-button:hover {
+  background: #626262;
+  color: #fff;
+}
+
+.office-agent-plugin-body .agent-composer-tool-button .geist-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.office-agent-plugin-body .agent-header-actions .agent-icon-button[title='模型设置'] .geist-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.office-agent-plugin-body .agent-header-actions .agent-icon-button[title='会话管理'] .geist-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.office-agent-plugin-body .agent-header {
+  border-bottom: 1px solid #505050;
+}
+
+.office-agent-plugin-body .agent-session-row {
+  display: flex;
+  grid-template-columns: none;
+  gap: 0;
+  align-items: stretch;
+  background: transparent;
+}
+
+.office-agent-plugin-body .agent-session-row.active {
+  background: #4b4b4b;
+}
+
+.office-agent-plugin-body .agent-session-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 40px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.office-agent-plugin-body .agent-session-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  background: transparent;
+}
+
+.office-agent-plugin-body .agent-session-action {
+  width: 34px;
+  min-width: 34px;
+  height: 40px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.office-agent-plugin-body .agent-session-open:hover,
+.office-agent-plugin-body .agent-session-action:hover {
+  background: #555;
+  color: var(--foreground);
+}
+
+.office-agent-plugin-body .agent-session-action .geist-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.office-agent-plugin-body .agent-session-delete .geist-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.office-agent-plugin-body .agent-session-row:hover {
+  background: #555;
+}
+
+.office-agent-plugin-body .agent-session-row:hover .agent-session-open,
+.office-agent-plugin-body .agent-session-row:hover .agent-session-action {
+  background: transparent;
+}
+
+.office-agent-plugin-body .agent-composer-input {
+  display: grid;
+  gap: 8px;
+}
+
+.office-agent-plugin-body .agent-attachment-list {
+  width: 100%;
+  margin: 0;
+}
+
+.office-agent-plugin-body .agent-composer-tool-button,
+.office-agent-plugin-body .agent-send-button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+}
+
+.office-agent-plugin-body .agent-composer-tool-button .geist-icon,
+.office-agent-plugin-body .agent-send-button .geist-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.office-agent-plugin-body .agent-send-button {
+  padding: 0;
+}
+
+.office-agent-plugin-body .agent-token-meter {
+  --agent-token-progress: 0deg;
+  --agent-token-color: #22c55e;
+  --agent-token-track: #5b5b5b;
+  position: relative;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(var(--agent-token-color) var(--agent-token-progress), var(--agent-token-track) 0deg);
+  color: #f2f2f2;
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.office-agent-plugin-body .agent-token-meter[data-level='low'] {
+  --agent-token-color: #22c55e;
+}
+
+.office-agent-plugin-body .agent-token-meter[data-level='medium'] {
+  --agent-token-color: #f59e0b;
+}
+
+.office-agent-plugin-body .agent-token-meter[data-level='high'] {
+  --agent-token-color: #f97316;
+}
+
+.office-agent-plugin-body .agent-token-meter[data-level='critical'] {
+  --agent-token-color: #ef4444;
+}
+
+.office-agent-plugin-body .agent-token-meter::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: #404040;
+}
+
+.office-agent-plugin-body .agent-token-meter-value {
+  position: relative;
+  z-index: 1;
+  max-width: 24px;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.office-agent-plugin-body .agent-tool-summary {
+  grid-template-columns: minmax(0, 1fr) 16px;
+  padding-left: 0;
+}
+
+.office-agent-plugin-body .agent-tool-list {
+  margin-left: 0;
+  padding-left: 0;
+}
+
+.office-agent-plugin-body .agent-tool-call-summary {
+  grid-template-columns: minmax(92px, 0.8fr) minmax(0, 1.2fr) max-content;
+  margin-left: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.office-agent-plugin-body .agent-tool-call-summary::-webkit-details-marker {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-tool-call-summary::marker {
+  content: '';
+  font-size: 0;
+}
+
+.office-agent-plugin-body .agent-tool-name {
+  max-width: none;
+}
+
+.office-agent-plugin-body .agent-tool-status {
+  max-width: 76px;
+  text-align: right;
+}
+
+.office-agent-plugin-body .agent-upload-input {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-composer-actions {
+  margin-left: auto;
+  gap: 6px;
+}
+
+.office-agent-plugin-body .agent-composer-box {
+  overflow: visible;
+}
+
+.office-agent-plugin-body .agent-composer textarea {
+  height: auto;
+  max-height: min(240px, 30vh);
+  overflow-y: hidden;
+}
+
+.office-agent-plugin-body .agent-composer-selection-chip {
+  width: fit-content;
+  inline-size: fit-content;
+  max-width: min(72%, 260px);
+  min-height: 23px;
+  padding: 2px 7px;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.office-agent-plugin-body .agent-composer-selection-chip .agent-selection-chip-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.office-agent-plugin-body .agent-composer-selection-chip .geist-icon {
+  width: 13px;
+  height: 13px;
+}
+
+.office-agent-plugin-body .agent-token-meter::after {
+  content: attr(data-usage-detail);
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 20;
+  width: max-content;
+  max-width: min(340px, calc(100vw - 24px));
+  transform: translateY(3px);
+  border: 1px solid #4b5563;
+  border-radius: 999px;
+  background: #050505;
+  color: #f5f5f5;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.38);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+
+.office-agent-plugin-body .agent-token-meter:hover::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.office-agent-plugin-body .agent-stop-button:not([hidden]) {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  padding: 0;
+  background: #575757;
+  border-color: #575757;
+  color: #f5f5f5;
+}
+
+.office-agent-plugin-body .agent-stop-button:not([hidden]):hover {
+  background: #626262;
+  border-color: #626262;
+}
+
+.office-agent-plugin-body .agent-stop-button .geist-icon {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-stop-button::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.office-agent-plugin-body .agent-session-row.editing {
+  background: #4b4b4b;
+}
+
+.office-agent-plugin-body .agent-session-edit-form {
+  min-width: 0;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.office-agent-plugin-body .agent-session-edit-input {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  border: 1px solid #6b7280;
+  border-radius: 7px;
+  background: #3f3f3f;
+  color: var(--foreground);
+  padding: 0 8px;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.office-agent-plugin-body .agent-session-edit-input:focus {
+  border-color: #8ab4ff;
+  box-shadow: 0 0 0 2px rgb(138 180 255 / 0.18);
+}
+
+.office-agent-plugin-body .agent-markdown-table-wrap {
+  max-width: 100%;
+  margin: 0 0 10px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.office-agent-plugin-body .agent-markdown-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.office-agent-plugin-body .agent-markdown-table th,
+.office-agent-plugin-body .agent-markdown-table td {
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.office-agent-plugin-body .agent-markdown-table th {
+  background: #343434;
+  color: var(--foreground);
+  font-weight: 650;
+}
+
+.office-agent-plugin-body .agent-markdown-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.office-agent-plugin-body .agent-markdown-table th:last-child,
+.office-agent-plugin-body .agent-markdown-table td:last-child {
+  border-right: 0;
+}
+
+.office-agent-plugin-body .agent-message-anchors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.office-agent-plugin-body .agent-excel-anchor {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 24px;
+  align-items: center;
+  border: 1px solid #255d9c;
+  border-radius: 7px;
+  background: #173a61;
+  color: #4da3ff;
+  padding: 2px 8px;
+  font: inherit;
+  line-height: 1.25;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  vertical-align: baseline;
+}
+
+.office-agent-plugin-body .agent-excel-anchor:hover {
+  background: #1f4774;
+  border-color: #3478c7;
+  color: #7dbbff;
+  text-decoration: none;
+}
+
+.office-agent-plugin-body .agent-tool-summary,
+.office-agent-plugin-body .agent-tool-call-summary {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-left: 0;
+  margin-right: 0;
+  padding: 6px 10px;
+  column-gap: 12px;
+}
+
+.office-agent-plugin-body .agent-tool-summary {
+  background: #474747;
+  grid-template-columns: minmax(0, 1fr) 16px;
+}
+
+.office-agent-plugin-body .agent-tool-list {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.office-agent-plugin-body .agent-tool-call {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.office-agent-plugin-body .agent-tool-call-summary {
+  grid-template-columns: minmax(88px, max-content) minmax(0, 1fr) max-content;
+}
+
+.office-agent-plugin-body .agent-tool-summary:hover,
+.office-agent-plugin-body .agent-tool-call-summary:hover {
+  background: #505050;
+}
+
+.office-agent-plugin-body .agent-tool-list {
+  gap: 4px;
+}
+
+.office-agent-plugin-body .agent-tool-json-preview.agent-tool-json {
+  max-height: 260px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 1px solid var(--border);
+  border-radius: var(--agent-radius-sm);
+  background: color-mix(in oklch, var(--muted) 82%, black);
+  padding: 8px 0;
+}
+
+.office-agent-plugin-body .agent-json-top-property > summary.agent-json-line {
+  font-weight: 600;
+}
+
+.office-agent-plugin-body .agent-json-property:not(.agent-json-top-property) > summary.agent-json-line {
+  cursor: default;
+}
+
+.office-agent-plugin-body .agent-field {
+  position: relative;
+}
+
+.office-agent-plugin-body .agent-field-tip {
+  position: static;
+}
+
+.office-agent-plugin-body .agent-field-tooltip {
+  position: absolute;
+  top: calc(1.45em + 6px);
+  right: 0;
+  bottom: auto;
+  left: 0;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+  box-sizing: border-box;
+  transform: none;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.office-agent-plugin-body .agent-field-tip:hover .agent-field-tooltip,
+.office-agent-plugin-body .agent-field-tip:focus .agent-field-tooltip,
+.office-agent-plugin-body .agent-field-tip:focus-visible .agent-field-tooltip {
+  transform: none;
+}
+
+.office-agent-plugin-body .agent-reasoning-mode-control {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0;
+  border: 1px solid #575757;
+  border-radius: 999px;
+  background: #363636;
+  color: #c7c7c7;
+  padding: 0 9px;
+  font-size: 11px;
+  line-height: 1;
+  user-select: none;
+}
+
+.office-agent-plugin-body .agent-reasoning-mode-control:hover {
+  background: #494949;
+  color: #f0f0f0;
+}
+
+.office-agent-plugin-body .agent-reasoning-mode-select {
+  max-width: 92px;
+  background: transparent;
+  color: inherit;
+}
+
+.office-agent-plugin-body .agent-approval-dock {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.office-agent-plugin-body .agent-approval-dock[hidden] {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-approval-card,
+.office-agent-plugin-body .agent-hitl-card {
+  border: 1px solid #5a5a5a;
+  border-radius: 10px;
+  background: #424242;
+  color: #f3f3f3;
+  padding: 10px;
+  box-shadow: none;
+}
+
+.office-agent-plugin-body .agent-approval-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.office-agent-plugin-body .agent-approval-title,
+.office-agent-plugin-body .agent-hitl-title {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.office-agent-plugin-body .agent-approval-summary,
+.office-agent-plugin-body .agent-hitl-risks,
+.office-agent-plugin-body .agent-hitl-question {
+  margin: 4px 0 0;
+  color: #c8c8c8;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.office-agent-plugin-body .agent-approval-actions,
+.office-agent-plugin-body .agent-hitl-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.office-agent-plugin-body .agent-approval-actions {
+  flex-shrink: 0;
+  margin-top: 0;
+}
+
+.office-agent-plugin-body .agent-approval-button,
+.office-agent-plugin-body .agent-hitl-button,
+.office-agent-plugin-body .agent-hitl-option {
+  border: 1px solid #666;
+  border-radius: 8px;
+  background: #4d4d4d;
+  color: #f3f3f3;
+  padding: 5px 9px;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.office-agent-plugin-body .agent-approval-button.primary,
+.office-agent-plugin-body .agent-hitl-button.primary {
+  border-color: #7dbbff;
+  background: #1f4774;
+  color: #cfe8ff;
+}
+
+.office-agent-plugin-body .agent-approval-button:hover,
+.office-agent-plugin-body .agent-hitl-button:hover,
+.office-agent-plugin-body .agent-hitl-option:hover {
+  background: #5a5a5a;
+}
+
+.office-agent-plugin-body .agent-hitl-list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: #efefef;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.office-agent-plugin-body .agent-thinking-block {
+  margin: 0 0 8px;
+  color: #c7c7c7;
+}
+
+.office-agent-plugin-body .agent-thinking-block summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  list-style: none;
+  padding: 0;
+  color: #c7c7c7;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.office-agent-plugin-body .agent-thinking-block summary::-webkit-details-marker {
+  display: none;
+}
+
+.office-agent-plugin-body .agent-thinking-block summary::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: rotate(-45deg) translateY(0);
+  transform-origin: center;
+  transition: transform 0.14s ease;
+}
+
+.office-agent-plugin-body .agent-thinking-block[open] summary::after {
+  transform: rotate(45deg) translateY(-1px);
+}
+
+.office-agent-plugin-body .agent-thinking-spinner {
+  width: 11px;
+  height: 11px;
+  border: 1.6px solid #d0d0d0;
+  border-top-color: currentColor;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  animation: agentSpin 0.82s linear infinite;
+}
+
+.office-agent-plugin-body .agent-loading-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: max-content;
+  margin: 0 0 8px;
+  padding: 6px 0;
+  color: #616161;
+}
+
+.office-agent-plugin-body .agent-loading-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.36;
+  animation: agentLoadingDot 1s ease-in-out infinite;
+}
+
+.office-agent-plugin-body .agent-loading-dot:nth-child(2) {
+  animation-delay: 0.14s;
+}
+
+.office-agent-plugin-body .agent-loading-dot:nth-child(3) {
+  animation-delay: 0.28s;
+}
+
+.office-agent-plugin-body .agent-thinking-block pre {
+  max-height: 180px;
+  overflow: auto;
+  margin: 7px 0 0 10px;
+  border-left: 1px solid #5a5a5a;
+  padding: 0 0 0 10px;
+  color: #a8a8a8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.office-agent-plugin-body .agent-hitl-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.office-agent-plugin-body .agent-hitl-option-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #666;
+  border-radius: 8px;
+  background: #4d4d4d;
+  color: #f3f3f3;
+  padding: 5px 8px;
+  font-size: 12px;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+.office-agent-plugin-body .agent-hitl-option-choice:hover {
+  background: #5a5a5a;
+}
+
+.office-agent-plugin-body .agent-hitl-option-choice input {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: #107c41;
+}
+
+.office-agent-plugin-body .agent-hitl-option-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.office-agent-plugin-body .agent-hitl-answer {
+  width: 100%;
+  min-height: 52px;
+  box-sizing: border-box;
+  margin-top: 8px;
+  border: 1px solid #626262;
+  border-radius: 8px;
+  background: #303030;
+  color: #f2f2f2;
+  padding: 8px;
+  resize: vertical;
+  font: inherit;
+}
+
+.office-agent-plugin-body .agent-hitl-card.approved,
+.office-agent-plugin-body .agent-hitl-card.answered {
+  border-color: #3f6f52;
+}
+
+.office-agent-plugin-body .agent-hitl-card.dismissed {
+  opacity: 0.72;
+}
+
+@keyframes agentSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes agentLoadingDot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.32;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+/* Force the browser app and the embedded Agent panel to use the Office light theme. */
+:root,
+html,
+body,
+.office-agent-plugin-root,
+.office-agent-plugin-body {
+  color-scheme: light !important;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #242424;
+  --primary: #107c41;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f3f3;
+  --secondary-foreground: #242424;
+  --muted: #f3f3f3;
+  --muted-foreground: #616161;
+  --accent: #e6f4ec;
+  --accent-foreground: #107c41;
+  --destructive: #c50f1f;
+  --destructive-foreground: #ffffff;
+  --border: #d0d0d0;
+  --input: #c8c8c8;
+  --ring: #107c41;
+}
+
+html,
+body {
+  background: #ffffff !important;
+  color: #242424 !important;
+}
+
+.office-agent-app {
+  background: #f3f3f3 !important;
+}
+
+.editor-pane {
+  background: #ffffff !important;
+}
+
+.office-agent-plugin-root,
+.office-agent-plugin-body {
+  --background: #f3f3f3 !important;
+  --foreground: #242424 !important;
+  --primary: #107c41 !important;
+  --primary-foreground: #ffffff !important;
+  --secondary: #ffffff !important;
+  --secondary-foreground: #242424 !important;
+  --muted: #eeeeee !important;
+  --muted-foreground: #616161 !important;
+  --accent: #e6f4ec !important;
+  --accent-foreground: #107c41 !important;
+  --destructive: #c50f1f !important;
+  --destructive-foreground: #ffffff !important;
+  --border: #d0d0d0 !important;
+  --input: #c8c8c8 !important;
+  --ring: #107c41 !important;
+  background: #f3f3f3 !important;
+  color: #242424 !important;
+}
+
+.office-agent-plugin-body .agent-panel,
+.office-agent-plugin-body .agent-header,
+.office-agent-plugin-body .agent-messages,
+.office-agent-plugin-body .agent-composer,
+.office-agent-plugin-body .agent-status {
+  background: #f3f3f3 !important;
+  color: #242424 !important;
+}
+
+.office-agent-plugin-body .agent-composer {
+  border-top: 0 !important;
+}
+
+.office-agent-plugin-body .agent-panel {
+  border-right: 1px solid #d0d0d0 !important;
+}
+
+.office-agent-plugin-body .agent-header {
+  border-bottom: 1px solid #d0d0d0 !important;
+}
+
+.office-agent-plugin-body .agent-chat-tab,
+.office-agent-plugin-body .agent-message,
+.office-agent-plugin-body .agent-message-text {
+  color: #242424 !important;
+}
+
+.office-agent-plugin-body .agent-subtitle,
+.office-agent-plugin-body .agent-status,
+.office-agent-plugin-body .agent-tool-brief,
+.office-agent-plugin-body .agent-tool-status,
+.office-agent-plugin-body .agent-session-time,
+.office-agent-plugin-body .agent-output-file-meta,
+.office-agent-plugin-body .agent-file-card-meta,
+.office-agent-plugin-body .agent-file-preview-note,
+.office-agent-plugin-body .agent-tool-json-preview-note,
+.office-agent-plugin-body .agent-approval-summary,
+.office-agent-plugin-body .agent-hitl-risks,
+.office-agent-plugin-body .agent-hitl-question {
+  color: #616161 !important;
+}
+
+.office-agent-plugin-body .agent-hitl-list {
+  color: #242424 !important;
+}
+
+.office-agent-plugin-body .agent-thinking-block {
+  border-color: transparent !important;
+  background: transparent !important;
+  color: #616161 !important;
+}
+
+.office-agent-plugin-body .agent-thinking-block summary {
+  color: #616161 !important;
+}
+
+.office-agent-plugin-body .agent-thinking-block pre {
+  border-left-color: #d0d0d0 !important;
+  color: #707070 !important;
+}
+
+.office-agent-plugin-body .agent-icon-button,
+.office-agent-plugin-body .agent-secondary-button,
+.office-agent-plugin-body .agent-primary-button,
+.office-agent-plugin-body .agent-session-action,
+.office-agent-plugin-body .agent-session-delete,
+.office-agent-plugin-body .agent-attachment-remove,
+.office-agent-plugin-body .agent-output-file-download,
+.office-agent-plugin-body .agent-file-card-download,
+.office-agent-plugin-body .agent-approval-button,
+.office-agent-plugin-body .agent-hitl-button,
+.office-agent-plugin-body .agent-hitl-option,
+.office-agent-plugin-body .agent-hitl-option-choice,
+.office-agent-plugin-body .agent-tool-json-copy {
+  border-color: #c8c8c8 !important;
+  background: #ffffff !important;
+  color: #242424 !important;
+}
+
+.office-agent-plugin-body .agent-icon-button:hover,
+.office-agent-plugin-body .agent-secondary-button:hover,
+.office-agent-plugin-body .agent-session-action:hover,
+.office-agent-plugin-body .agent-session-delete:hover,
+.office-agent-plugin-body .agent-attachment-remove:hover,
+.office-agent-plugin-body .agent-output-file-download:hover,
+.office-agent-plugin-body .agent-file-card-download:hover,
+.office-agent-plugin-body .agent-approval-button:hover,
+.office-agent-plugin-body .agent-hitl-button:hover,
+.office-agent-plugin-body .agent-hitl-option:hover,
+.office-agent-plugin-body .agent-hitl-option-choice:hover,
+.office-agent-plugin-body .agent-tool-json-copy:hover {
+  background: #e8e8e8 !important;
+  color: #107c41 !important;
+}
+
+.office-agent-plugin-body .agent-primary-button,
+.office-agent-plugin-body .agent-approval-button.primary,
+.office-agent-plugin-body .agent-hitl-button.primary {
+  border-color: #107c41 !important;
+  background: #107c41 !important;
+  color: #ffffff !important;
+}
+
+.office-agent-plugin-body .agent-composer-box {
+  border-color: #c8c8c8 !important;
+  background: #ffffff !important;
+  color: #242424 !important;
+}
+
+.office-agent-plugin-body .agent-composer-box:focus-within {
+  border-color: #107c41 !important;
+  box-shadow: none !important;
+}
+
+.office-agent-plugin-body .agent-composer textarea,
+.office-agent-plugin-body .agent-composer textarea::placeholder,
+.office-agent-plugin-body .agent-field input,
+.office-agent-plugin-body .agent-session-edit-input,
+.office-agent-plugin-body .agent-hitl-answer,
+.office-agent-plugin-body .agent-checkpoint-name {
+  background: #ffffff !important;
+  color: #242424 !important;
+  border-color: #c8c8c8 !important;
+}
+
+.office-agent-plugin-body .agent-composer textarea::placeholder {
+  color: #707070 !important;
+}
+
+.office-agent-plugin-body .agent-composer-selection-chip {
+  border: 1px solid #b7dbc8 !important;
+  background: #e6f4ec !important;
+  color: #185c37 !important;
+}
+
+.office-agent-plugin-body .agent-composer-selection-chip .geist-icon,
+.office-agent-plugin-body .agent-header-actions .agent-icon-button,
+.office-agent-plugin-body .agent-session-action,
+.office-agent-plugin-body .agent-session-delete {
+  color: #424242 !important;
+}
+
+.office-agent-plugin-body .agent-composer-tool-button,
+.office-agent-plugin-body .agent-stop-button:not([hidden]) {
+  border-color: #d9eadf !important;
+  background: #e6f4ec !important;
+  color: #107c41 !important;
+}
+
+.office-agent-plugin-body .agent-composer-tool-button:hover,
+.office-agent-plugin-body .agent-stop-button:not([hidden]):hover {
+  background: #d9eadf !important;
+  color: #0b5a2c !important;
+}
+
+.office-agent-plugin-body .agent-send-button {
+  border-color: #107c41 !important;
+  background: #107c41 !important;
+  color: #ffffff !important;
+}
+
+.office-agent-plugin-body .agent-send-button:hover {
+  border-color: #0b5a2c !important;
+  background: #0b5a2c !important;
+  color: #ffffff !important;
+}
+
+.office-agent-plugin-body .agent-token-meter {
+  --agent-token-track: #d0d0d0;
+  background: conic-gradient(var(--agent-token-color) var(--agent-token-progress), var(--agent-token-track) 0deg) !important;
+  color: #242424 !important;
+}
+
+.office-agent-plugin-body .agent-token-meter::before {
+  background: #ffffff !important;
+}
+
+.office-agent-plugin-body .agent-token-meter::after,
+.office-agent-plugin-body .agent-field-tooltip {
+  border-color: #c8c8c8 !important;
+  background: #ffffff !important;
+  color: #242424 !important;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.18) !important;
+}
+
+.office-agent-plugin-body .agent-message.user .agent-message-text {
+  background: #e6f4ec !important;
+  color: #185c37 !important;
+}
+
+.office-agent-plugin-body .agent-message.assistant .agent-message-text a {
+  color: #107c41 !important;
+}
+
+.office-agent-plugin-body .agent-message.assistant .agent-message-text a:hover {
+  color: #0b5a2c !important;
+}
+
+.office-agent-plugin-body .agent-excel-anchor {
+  border-color: #9ccbab !important;
+  background: #e6f4ec !important;
+  color: #107c41 !important;
+}
+
+.office-agent-plugin-body .agent-excel-anchor:hover {
+  border-color: #107c41 !important;
+  background: #d9eadf !important;
+  color: #0b5a2c !important;
+}
+
+.office-agent-plugin-body .agent-session-popover,
+.office-agent-plugin-body .agent-checkpoint-popover,
+.office-agent-plugin-body .agent-sheet-popover,
+.office-agent-plugin-body .agent-modal {
+  border-color: #d0d0d0 !important;
+  background: #ffffff !important;
+  color: #242424 !important;
+  box-shadow: 0 16px 36px rgb(0 0 0 / 0.16) !important;
+}
+
+.office-agent-plugin-body .agent-approval-card,
+.office-agent-plugin-body .agent-hitl-card {
+  border-color: #d0d0d0 !important;
+  background: #ffffff !important;
+  color: #242424 !important;
+  box-shadow: none !important;
+}
+
+.office-agent-plugin-body .agent-modal-backdrop {
+  background: rgb(255 255 255 / 0.7) !important;
+}
+
+.office-agent-plugin-body .agent-session-row,
+.office-agent-plugin-body .agent-session-open,
+.office-agent-plugin-body .agent-session-actions {
+  background: transparent !important;
+  color: #242424 !important;
+}
+
+.office-agent-plugin-body .agent-session-row.active {
+  background: #d9eadf !important;
+}
+
+.office-agent-plugin-body .agent-session-row:hover,
+.office-agent-plugin-body .agent-session-row.editing,
+.office-agent-plugin-body .agent-session-open:hover,
+.office-agent-plugin-body .agent-session-action:hover {
+  background: #e8e8e8 !important;
+}
+
+.office-agent-plugin-body .agent-session-edit-input:focus {
+  border-color: #107c41 !important;
+  box-shadow: 0 0 0 2px rgb(16 124 65 / 0.18) !important;
+}
+
+.office-agent-plugin-body .agent-sheet-option,
+.office-agent-plugin-body .agent-attachment-chip,
+.office-agent-plugin-body .agent-output-file-card,
+.office-agent-plugin-body .agent-file-card,
+.office-agent-plugin-body .agent-file-preview,
+.office-agent-plugin-body .agent-file-preview-markdown {
+  border-color: #d0d0d0 !important;
+  background: #ffffff !important;
+  color: #242424 !important;
+}
+
+.office-agent-plugin-body .agent-sheet-option:hover,
+.office-agent-plugin-body .agent-sheet-option.active {
+  background: #e6f4ec !important;
+  color: #107c41 !important;
+}
+
+.office-agent-plugin-body .agent-tool-summary {
+  background: #e8e8e8 !important;
+  color: #242424 !important;
+}
+
+.office-agent-plugin-body .agent-tool-call-summary {
+  background: transparent !important;
+  color: #242424 !important;
+}
+
+.office-agent-plugin-body .agent-tool-call[open] .agent-tool-call-summary {
+  border: 1px solid #d0d0d0 !important;
+  border-bottom: 0 !important;
+  border-radius: var(--agent-radius-sm) var(--agent-radius-sm) 0 0 !important;
+  background: #e8e8e8 !important;
+}
+
+.office-agent-plugin-body .agent-tool-summary:hover,
+.office-agent-plugin-body .agent-tool-call-summary:hover {
+  background: #dddddd !important;
+}
+
+.office-agent-plugin-body .agent-tool-call[open] .agent-tool-call-summary:hover {
+  background: #e8e8e8 !important;
+}
+
+.office-agent-plugin-body .agent-tool-call[open] .agent-tool-body {
+  padding: 0 !important;
+}
+
+.office-agent-plugin-body .agent-tool-call[open] .agent-tool-json-preview.agent-tool-json {
+  border-top: 0 !important;
+  border-radius: 0 0 var(--agent-radius-sm) var(--agent-radius-sm) !important;
+}
+
+.office-agent-plugin-body .agent-tool-copy {
+  cursor: pointer;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  color: #616161 !important;
+  transition: opacity 0.12s ease;
+}
+
+.office-agent-plugin-body .agent-tool-call[open] .agent-tool-call-summary:hover .agent-tool-copy,
+.office-agent-plugin-body .agent-tool-call[open] .agent-tool-copy:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.office-agent-plugin-body .agent-tool-copy:hover {
+  color: #107c41 !important;
+}
+
+.office-agent-plugin-body .agent-tool-call.ok .agent-tool-name {
+  color: #107c41 !important;
+}
+
+.office-agent-plugin-body .agent-tool-call.running .agent-tool-name {
+  color: #996f00 !important;
+}
+
+.office-agent-plugin-body .agent-tool-call.error .agent-tool-name,
+.office-agent-plugin-body .agent-tool-call.unsupported .agent-tool-name {
+  color: #c50f1f !important;
+}
+
+.office-agent-plugin-body .agent-tool-json-preview,
+.office-agent-plugin-body .agent-tool-json-preview.agent-tool-json,
+.office-agent-plugin-body .agent-tool-json-preview .agent-tool-json,
+.office-agent-plugin-body .agent-markdown-code,
+.office-agent-plugin-body .agent-tool-json,
+.office-agent-plugin-body .agent-file-preview-code {
+  border-color: #d0d0d0 !important;
+  background: #ffffff !important;
+  color: #242424 !important;
+}
+
+.office-agent-plugin-body .agent-json-property > summary.agent-json-line:hover {
+  background: #eef6f1 !important;
+}
+
+.office-agent-plugin-body .agent-json-collapsed-preview,
+.office-agent-plugin-body .agent-tool-json .json-null {
+  color: #707070 !important;
+}
+
+.office-agent-plugin-body .agent-tool-json .json-key {
+  color: #0f6cbd !important;
+}
+
+.office-agent-plugin-body .agent-tool-json .json-string {
+  color: #107c41 !important;
+}
+
+.office-agent-plugin-body .agent-tool-json .json-number {
+  color: #8a5a00 !important;
+}
+
+.office-agent-plugin-body .agent-tool-json .json-boolean {
+  color: #8764b8 !important;
+}
+
+.office-agent-plugin-body .agent-markdown-table-wrap,
+.office-agent-plugin-body .agent-markdown-table th,
+.office-agent-plugin-body .agent-markdown-table td {
+  border-color: #d0d0d0 !important;
+}
+
+.office-agent-plugin-body .agent-markdown-table th {
+  background: #eeeeee !important;
+  color: #242424 !important;
+}
+
+.office-agent-plugin-body .agent-status-chip.warn,
+.office-agent-plugin-body .agent-status .warn,
+.office-agent-plugin-body .agent-modal-warning {
+  border-color: #fde293 !important;
+  background: #fff4ce !important;
+  color: #8a5a00 !important;
+}
+
+.office-agent-plugin-body .agent-checkpoint-create {
+  border-color: #107c41 !important;
+  background: #107c41 !important;
+  color: #ffffff !important;
+}
+
+.office-agent-plugin-body .agent-checkpoint-create:not(:disabled):hover {
+  border-color: #0b5a2c !important;
+  background: #0b5a2c !important;
+}
+
+.office-agent-plugin-body .agent-reasoning-mode-control {
+  border-color: #c8c8c8 !important;
+  background: #ffffff !important;
+  color: #424242 !important;
+}
+
+.office-agent-plugin-body .agent-reasoning-mode-control:hover {
+  background: #e8e8e8 !important;
+  color: #424242 !important;
+}
+
+.office-agent-plugin-body .agent-reasoning-mode-control[data-mode='low'] {
+  border-color: #9cc7e8 !important;
+  background: #eef6fc !important;
+  color: #0f6cbd !important;
+}
+
+.office-agent-plugin-body .agent-reasoning-mode-control[data-mode='medium'] {
+  border-color: #d6b656 !important;
+  background: #fff8db !important;
+  color: #8a5a00 !important;
+}
+
+.office-agent-plugin-body .agent-reasoning-mode-control[data-mode='high'] {
+  border-color: #9ccbab !important;
+  background: #e6f4ec !important;
+  color: #107c41 !important;
+}
+
+.office-agent-plugin-body .agent-reasoning-mode-select {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+/* Keep tool-call controls visually aligned with thinking blocks while preserving status colors. */
+.office-agent-plugin-body .agent-tool-summary,
+.office-agent-plugin-body .agent-tool-call-summary {
+  min-height: 24px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #616161 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 1.45 !important;
+}
+
+.office-agent-plugin-body .agent-tool-summary {
+  width: max-content !important;
+  max-width: 100% !important;
+  display: inline-grid !important;
+  grid-template-columns: minmax(0, 1fr) 10px !important;
+  gap: 7px !important;
+  align-items: center !important;
+  margin: 0 0 8px !important;
+  padding: 0 !important;
+}
+
+.office-agent-plugin-body .agent-tool-call-summary {
+  width: max-content !important;
+  max-width: 100% !important;
+  display: inline-flex !important;
+  gap: 8px !important;
+  align-items: center !important;
+  padding: 0 !important;
+}
+
+.office-agent-plugin-body .agent-tool-summary:hover,
+.office-agent-plugin-body .agent-tool-call-summary:hover,
+.office-agent-plugin-body .agent-tool-call[open] .agent-tool-call-summary,
+.office-agent-plugin-body .agent-tool-call[open] .agent-tool-call-summary:hover {
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.office-agent-plugin-body .agent-tool-summary-chevron {
+  display: none !important;
+}
+
+.office-agent-plugin-body .agent-tool-summary::after,
+.office-agent-plugin-body .agent-tool-call-summary::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: rotate(-45deg) translateY(0);
+  transform-origin: center;
+  transition: transform 0.14s ease;
+}
+
+.office-agent-plugin-body .agent-tool-summary.expanded::after,
+.office-agent-plugin-body .agent-tool-call[open] .agent-tool-call-summary::after {
+  transform: rotate(45deg) translateY(-1px);
+}
+
+.office-agent-plugin-body .agent-tool-summary-label,
+.office-agent-plugin-body .agent-tool-name,
+.office-agent-plugin-body .agent-tool-brief,
+.office-agent-plugin-body .agent-tool-status {
+  font-size: 14px !important;
+  line-height: 1.45 !important;
+}
+
+.office-agent-plugin-body .agent-tool-summary-label,
+.office-agent-plugin-body .agent-tool-brief,
+.office-agent-plugin-body .agent-tool-status {
+  color: #616161 !important;
+}
+
+.office-agent-plugin-body .agent-tool-brief {
+  max-width: min(220px, 52vw) !important;
+}
+
+.office-agent-plugin-body .agent-tool-copy {
+  display: none !important;
+}
+
+.office-agent-plugin-body .agent-tool-call[open] .agent-tool-call-summary:hover .agent-tool-copy,
+.office-agent-plugin-body .agent-tool-copy:focus-visible {
+  display: inline-flex !important;
+}
+
+.office-agent-plugin-body .agent-tool-summary.success .agent-tool-summary-label,
+.office-agent-plugin-body .agent-tool-call.ok .agent-tool-name {
+  color: #107c41 !important;
+}
+
+.office-agent-plugin-body .agent-tool-call.running .agent-tool-name {
+  color: #996f00 !important;
+}
+
+.office-agent-plugin-body .agent-tool-summary.attention .agent-tool-summary-label,
+.office-agent-plugin-body .agent-tool-call.error .agent-tool-name,
+.office-agent-plugin-body .agent-tool-call.unsupported .agent-tool-name {
+  color: #c50f1f !important;
+}
+
+.office-agent-plugin-body .agent-tool-list {
+  gap: 8px !important;
+  margin: 0 0 8px !important;
+}
+
+.office-agent-plugin-body .agent-tool-call[open] .agent-tool-body {
+  padding-top: 6px !important;
+}
+
+.office-agent-plugin-body .agent-tool-call[open] .agent-tool-json-preview.agent-tool-json {
+  border-top: 1px solid #d0d0d0 !important;
+  border-radius: var(--agent-radius-sm) !important;
+}
+
+.office-agent-plugin-body .agent-tool-json-preview.agent-tool-json {
+  position: relative !important;
+}
+
+.office-agent-plugin-body .agent-tool-json-preview .agent-tool-json-copy {
+  position: absolute !important;
+  top: 8px !important;
+  right: 10px !important;
+  z-index: 2 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  padding: 0 2px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #616161 !important;
+  font: inherit !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 18px !important;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    color 0.12s ease,
+    opacity 0.12s ease;
+}
+
+.office-agent-plugin-body .agent-tool-json-preview:hover .agent-tool-json-copy,
+.office-agent-plugin-body .agent-tool-json-preview .agent-tool-json-copy:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.office-agent-plugin-body .agent-tool-json-preview .agent-tool-json-copy:hover {
+  color: #107c41 !important;
+}
+
+.office-agent-plugin-body .agent-header-actions .agent-icon-button {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #424242 !important;
+}
+
+.office-agent-plugin-body .agent-header-actions .agent-icon-button:hover,
+.office-agent-plugin-body .agent-header-actions .agent-icon-button:focus-visible {
+  border-color: rgba(16, 124, 65, 0.18) !important;
+  background: rgba(16, 124, 65, 0.1) !important;
+  color: #107c41 !important;
+}
+
+.office-agent-plugin-body .agent-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.office-agent-plugin-body .agent-header-main {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+.office-agent-plugin-body .agent-chat-tab {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-align: left !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.office-agent-plugin-body .agent-header-actions {
+  flex: 0 0 auto !important;
+}
+
+.office-agent-plugin-body .agent-header-actions .agent-icon-button:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(16, 124, 65, 0.22) !important;
+}
+
+.office-agent-plugin-body .agent-session-row {
+  background: transparent !important;
+  color: #242424 !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.office-agent-plugin-body .agent-session-row.active {
+  background: #d9eadf !important;
+}
+
+.office-agent-plugin-body .agent-session-row:hover,
+.office-agent-plugin-body .agent-session-row.editing {
+  background: #e6f4ec !important;
+}
+
+.office-agent-plugin-body .agent-session-row.active:hover {
+  background: #cee4d6 !important;
+}
+
+.office-agent-plugin-body .agent-session-open,
+.office-agent-plugin-body .agent-session-actions,
+.office-agent-plugin-body .agent-session-action,
+.office-agent-plugin-body .agent-session-delete {
+  background: transparent !important;
+}
+
+.office-agent-plugin-body .agent-session-row:hover .agent-session-open,
+.office-agent-plugin-body .agent-session-row:hover .agent-session-actions,
+.office-agent-plugin-body .agent-session-row:hover .agent-session-action,
+.office-agent-plugin-body .agent-session-row:hover .agent-session-delete,
+.office-agent-plugin-body .agent-session-action:hover,
+.office-agent-plugin-body .agent-session-delete:hover {
+  background: transparent !important;
+}
+
+.office-agent-plugin-body .agent-session-action:hover,
+.office-agent-plugin-body .agent-session-delete:hover {
+  color: #107c41 !important;
+}
+
+.office-agent-plugin-body .agent-composer-box {
+  border-color: #107c41 !important;
+  box-shadow: none !important;
+}
+
+.office-agent-plugin-body .agent-composer-box:focus-within {
+  border-color: #107c41 !important;
+  box-shadow: 0 0 0 2px rgba(16, 124, 65, 0.16) !important;
 }

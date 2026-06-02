@@ -1,13 +1,26 @@
-# npm
-node_modules
-# common
-.temp
-cache
-# mac
-.DS_Store
-# eslint
+# dependencies
+node_modules/
+
+# build output
+dist/
+coverage/
+
+# local caches
+.temp/
+cache/
 .eslintcache
-# vite
+.vite/
 vite.config.ts.timestamp*
 config.ts.timestamp*
-dist
+
+# local/private config
+.env
+.env.*
+!.env.example
+model.txt
+
+# source reference workbook kept local
+chatgpt-ms-office-api文档参考.xlsx
+
+# macOS
+.DS_Store

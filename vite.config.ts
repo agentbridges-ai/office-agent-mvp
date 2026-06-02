@@ -9,6 +9,14 @@ const __dirname = path.dirname(__filename);
 export default defineConfig({
   base: './',
   publicDir: 'public',
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        officeAgentPanel: resolve(__dirname, 'office-agent-plugin/panel.html'),
+      },
+    },
+  },
   resolve: {
     alias: {
       '@/lib': resolve(__dirname, 'lib'),

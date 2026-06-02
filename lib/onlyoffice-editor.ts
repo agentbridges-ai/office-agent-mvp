@@ -2,7 +2,6 @@ import 'ranui/message';
 import { createObjectURL } from 'ranuts/utils';
 import { getDocmentObj } from '../store';
 import { getOnlyOfficeLang, t } from './i18n';
-import { c_oAscFileType2 } from './file-types';
 import type { SaveEvent } from './document-types';
 import { getMimeTypeFromExtension } from './document-utils';
 
@@ -11,10 +10,40 @@ let convertBinToDocumentAndDownloadFn:
   | ((bin: Uint8Array, fileName: string, targetExt?: string) => Promise<any>)
   | null = null;
 
+interface PendingSaveCapture {
+  resolve: (value: { bin: Uint8Array; fileName: string; outputFormat: number }) => void;
+  reject: (error: Error) => void;
+  timeout: number;
+}
+
+let pendingSaveCapture: PendingSaveCapture | null = null;
+
 export function setConverterCallback(
   callback: (bin: Uint8Array, fileName: string, targetExt?: string) => Promise<any>,
 ): void {
   convertBinToDocumentAndDownloadFn = callback;
+}
+
+export function captureNextSaveAsBin(timeoutMs = 20000): Promise<{
+  bin: Uint8Array;
+  fileName: string;
+  outputFormat: number;
+}> {
+  cancelPendingSaveCapture(new Error('A newer save capture request replaced this one.'));
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      pendingSaveCapture = null;
+      reject(new Error('Timed out while waiting for workbook checkpoint data.'));
+    }, timeoutMs);
+    pendingSaveCapture = { resolve, reject, timeout };
+  });
+}
+
+export function cancelPendingSaveCapture(error = new Error('Save capture cancelled.')): void {
+  if (!pendingSaveCapture) return;
+  window.clearTimeout(pendingSaveCapture.timeout);
+  pendingSaveCapture.reject(error);
+  pendingSaveCapture = null;
 }
 
 // Global media mapping object
@@ -22,6 +51,16 @@ const media: Record<string, string> = {};
 
 // Editor operation queue to prevent concurrent operations
 let editorOperationQueue: Promise<void> = Promise.resolve();
+
+function forceOfficeLightTheme(): void {
+  try {
+    window.localStorage.setItem('ui-theme-id', 'theme-classic-light');
+    window.localStorage.setItem('content-theme', 'light');
+    window.localStorage.removeItem('ui-theme');
+  } catch (error) {
+    console.warn('Unable to persist ONLYOFFICE light theme preference:', error);
+  }
+}
 
 /**
  * Queue editor operations to prevent concurrent editor creation/destruction
@@ -151,26 +190,28 @@ async function handleSaveDocument(event: SaveEvent) {
     const { data, option } = event.data;
     const { fileName } = getDocmentObj() || {};
 
-    // Determine target format from editor's output format
-    let targetFormat = c_oAscFileType2[option.outputformat];
-
-    // Only force CSV format if the original file is CSV
-    // This check ensures XLSX and other file types are not affected
-    // CSV files are converted to XLSX internally, so editor may return XLSX format
-    if (fileName && fileName.toLowerCase().endsWith('.csv')) {
-      targetFormat = 'CSV';
-      console.log('Original file is CSV, forcing save as CSV format');
+    if (pendingSaveCapture) {
+      const capture = pendingSaveCapture;
+      pendingSaveCapture = null;
+      window.clearTimeout(capture.timeout);
+      capture.resolve({
+        bin: data.data instanceof Uint8Array ? data.data : new Uint8Array(data.data),
+        fileName,
+        outputFormat: option.outputformat,
+      });
     } else {
-      // For non-CSV files (XLSX, DOCX, PPTX, etc.), use the format returned by editor
-      // This ensures XLSX files are saved as XLSX, not CSV
-      console.log(`Saving as ${targetFormat} format (original file: ${fileName})`);
-    }
+      // Phase 1 is Excel-only: always save edited workbooks as XLSX.
+      const targetFormat = 'XLSX';
+      console.log(
+        `Saving as ${targetFormat} format (original file: ${fileName}, editor format: ${option.outputformat})`,
+      );
 
-    // Create download
-    if (convertBinToDocumentAndDownloadFn) {
-      await convertBinToDocumentAndDownloadFn(data.data, fileName, targetFormat);
-    } else {
-      throw new Error('Converter callback not set');
+      // Create download
+      if (convertBinToDocumentAndDownloadFn) {
+        await convertBinToDocumentAndDownloadFn(data.data, fileName, targetFormat);
+      } else {
+        throw new Error('Converter callback not set');
+      }
     }
   }
 
@@ -232,6 +273,7 @@ export function createEditorInstance(config: {
 
     const editorLang = getOnlyOfficeLang();
     console.log('Creating new editor instance for:', fileName, 'type:', fileType);
+    forceOfficeLightTheme();
 
     try {
       window.editor = new window.DocsAPI.DocEditor('iframe', {
@@ -248,9 +290,11 @@ export function createEditorInstance(config: {
         editorConfig: {
           lang: editorLang,
           customization: {
+            uiTheme: 'theme-classic-light',
             help: false,
             about: false,
-            hideRightMenu: true,
+            hideRightMenu: false,
+            plugins: false,
             features: {
               spellcheck: {
                 change: false,
@@ -259,9 +303,9 @@ export function createEditorInstance(config: {
             anonymous: {
               request: false,
               label: 'Guest',
-            },
-          },
-        },
+	            },
+	          },
+	        },
         events: {
           onAppReady: () => {
             // Set media resources
@@ -279,9 +323,10 @@ export function createEditorInstance(config: {
               data: { buf: binData },
             });
           },
-          onDocumentReady: () => {
-            console.log(`${t('documentLoaded')}${fileName}`);
-            // Note: For CSV files, the save dialog may show XLSX format,
+	          onDocumentReady: () => {
+	            console.log(`${t('documentLoaded')}${fileName}`);
+	            window.dispatchEvent(new CustomEvent('office-agent:document-ready', { detail: { fileName, fileType } }));
+	            // Note: For CSV files, the save dialog may show XLSX format,
             // but the actual save will be forced to CSV format in handleSaveDocument
           },
           onSave: handleSaveDocument,
@@ -307,7 +352,7 @@ export function loadEditorApi(): Promise<void> {
 
     // Load editor API
     const script = document.createElement('script');
-    script.src = './web-apps/apps/api/documents/api.js';
+    script.src = './web-apps/apps/api/documents/api.js?v=office-agent-align-fix-1';
     script.onload = () => resolve();
     script.onerror = (error) => {
       console.error('Failed to load OnlyOffice API:', error);

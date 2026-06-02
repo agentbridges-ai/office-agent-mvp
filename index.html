@@ -7,16 +7,18 @@
   <link href="img/64.png" rel="shortcut icon" />
   <link rel="icon" type="image/png" href="img/64.png" />
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#0052cc" />
+  <meta name="theme-color" content="#107c41" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-  <title>Document Editor</title>
-  <script src="web-apps/apps/api/documents/api.js"></script>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>Excel Office Agent</title>
+  <script src="web-apps/apps/api/documents/api.js?v=office-agent-align-fix-1"></script>
 </head>
 
 <body>
-  <div id="app" class="w-full h-full">
-    <div id="iframe"></div>
+  <div id="app" class="office-agent-app">
+    <main id="editor-pane" class="editor-pane">
+      <div id="iframe"></div>
+    </main>
   </div>
 </body>
 <script type="module" src="./index.ts"></script>
