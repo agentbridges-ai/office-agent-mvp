@@ -80,6 +80,22 @@ describe('Office Agent contracts', () => {
     expect(editorSource).toContain('documentType: getDocumentType(fileType)');
   });
 
+  it('hides expanded FAB menus when opening documents programmatically', () => {
+    const uiSource = readProjectFile('lib/ui.ts');
+
+    expect(uiSource).toContain("document.querySelector('#fab-menu')");
+    expect(uiSource).toContain("fabMenu.style.display = 'none'");
+    expect(uiSource).toContain("fabMenu.style.pointerEvents = 'none'");
+  });
+
+  it('keeps focused Word/PPT E2E on the wired application create path', () => {
+    const e2eSource = readProjectFile('tests/e2e/agent-word-ppt.spec.ts');
+
+    expect(e2eSource).toContain('(window as any).onCreateNew');
+    expect(e2eSource).toContain('expectFabMenuHidden');
+    expect(e2eSource).not.toContain('/lib/document.ts?t=');
+  });
+
   it('opens browser-local documents through the ONLYOFFICE binary bridge', () => {
     const editorSource = readProjectFile('lib/onlyoffice-editor.ts');
 

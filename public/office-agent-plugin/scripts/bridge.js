@@ -5,6 +5,7 @@
   var bridgeChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(BRIDGE_CHANNEL) : null;
   var READY_PROBE_RETRY_MS = 250;
   var READY_PROBE_TIMEOUT_MS = 1000;
+  var PLUGIN_METHOD_TIMEOUT_MS = 5000;
   var readyAnnounced = false;
   var readyProbeInFlight = false;
 
@@ -29,6 +30,43 @@
       result: value,
       error: error,
     });
+  }
+
+  function executeWordInsertText(id, payload) {
+    var text = String((payload && payload.text) || '');
+    if (!text) {
+      result(id, false, 'partial', null, 'word_insert_text requires text.');
+      return;
+    }
+    if (!window.Asc || !window.Asc.plugin || typeof window.Asc.plugin.executeMethod !== 'function') {
+      result(id, false, 'unsupported', null, 'Trusted Office plugin method bridge is not ready.');
+      return;
+    }
+
+    var settled = false;
+    var timeout = window.setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      result(id, false, 'partial', null, 'Word PasteText method timed out.');
+    }, PLUGIN_METHOD_TIMEOUT_MS);
+
+    try {
+      window.Asc.plugin.executeMethod('PasteText', [text], function (methodResult) {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        if (methodResult === false) {
+          result(id, false, 'partial', null, 'Word PasteText method failed.');
+          return;
+        }
+        result(id, true, 'supported', { insertedTextLength: text.length });
+      });
+    } catch (error) {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      result(id, false, 'partial', null, error && error.message ? error.message : String(error));
+    }
   }
 
   function announceReady() {
@@ -513,26 +551,6 @@
           });
         }
 
-        function wordInsertText(payload) {
-          var text = String(payload.text || '');
-          if (!text) return fail('word_insert_text requires text.', 'partial');
-
-          var doc = call(Api, ['GetDocument'], []);
-          var paragraph = call(Api, ['CreateParagraph'], []);
-          if (!doc || !paragraph) return fail('Word document API is unavailable.', 'unsupported');
-
-          call(paragraph, ['AddText'], [text]);
-          if (hasMethod(doc, ['Push'])) {
-            call(doc, ['Push'], [paragraph]);
-          } else if (hasMethod(doc, ['InsertContent'])) {
-            call(doc, ['InsertContent'], [[paragraph]]);
-          } else {
-            return fail('Word document insert API is unavailable.', 'unsupported');
-          }
-
-          return ok({ insertedTextLength: text.length }, 'supported');
-        }
-
         function wordFormatSelection(payload) {
           var doc = call(Api, ['GetDocument'], []);
           var range = doc && call(doc, ['GetRangeBySelect'], []);
@@ -566,6 +584,7 @@
             if (layout && hasMethod(slide, ['ApplyLayout'])) call(slide, ['ApplyLayout'], [layout]);
           }
 
+          call(presentation, ['CreateNewHistoryPoint'], []);
           call(presentation, ['AddSlide'], [slide]);
           return slide;
         }
@@ -573,23 +592,30 @@
         function pptAddSlide(payload) {
           var slide = pptCreateSlide(payload || {});
           if (!slide) return fail('Presentation slide API is unavailable.', 'unsupported');
-          return ok({ addedSlide: true }, 'supported');
+          return ok({ addedSlide: true, selected: false }, 'partial');
         }
 
         function getCurrentOrNewSlide(payload) {
           var presentation = call(Api, ['GetPresentation'], []);
           if (!presentation) return null;
-          return call(presentation, ['GetCurrentSlide'], []) || call(presentation, ['GetSlideByIndex'], [0]) || pptCreateSlide(payload || {});
+          return (
+            call(presentation, ['GetCurrentVisibleSlide'], []) ||
+            call(presentation, ['GetCurrentSlide'], []) ||
+            call(presentation, ['GetSlideByIndex'], [0]) ||
+            pptCreateSlide(payload || {})
+          );
         }
 
         function pushParagraph(content, paragraph, text) {
-          if (hasMethod(content, ['Push'])) {
-            call(content, ['Push'], [paragraph]);
+          var count = Number(call(content, ['GetElementsCount'], []) || 0);
+          var target = count > 0 ? call(content, ['GetElement'], [count - 1]) : null;
+          if (target && hasMethod(target, ['AddText'])) {
+            call(target, ['AddText'], [text]);
             return true;
           }
-          var first = call(content, ['GetElement'], [0]);
-          if (first && hasMethod(first, ['AddText'])) {
-            call(first, ['AddText'], [text]);
+          if (hasMethod(content, ['Push'])) {
+            call(paragraph, ['AddText'], [text]);
+            call(content, ['Push'], [paragraph]);
             return true;
           }
           return false;
@@ -614,10 +640,10 @@
           var paragraph = call(Api, ['CreateParagraph'], []);
           if (!shape || !content || !paragraph) return fail('Presentation text box API is unavailable.', 'unsupported');
 
-          call(paragraph, ['AddText'], [text]);
           if (!pushParagraph(content, paragraph, text)) return fail('Presentation text content API is unavailable.', 'unsupported');
           call(shape, ['SetPosition'], [x, y]);
           call(slide, ['AddObject'], [shape]);
+          call(shape, ['Select'], []);
 
           return ok({ addedTextBox: true, insertedTextLength: text.length }, 'supported');
         }
@@ -626,7 +652,6 @@
           payload = payload || {};
           if (action === 'agentBridgeReadyProbe') return ok({ commandCallbacks: true }, 'supported');
           if (action === 'wordGetContext') return wordGetContext(payload);
-          if (action === 'wordInsertText') return wordInsertText(payload);
           if (action === 'wordFormatSelection') return wordFormatSelection(payload);
           if (action === 'pptGetContext') return pptGetContext(payload);
           if (action === 'pptAddSlide') return pptAddSlide(payload);
@@ -692,6 +717,10 @@
       return;
     }
     if (data.type !== 'request') return;
+    if (data.action === 'wordInsertText') {
+      executeWordInsertText(data.id, data.payload);
+      return;
+    }
     runInEditor(data.action, data.payload, function (raw) {
       try {
         var parsed = typeof raw === 'string' ? JSON.parse(raw) : raw || {};

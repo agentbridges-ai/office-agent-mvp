@@ -33,6 +33,19 @@ describe('Word/PPT Agent frame bridges', () => {
     expect(source).toContain('Asc.plugin.callCommand');
   });
 
+  it('uses visible editor APIs for Word/PPT Agent mutations', () => {
+    const source = readProjectFile('public/office-agent-plugin/scripts/bridge.js');
+
+    expect(source).toContain("executeMethod('PasteText'");
+    expect(source).not.toContain("call(doc, ['Push']");
+    expect(source).not.toContain("call(doc, ['InsertContent']");
+    expect(source).not.toContain("call(paragraph, ['Select']");
+    expect(source).toContain("call(presentation, ['GetCurrentVisibleSlide']");
+    expect(source).toContain("call(shape, ['Select']");
+    expect(source).toContain("call(content, ['GetElementsCount']");
+    expect(source).toContain("call(content, ['GetElement']");
+  });
+
   it('executes trusted plugin commands through interface mode', () => {
     const source = readProjectFile('public/office-agent-plugin/scripts/bridge.js');
 

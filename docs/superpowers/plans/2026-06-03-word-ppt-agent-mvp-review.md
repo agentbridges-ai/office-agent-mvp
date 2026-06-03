@@ -22,18 +22,23 @@ Artifacts:
 - `/tmp/document-e2e-run/test-results/manual-review/word-edited.png`
 - `/tmp/document-e2e-run/test-results/manual-review/ppt-edited.png`
 - `/tmp/document-e2e-run/test-results/manual-review/manual-review-evidence.json`
+- `/tmp/document-e2e-run/test-results/agent-visual-current/word-current.png`
+- `/tmp/document-e2e-run/test-results/agent-visual-current/ppt-current.png`
+- `/tmp/document-e2e-run/test-results/agent-visual-current/evidence.json`
 
 Observed machine evidence:
 
 - Excel editor loaded an XLSX with the Agent menu visible; screenshot was nonblank and the shared menu guidance was Office-neutral.
 - Word tool insertion returned `ok: true`, saved `New_Document.docx`, and produced a DOCX download.
 - PPT add-slide/add-text-box returned `ok: true`, saved `New_Document.pptx`, and produced a PPTX download.
+- After the visible-edit fix, Word insertion uses trusted plugin `Asc.plugin.executeMethod('PasteText')`; the current Word screenshot shows a visible inserted glyph run instead of a blank document canvas.
+- The current PPT screenshot shows a visible selected text region on the slide.
+- The host FAB menu is hidden in the current evidence JSON: `display: none`, `pointer-events: none`, `opacity: 0`.
 
 Manual review limits:
 
-- Word screenshot showed the editor loaded, but the inserted text was not visibly readable in the screenshot.
-- PPT screenshot showed a text box region, but rendered glyphs were boxes in the screenshot.
-- Therefore this machine sampling does not close the human-visible edit review gate.
+- WSL/headless Chromium renders inserted ASCII text as square glyphs in both Word/PPT editor canvases.
+- Therefore this machine sampling proves visible mutation, but does not close the human-readable edit review gate.
 
 ## Human Sign-Off Checklist
 

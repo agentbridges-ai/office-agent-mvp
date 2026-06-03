@@ -24,10 +24,23 @@ async function waitForDownloads(page) {
 
 async function createNewDocument(page, extension: '.docx' | '.pptx') {
   await page.evaluate(async (ext) => {
-    const version = `agent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const { onCreateNew } = await import(`/lib/document.ts?t=${version}`);
-    await onCreateNew(ext);
+    await (window as any).onCreateNew(ext);
   }, extension);
+}
+
+async function expectFabMenuHidden(page) {
+  const state = await page.evaluate(() => {
+    const menu = document.querySelector('#fab-menu') as HTMLElement | null;
+    if (!menu) return { exists: false };
+    const style = window.getComputedStyle(menu);
+    return {
+      exists: true,
+      display: style.display,
+      pointerEvents: style.pointerEvents,
+    };
+  });
+
+  expect(state).toEqual({ exists: true, display: 'none', pointerEvents: 'none' });
 }
 
 function zipEntries(zipBuffer: Buffer): string[] {
@@ -99,6 +112,7 @@ test.describe('Word/PPT Agent MVP E2E', () => {
     await page.goto(BASE_URL, { timeout: 300_000 });
     await waitForOnlyOfficeShell(page);
     await createNewDocument(page, '.docx');
+    await expectFabMenuHidden(page);
     await waitForEditorReady(page, 'word');
 
     const result = await runWordAgentTools(page);
@@ -119,6 +133,7 @@ test.describe('Word/PPT Agent MVP E2E', () => {
     await page.goto(BASE_URL, { timeout: 300_000 });
     await waitForOnlyOfficeShell(page);
     await createNewDocument(page, '.pptx');
+    await expectFabMenuHidden(page);
     await waitForEditorReady(page, 'slide');
 
     const result = await runPptAgentTools(page);

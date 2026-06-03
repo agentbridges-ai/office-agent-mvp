@@ -3,10 +3,21 @@ import { t } from './i18n';
 import { showLoading } from './loading';
 import { onCreateNew, onOpenDocument } from './document';
 
+function hideFabMenu(): void {
+  const fabMenu = document.querySelector('#fab-menu') as HTMLElement | null;
+  if (!fabMenu) return;
+  fabMenu.style.opacity = '0';
+  fabMenu.style.transform = 'translateY(10px) scale(0.95)';
+  fabMenu.style.display = 'none';
+  fabMenu.style.pointerEvents = 'none';
+}
+
 // Hide control panel and show top floating bar
 export const hideControlPanel = (): void => {
   const container = document.querySelector('#control-panel-container') as HTMLElement;
   const fabContainer = document.querySelector('#fab-container') as HTMLElement;
+
+  hideFabMenu();
 
   // Always ensure FAB is visible when hiding control panel
   if (fabContainer) {
