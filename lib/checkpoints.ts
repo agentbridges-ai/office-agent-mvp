@@ -19,7 +19,7 @@ interface DocumentCheckpointRecord extends DocumentCheckpoint {
 
 const DB_NAME = 'office-agent-checkpoints';
 const DB_VERSION = 1;
-const STORE_NAME = 'workbook-checkpoints';
+const STORE_NAME = 'document-checkpoints';
 const MAX_CHECKPOINT_NAME_LENGTH = 80;
 const BRIDGE_READY_TIMEOUT_MS = 5000;
 
