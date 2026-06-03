@@ -201,6 +201,29 @@ export function extractFileFromZip(zipBuffer: Buffer, targetPath: string): Buffe
   return null;
 }
 
+export function findZipEntries(zipBuffer: Buffer): string[] {
+  let eocdOffset = zipBuffer.length - 22;
+  while (eocdOffset >= 0) {
+    if (zipBuffer.readUInt32LE(eocdOffset) === 0x06054b50) break;
+    eocdOffset -= 1;
+  }
+  if (eocdOffset < 0) return [];
+
+  const cdOffset = zipBuffer.readUInt32LE(eocdOffset + 16);
+  const cdSize = zipBuffer.readUInt32LE(eocdOffset + 12);
+  const entries: string[] = [];
+  let pos = cdOffset;
+  const cdEnd = cdOffset + cdSize;
+  while (pos < cdEnd && zipBuffer.readUInt32LE(pos) === 0x02014b50) {
+    const nameLen = zipBuffer.readUInt16LE(pos + 28);
+    const extraLen = zipBuffer.readUInt16LE(pos + 30);
+    const commentLen = zipBuffer.readUInt16LE(pos + 32);
+    entries.push(zipBuffer.toString('utf8', pos + 46, pos + 46 + nameLen));
+    pos += 46 + nameLen + extraLen + commentLen;
+  }
+  return entries;
+}
+
 export async function getEditorFrameWindow(page: Page): Promise<any> {
   return page.evaluate(() => {
     const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement)?.contentWindow;

@@ -1002,7 +1002,7 @@
         return fail('ONLYOFFICE save API is unavailable in this editor build.', 'unsupported');
       }
       call(editor, ['asc_setIsForceSaveOnUserSave'], [true]);
-      call(editor, ['asc_Save'], []);
+      call(editor, ['asc_Save'], [false]);
       return ok({ requested: true }, 'partial');
     }
 

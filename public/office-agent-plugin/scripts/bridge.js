@@ -1,6 +1,12 @@
 (function () {
   var HOST_SOURCE = 'office-agent-host';
   var BRIDGE_SOURCE = 'office-agent-bridge';
+  var BRIDGE_CHANNEL = 'office-agent-excel-bridge';
+  var bridgeChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(BRIDGE_CHANNEL) : null;
+  var READY_PROBE_RETRY_MS = 250;
+  var READY_PROBE_TIMEOUT_MS = 1000;
+  var readyAnnounced = false;
+  var readyProbeInFlight = false;
 
   function post(message) {
     window.top.postMessage(
@@ -25,7 +31,53 @@
     });
   }
 
+  function announceReady() {
+    if (!readyAnnounced) {
+      markReadyAfterProbe();
+      return;
+    }
+    post({ type: 'ready' });
+  }
+
+  function markReadyAfterProbe() {
+    if (readyAnnounced) {
+      post({ type: 'ready' });
+      return;
+    }
+    if (readyProbeInFlight || !window.Asc || !window.Asc.plugin) return;
+    if (typeof window.Asc.plugin.callCommand !== 'function') return;
+
+    readyProbeInFlight = true;
+    var settled = false;
+    var timeout = window.setTimeout(function () {
+      if (settled || readyAnnounced) return;
+      readyProbeInFlight = false;
+      window.setTimeout(markReadyAfterProbe, READY_PROBE_RETRY_MS);
+    }, READY_PROBE_TIMEOUT_MS);
+
+    try {
+      runInEditor('agentBridgeReadyProbe', {}, function () {
+        if (settled || readyAnnounced) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        readyProbeInFlight = false;
+        readyAnnounced = true;
+        post({ type: 'ready' });
+      });
+    } catch (error) {
+      settled = true;
+      window.clearTimeout(timeout);
+      readyProbeInFlight = false;
+      post({
+        type: 'diagnostic',
+        result: { pluginReadyProbeError: error && error.message ? error.message : String(error) },
+      });
+      window.setTimeout(markReadyAfterProbe, READY_PROBE_RETRY_MS);
+    }
+  }
+
   function runInEditor(action, payload, callback) {
+    window.Asc.plugin.info.interface = true;
     window.Asc.scope.__agentAction = action;
     window.Asc.scope.__agentPayload = payload || {};
     window.Asc.plugin.callCommand(
@@ -89,6 +141,18 @@
             if (values[i] !== undefined) return values[i];
           }
           return undefined;
+        }
+
+        function finishCommand(serialized) {
+          if (typeof zf !== 'undefined' && zf && typeof zf.PIa === 'function') return zf.PIa(serialized);
+          if (typeof mg !== 'undefined' && mg && typeof mg.f_a === 'function') return mg.f_a(serialized);
+          if (typeof Lh !== 'undefined' && Lh && typeof Lh.Pbb === 'function') return Lh.Pbb(serialized);
+          if (typeof g_asc_plugins !== 'undefined' && g_asc_plugins) {
+            if (typeof g_asc_plugins.PIa === 'function') return g_asc_plugins.PIa(serialized);
+            if (typeof g_asc_plugins.f_a === 'function') return g_asc_plugins.f_a(serialized);
+            if (typeof g_asc_plugins.Pbb === 'function') return g_asc_plugins.Pbb(serialized);
+          }
+          return serialized;
         }
 
         function normalizeApiRangeHorizontalAlignment(value) {
@@ -440,8 +504,134 @@
           return fail('Workbook/Application member is registered but not mapped in the bridge: ' + member, 'unsupported');
         }
 
+        function wordGetContext(payload) {
+          var doc = call(Api, ['GetDocument'], []);
+          if (!doc) return fail('No active Word document.', 'partial');
+          return ok({
+            documentType: 'word',
+            hasSelection: Boolean(payload && payload.includeSelection && call(doc, ['GetRangeBySelect'], [])),
+          });
+        }
+
+        function wordInsertText(payload) {
+          var text = String(payload.text || '');
+          if (!text) return fail('word_insert_text requires text.', 'partial');
+
+          var doc = call(Api, ['GetDocument'], []);
+          var paragraph = call(Api, ['CreateParagraph'], []);
+          if (!doc || !paragraph) return fail('Word document API is unavailable.', 'unsupported');
+
+          call(paragraph, ['AddText'], [text]);
+          if (hasMethod(doc, ['Push'])) {
+            call(doc, ['Push'], [paragraph]);
+          } else if (hasMethod(doc, ['InsertContent'])) {
+            call(doc, ['InsertContent'], [[paragraph]]);
+          } else {
+            return fail('Word document insert API is unavailable.', 'unsupported');
+          }
+
+          return ok({ insertedTextLength: text.length }, 'supported');
+        }
+
+        function wordFormatSelection(payload) {
+          var doc = call(Api, ['GetDocument'], []);
+          var range = doc && call(doc, ['GetRangeBySelect'], []);
+          var format = payload || {};
+          if (!range) return fail('No Word selection is available for formatting.', 'partial');
+
+          if (typeof format.bold === 'boolean') call(range, ['SetBold'], [format.bold]);
+          if (typeof format.italic === 'boolean') call(range, ['SetItalic'], [format.italic]);
+          if (typeof format.fontSize === 'number') call(range, ['SetFontSize'], [format.fontSize]);
+
+          return ok({ formatted: true }, 'partial');
+        }
+
+        function pptGetContext(payload) {
+          var presentation = call(Api, ['GetPresentation'], []);
+          if (!presentation) return fail('No active presentation.', 'partial');
+          return ok({
+            documentType: 'presentation',
+            hasSelection: Boolean(payload && payload.includeSelection && call(presentation, ['GetCurrentSlide'], [])),
+          });
+        }
+
+        function pptCreateSlide(payload) {
+          var presentation = call(Api, ['GetPresentation'], []);
+          var slide = call(Api, ['CreateSlide'], []);
+          if (!presentation || !slide) return null;
+
+          if (payload && typeof payload.layoutIndex === 'number') {
+            var master = call(presentation, ['GetMaster'], [0]);
+            var layout = master && call(master, ['GetLayout'], [payload.layoutIndex]);
+            if (layout && hasMethod(slide, ['ApplyLayout'])) call(slide, ['ApplyLayout'], [layout]);
+          }
+
+          call(presentation, ['AddSlide'], [slide]);
+          return slide;
+        }
+
+        function pptAddSlide(payload) {
+          var slide = pptCreateSlide(payload || {});
+          if (!slide) return fail('Presentation slide API is unavailable.', 'unsupported');
+          return ok({ addedSlide: true }, 'supported');
+        }
+
+        function getCurrentOrNewSlide(payload) {
+          var presentation = call(Api, ['GetPresentation'], []);
+          if (!presentation) return null;
+          return call(presentation, ['GetCurrentSlide'], []) || call(presentation, ['GetSlideByIndex'], [0]) || pptCreateSlide(payload || {});
+        }
+
+        function pushParagraph(content, paragraph, text) {
+          if (hasMethod(content, ['Push'])) {
+            call(content, ['Push'], [paragraph]);
+            return true;
+          }
+          var first = call(content, ['GetElement'], [0]);
+          if (first && hasMethod(first, ['AddText'])) {
+            call(first, ['AddText'], [text]);
+            return true;
+          }
+          return false;
+        }
+
+        function pptAddTextBox(payload) {
+          var text = String(payload.text || '');
+          if (!text) return fail('ppt_add_text_box requires text.', 'partial');
+
+          var emuPerInch = 914400;
+          var x = Number(payload.x || 1) * emuPerInch;
+          var y = Number(payload.y || 1) * emuPerInch;
+          var width = Number(payload.width || 5) * emuPerInch;
+          var height = Number(payload.height || 1) * emuPerInch;
+          var slide = getCurrentOrNewSlide(payload);
+          if (!slide) return fail('No active presentation slide.', 'partial');
+
+          var fill = call(Api, ['CreateNoFill'], []);
+          var stroke = call(Api, ['CreateStroke'], [0, fill]);
+          var shape = call(Api, ['CreateShape'], ['rect', width, height, fill, stroke]);
+          var content = shape && call(shape, ['GetDocContent'], []);
+          var paragraph = call(Api, ['CreateParagraph'], []);
+          if (!shape || !content || !paragraph) return fail('Presentation text box API is unavailable.', 'unsupported');
+
+          call(paragraph, ['AddText'], [text]);
+          if (!pushParagraph(content, paragraph, text)) return fail('Presentation text content API is unavailable.', 'unsupported');
+          call(shape, ['SetPosition'], [x, y]);
+          call(slide, ['AddObject'], [shape]);
+
+          return ok({ addedTextBox: true, insertedTextLength: text.length }, 'supported');
+        }
+
         function dispatch(action, payload) {
           payload = payload || {};
+          if (action === 'agentBridgeReadyProbe') return ok({ commandCallbacks: true }, 'supported');
+          if (action === 'wordGetContext') return wordGetContext(payload);
+          if (action === 'wordInsertText') return wordInsertText(payload);
+          if (action === 'wordFormatSelection') return wordFormatSelection(payload);
+          if (action === 'pptGetContext') return pptGetContext(payload);
+          if (action === 'pptAddSlide') return pptAddSlide(payload);
+          if (action === 'pptAddTextBox') return pptAddTextBox(payload);
+
           if (action === 'getContext') {
             if (payload.scope === 'workbook') {
               var activeSheet = getSheet(payload);
@@ -480,9 +670,9 @@
         }
 
         try {
-          return dispatch(window.Asc.scope.__agentAction, window.Asc.scope.__agentPayload);
+          finishCommand(dispatch(scope.__agentAction, scope.__agentPayload));
         } catch (error) {
-          return fail(error && error.message ? error.message : String(error), 'partial');
+          finishCommand(fail(error && error.message ? error.message : String(error), 'partial'));
         }
       },
       false,
@@ -495,7 +685,13 @@
 
   function handleRequest(event) {
     var data = event.data;
-    if (!data || data.source !== HOST_SOURCE || data.type !== 'request') return;
+    if (!data || data.source !== HOST_SOURCE) return;
+    if (data.target === 'frame') return;
+    if (data.type === 'ping') {
+      announceReady();
+      return;
+    }
+    if (data.type !== 'request') return;
     runInEditor(data.action, data.payload, function (raw) {
       try {
         var parsed = typeof raw === 'string' ? JSON.parse(raw) : raw || {};
@@ -507,9 +703,10 @@
   }
 
   window.addEventListener('message', handleRequest);
+  if (bridgeChannel) bridgeChannel.addEventListener('message', handleRequest);
 
   window.Asc.plugin.init = function () {
-    post({ type: 'ready' });
+    markReadyAfterProbe();
   };
 
   window.Asc.plugin.button = function () {};

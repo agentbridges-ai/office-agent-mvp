@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getCapability, isExecutableCapability, queryCapabilities } from './capabilities';
 import { excelBridge } from './bridge';
 import { createApprovalDeniedResult, type ToolApprovalRuntime } from './approval';
+import { createOfficeApiTools } from './office-tools';
 import type {
   CapabilityMemberKind,
   ExcelCallInput,
@@ -45,26 +46,6 @@ const batchSchema = z.object({
   calls: z.array(excelCallSchema).min(1).max(20),
 });
 
-const officeApiCatalogSchema = z.object({
-  view: z.enum(['overview', 'category', 'object', 'search', 'detail']).optional(),
-  category: z.string().optional(),
-  subcategory: z.string().optional(),
-  objectType: z.string().optional(),
-  memberName: z.string().optional(),
-  query: z.string().optional(),
-  limit: z.number().int().positive().max(5000).optional(),
-});
-
-const officeApiCallSchema = z.object({
-  target: z
-    .object({
-      root: z.enum(['editor', 'Editor', 'Asc', 'AscCommon', 'AscCommonExcel', 'Common', 'cellInfo', 'CellInfo']),
-    })
-    .optional(),
-  memberName: z.string(),
-  args: z.array(z.unknown()).max(20).optional(),
-});
-
 function unsupported(message: string): ToolResult {
   return {
     ok: false,
@@ -105,12 +86,6 @@ function needsExcelApproval(input: ExcelCallInput): boolean {
     'sort',
     'unmerge',
   ].some((keyword) => member.includes(keyword));
-}
-
-function needsOfficeApiApproval(memberName: string): boolean {
-  const member = memberName.toLowerCase();
-  if (/^(asc_)?(get|is|can|has|find|query|read)/.test(member)) return false;
-  return true;
 }
 
 export async function executeExcelGetContext(
@@ -247,42 +222,7 @@ export function createExcelTools(log: OperationLogger, approvalRuntime?: ToolApp
         return result;
       },
     }),
-    office_api_catalog: tool({
-      description:
-        'Progressively inspect every ONLYOFFICE API exposed by the current browser editor. Start with view="overview", then use category/object/search/detail to drill down without flooding context.',
-      inputSchema: officeApiCatalogSchema,
-      execute: async (input) => {
-        const result = await excelBridge.execute('officeApiCatalog', input, 30000);
-        log(
-          'office_api_catalog',
-          [input.view || 'overview', input.category, input.objectType, input.query].filter(Boolean).join(' '),
-          result,
-        );
-        return result;
-      },
-    }),
-    office_api_call: tool({
-      description:
-        'Call a discovered ONLYOFFICE runtime API method. Discover available target roots and methods with office_api_catalog first. Arguments must be JSON-serializable.',
-      inputSchema: officeApiCallSchema,
-      execute: async (input) => {
-        if (approvalRuntime && needsOfficeApiApproval(input.memberName)) {
-          const approved = await approvalRuntime.request({
-            toolName: 'office_api_call',
-            summary: `${input.target?.root || 'editor'}.${input.memberName}`,
-            input,
-          });
-          if (!approved) {
-            const result = createApprovalDeniedResult();
-            log('office_api_call', `${input.target?.root || 'editor'}.${input.memberName}`, result);
-            return result;
-          }
-        }
-        const result = await excelBridge.execute('officeApiCall', input, 30000);
-        log('office_api_call', `${input.target?.root || 'editor'}.${input.memberName}`, result);
-        return result;
-      },
-    }),
+    ...createOfficeApiTools(log, approvalRuntime),
   };
 }
 

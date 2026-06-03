@@ -51,13 +51,13 @@ export interface I18nMessages {
 
 const messages: Record<Language, I18nMessages> = {
   [LanguageCode.ZH]: {
-    webOffice: 'Excel Office Agent',
+    webOffice: 'Office Agent',
     uploadDocument: '打开 Excel',
     newWord: '新建 Word',
     newExcel: '新建 Excel',
     newPowerPoint: '新建 PowerPoint',
     menu: '菜单',
-    menuGuide: '菜单在右下角，可打开或新建 Excel（点击关闭后不再提示）',
+    menuGuide: '菜单在右下角，可打开或新建 Office 文档（点击关闭后不再提示）',
     fileSavedSuccess: '文件保存成功：',
     documentLoaded: '文档加载完成：',
     failedToLoadEditor: '无法加载编辑器组件。请确保已正确安装 OnlyOffice API。',
@@ -66,13 +66,13 @@ const messages: Record<Language, I18nMessages> = {
     documentOperationFailed: '文档操作失败：',
   },
   [LanguageCode.EN]: {
-    webOffice: 'Excel Office Agent',
+    webOffice: 'Office Agent',
     uploadDocument: 'Open Excel',
     newWord: 'New Word',
     newExcel: 'New Excel',
     newPowerPoint: 'New PowerPoint',
     menu: 'Menu',
-    menuGuide: "Menu is in the bottom right corner for opening or creating Excel workbooks.",
+    menuGuide: 'Menu is in the bottom right corner for opening or creating Office documents.',
     fileSavedSuccess: 'File saved successfully: ',
     documentLoaded: 'Document loaded: ',
     failedToLoadEditor: 'Failed to load editor component. Please ensure OnlyOffice API is properly installed.',

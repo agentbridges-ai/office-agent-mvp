@@ -10,6 +10,7 @@ import {
   waitForOnlyOfficeShell,
   waitForEditorReady,
   extractFileFromZip,
+  findZipEntries,
 } from './helpers/onlyoffice';
 
 const require = createRequire(import.meta.url);
@@ -94,12 +95,32 @@ try {
 }
 
 const BASE_URL = process.env.APP_URL || 'http://127.0.0.1:5173';
+const DOCX_SMOKE_TEXT = 'ONLYOFFICE_9_3_NATIVE_DOCX_SAVE_TEXT_20260603';
+const PPTX_SMOKE_TEXT = 'ONLYOFFICE_9_3_NATIVE_PPTX_SAVE_TEXT_20260603';
 
 test.use({
   browserName: 'chromium',
   headless: true,
   viewport: { width: 1280, height: 720 },
 });
+
+async function saveCurrentDocumentWithNativeExport(page) {
+  const completion = await page.evaluate(async () => {
+    const { saveCurrentOnlyOfficeDocument } = await import('/lib/onlyoffice-editor.ts');
+    return saveCurrentOnlyOfficeDocument();
+  });
+
+  await page.waitForFunction(
+    () => (window as any).__ooDownloads?.length > 0,
+    {},
+    { timeout: 30_000 },
+  );
+
+  const downloads: Array<{ filename: string; size: number; data: number[] }> = await page.evaluate(
+    () => (window as any).__ooDownloads,
+  );
+  return { completion, downloads };
+}
 
 test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
   test('new-docx type and save — capture download via __ooDownloads hook', async ({ page }) => {
@@ -118,37 +139,14 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
 
     await waitForEditorReady(page, 'word');
 
-    // Click editor canvas in iframe to focus, then type via keyboard (user-gesture)
-    const frame = page.frame({ name: 'frameEditor' });
-    if (frame) {
-      // Click in the center of the editor area to focus it
-      await frame.click('#editor_sdk', { timeout: 10_000 }).catch(() => {
-        // Fallback: click body
-        return frame.click('body', { timeout: 5_000 });
-      });
-      await page.waitForTimeout(300);
-      // Type text with keyboard — this triggers proper user-gesture context
-      await page.keyboard.type('ONLYOFFICE 9.3 E2E Fidelity Test');
-      await page.waitForTimeout(500);
-    }
+    const insert = await page.evaluate(async (text) => {
+      const { executeWordInsertText } = await import('/lib/agent/word-tools.ts');
+      return executeWordInsertText({ text });
+    }, DOCX_SMOKE_TEXT);
+    expect(insert.ok).toBe(true);
 
-    // Trigger save
-    await page.evaluate(() => {
-      const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement).contentWindow!;
-      const api = (frame as any).Asc?.editor || (frame as any).editor;
-      if (api && typeof api.asc_Save === 'function') api.asc_Save(false);
-    });
-
-    // Wait for download via __ooDownloads hook (poll, not fixed sleep)
-    await page.waitForFunction(
-      () => (window as any).__ooDownloads?.length > 0,
-      {},
-      { timeout: 30_000 },
-    );
-
-    const downloads: Array<{ filename: string; size: number }> = await page.evaluate(
-      () => (window as any).__ooDownloads,
-    );
+    const { completion, downloads } = await saveCurrentDocumentWithNativeExport(page);
+    expect(completion.targetFormat).toBe('DOCX');
     expect(downloads.length).toBeGreaterThan(0);
 
     const docxDownload = downloads.find((d) => d.filename.endsWith('.docx'));
@@ -156,16 +154,15 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
     console.log(`Downloaded: ${docxDownload!.filename} (${docxDownload!.size} bytes)`);
     expect(docxDownload!.size).toBeGreaterThan(1000);
 
-    // Verify DOCX is valid OOXML and contains typed text
+    // Verify DOCX is valid OOXML and contains inserted text.
     const docxBuffer = Buffer.from(docxDownload!.data);
     const documentXml = extractFileFromZip(docxBuffer, 'word/document.xml');
     expect(documentXml).not.toBeNull();
     const xmlText = documentXml!.toString('utf8');
     expect(xmlText).toContain('<w:document');
     expect(xmlText).toContain('<w:body>');
-    // Verify typed text is in the document (keyboard input triggers user gesture)
-    expect(xmlText).toContain('ONLYOFFICE 9.3 E2E Fidelity Test');
-    console.log(`DOCX content verified: typed text found (${xmlText.length} chars)`);
+    expect(xmlText).toContain(DOCX_SMOKE_TEXT);
+    console.log(`DOCX content verified: inserted text found (${xmlText.length} chars)`);
   });
 
   test('convertLocal real conversion — empty bin to DOCX', async ({ page }) => {
@@ -252,30 +249,8 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
     await page.evaluate(() => (window as any).onCreateNew('.xlsx'));
     await waitForEditorReady(page, 'cell');
 
-    // XLSX needs more init time than DOCX before save is safe
-    await page.waitForTimeout(3000);
-
-    // Trigger save — use iframe click + evaluate to establish user-gesture
-    const xlsxFrame = page.frame({ name: 'frameEditor' });
-    if (xlsxFrame) {
-      await xlsxFrame.click('body', { timeout: 5_000 }).catch(() => {});
-      await page.waitForTimeout(300);
-    }
-    await page.evaluate(() => {
-      const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement).contentWindow!;
-      const api = (frame as any).Asc?.editor || (frame as any).editor;
-      if (api && typeof api.asc_Save === 'function') api.asc_Save(false);
-    });
-
-    await page.waitForFunction(
-      () => (window as any).__ooDownloads?.length > 0,
-      {},
-      { timeout: 30_000 },
-    );
-
-    const downloads: Array<{ filename: string; size: number; data: number[] }> = await page.evaluate(
-      () => (window as any).__ooDownloads,
-    );
+    const { completion, downloads } = await saveCurrentDocumentWithNativeExport(page);
+    expect(completion.targetFormat).toBe('XLSX');
     expect(downloads.length).toBeGreaterThan(0);
     const xlsxDownload = downloads.find((d) => d.filename.endsWith('.xlsx'));
     expect(xlsxDownload).toBeDefined();
@@ -451,21 +426,20 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
     await page.evaluate(() => (window as any).onCreateNew('.pptx'));
     await waitForEditorReady(page, 'slide');
 
-    // Trigger save
-    const pptxFrame = page.frame({ name: 'frameEditor' });
-    if (pptxFrame) {
-      await pptxFrame.click('body', { timeout: 5_000 }).catch(() => {});
-      await page.waitForTimeout(500);
-    }
-    await page.evaluate(() => {
-      const frame = (document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement).contentWindow!;
-      const api = (frame as any).Asc?.editor || (frame as any).editor;
-      if (api && typeof api.asc_Save === 'function') api.asc_Save(false);
-    });
+    const edit = await page.evaluate(async (text) => {
+      const {
+        executePptAddSlide,
+        executePptAddTextBox,
+      } = await import('/lib/agent/ppt-tools.ts');
+      const slide = await executePptAddSlide({});
+      if (!slide.ok) return { ok: false, phase: 'slide', slide };
+      const textBox = await executePptAddTextBox({ text, x: 1, y: 1, width: 5, height: 1 });
+      return { ok: textBox.ok, phase: 'textBox', slide, textBox };
+    }, PPTX_SMOKE_TEXT);
+    expect(edit.ok).toBe(true);
 
-    await page.waitForFunction(() => (window as any).__ooDownloads?.length > 0, {}, { timeout: 30_000 });
-    const downloads: Array<{ filename: string; size: number; data: number[] }> =
-      await page.evaluate(() => (window as any).__ooDownloads);
+    const { completion, downloads } = await saveCurrentDocumentWithNativeExport(page);
+    expect(completion.targetFormat).toBe('PPTX');
     expect(downloads.length).toBeGreaterThan(0);
     const pptxDownload = downloads.find((d) => d.filename.endsWith('.pptx'));
     expect(pptxDownload).toBeDefined();
@@ -478,6 +452,11 @@ test.describe('ONLYOFFICE 9.3 E2E Fidelity', () => {
     expect(presentationXml).not.toBeNull();
     const presText = presentationXml!.toString('utf8');
     expect(presText).toContain('<p:presentation');
+    const slideEntries = findZipEntries(pptxBuffer).filter((entry) => /^ppt\/slides\/slide\d+\.xml$/.test(entry));
+    const slideXml = slideEntries
+      .map((entry) => extractFileFromZip(pptxBuffer, entry)?.toString('utf8') || '')
+      .join('\n');
+    expect(slideXml).toContain(PPTX_SMOKE_TEXT);
     console.log(`PPTX content verified: presentation.xml extracted (${presText.length} chars)`);
   });
 
