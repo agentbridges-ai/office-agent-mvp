@@ -1,10 +1,32 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 function readProjectFile(path: string): string {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
+
+class FakeBroadcastChannel extends EventTarget {
+  static instances: FakeBroadcastChannel[] = [];
+  readonly messages: unknown[] = [];
+
+  constructor(readonly name: string) {
+    super();
+    FakeBroadcastChannel.instances.push(this);
+  }
+
+  postMessage(message: unknown): void {
+    this.messages.push(message);
+  }
+
+  close(): void {}
+}
+
+afterEach(() => {
+  FakeBroadcastChannel.instances = [];
+  vi.resetModules();
+  vi.unstubAllGlobals();
+});
 
 describe('Office Agent contracts', () => {
   it('defines shared Office document and low-level API contracts', () => {
@@ -33,6 +55,32 @@ describe('Office Agent contracts', () => {
     expect(bridgeSource).toContain("requiredSource === 'plugin'");
     expect(bridgeSource).toContain('target: requiredSource');
     expect(bridgeSource).toContain('this.channel.postMessage(message)');
+  });
+
+  it('resets trusted plugin readiness when the host opens another document', async () => {
+    const fakeWindow = new EventTarget() as Window & typeof globalThis;
+    Object.assign(fakeWindow, {
+      BroadcastChannel: FakeBroadcastChannel,
+      setTimeout,
+      clearTimeout,
+      crypto,
+    });
+    vi.stubGlobal('window', fakeWindow);
+    vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
+
+    const { officeBridge } = await import('../lib/agent/bridge');
+    fakeWindow.dispatchEvent(new MessageEvent('message', { data: { source: 'office-agent-bridge', type: 'ready' } }));
+    expect(await officeBridge.waitUntilReady(1, 'plugin')).toBe(true);
+
+    const channel = FakeBroadcastChannel.instances[0];
+    const initialMessageCount = channel.messages.length;
+    fakeWindow.dispatchEvent(new CustomEvent('office-agent:document-ready', { detail: { fileType: 'pptx' } }));
+
+    expect(await officeBridge.waitUntilReady(1, 'plugin')).toBe(false);
+    expect(channel.messages.slice(initialMessageCount)).toContainEqual({
+      source: 'office-agent-host',
+      type: 'ping',
+    });
   });
 
   it('keeps channel request recipients explicit to avoid frame/plugin result races', () => {

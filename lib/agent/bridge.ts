@@ -32,6 +32,7 @@ const HOST_SOURCE = 'office-agent-host';
 const BRIDGE_SOURCE = 'office-agent-bridge';
 const FRAME_BRIDGE_SOURCE = 'office-agent-frame-bridge';
 const BRIDGE_CHANNEL = 'office-agent-excel-bridge';
+const DOCUMENT_READY_EVENT = 'office-agent:document-ready';
 const hasWindow = (): boolean => typeof window !== 'undefined';
 
 export class OfficePluginBridge extends EventTarget {
@@ -48,13 +49,11 @@ export class OfficePluginBridge extends EventTarget {
     super();
     if (hasWindow()) {
       window.addEventListener('message', this.handleMessage);
+      window.addEventListener(DOCUMENT_READY_EVENT, this.handleDocumentReady);
       if ('BroadcastChannel' in window) {
         this.channel = new BroadcastChannel(BRIDGE_CHANNEL);
         this.channel.addEventListener('message', this.handleMessage);
-        this.channel.postMessage({
-          source: HOST_SOURCE,
-          type: 'ping',
-        });
+        this.pingBridge();
       }
     }
   }
@@ -172,6 +171,40 @@ export class OfficePluginBridge extends EventTarget {
       error: data.error,
     });
   };
+
+  private handleDocumentReady = (): void => {
+    this.resetTransportState();
+    this.pingBridge();
+  };
+
+  private resetTransportState(): void {
+    this.pluginWindow = null;
+    this.frameWindow = null;
+    this.pluginReady = false;
+    this.frameReady = false;
+    this.ready = false;
+    this.channelReady = false;
+    this.resolvePendingAfterDocumentSwitch();
+  }
+
+  private resolvePendingAfterDocumentSwitch(): void {
+    for (const pending of this.pending.values()) {
+      window.clearTimeout(pending.timeout);
+      pending.resolve({
+        ok: false,
+        supportLevel: 'partial',
+        error: 'Office bridge reset while opening another document.',
+      });
+    }
+    this.pending.clear();
+  }
+
+  private pingBridge(): void {
+    this.channel?.postMessage({
+      source: HOST_SOURCE,
+      type: 'ping',
+    });
+  }
 
   private sendRequestMessage(
     requiredSource: RequiredSource | undefined,

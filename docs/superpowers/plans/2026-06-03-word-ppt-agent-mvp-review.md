@@ -25,6 +25,10 @@ Artifacts:
 - `/tmp/document-e2e-run/test-results/agent-visual-current/word-current.png`
 - `/tmp/document-e2e-run/test-results/agent-visual-current/ppt-current.png`
 - `/tmp/document-e2e-run/test-results/agent-visual-current/evidence.json`
+- `/tmp/document-e2e-run/test-results/manual-review-current/excel-current.png`
+- `/tmp/document-e2e-run/test-results/manual-review-current/word-current.png`
+- `/tmp/document-e2e-run/test-results/manual-review-current/ppt-current.png`
+- `/tmp/document-e2e-run/test-results/manual-review-current/evidence.json`
 
 Observed machine evidence:
 
@@ -34,6 +38,8 @@ Observed machine evidence:
 - After the visible-edit fix, Word insertion uses trusted plugin `Asc.plugin.executeMethod('PasteText')`; the current Word screenshot shows a visible inserted glyph run instead of a blank document canvas.
 - The current PPT screenshot shows a visible selected text region on the slide.
 - The host FAB menu is hidden in the current evidence JSON: `display: none`, `pointer-events: none`, `opacity: 0`.
+- After the plugin readiness reset, same-page Excel -> Word -> PPT sampling returned `ok: true` for Word insert/save and PPT add-slide/add-text-box/save.
+- The refreshed current evidence JSON recorded `New_Document.docx` and `New_Document.pptx` downloads, and no `Cannot read properties` or `bridge is not ready` host text.
 
 Manual review limits:
 
