@@ -1,6 +1,7 @@
 import { getDocmentObj, setDocmentObj } from '../store';
-import { excelBridge } from './agent/bridge';
-import { cancelPendingSaveCapture, captureNextSaveAsBin, createEditorInstance, loadEditorApi } from './onlyoffice-editor';
+import { officeBridge } from './agent/bridge';
+import { exportCurrentOnlyOfficeCheckpointData } from './onlyoffice-compat/checkpoint-export';
+import { createEditorInstance, loadEditorApi } from './onlyoffice-editor';
 
 export interface DocumentCheckpoint {
   id: string;
@@ -21,7 +22,6 @@ const DB_VERSION = 1;
 const STORE_NAME = 'workbook-checkpoints';
 const MAX_CHECKPOINT_NAME_LENGTH = 80;
 const BRIDGE_READY_TIMEOUT_MS = 5000;
-const SAVE_CAPTURE_TIMEOUT_MS = 25000;
 
 let dbPromise: Promise<IDBDatabase> | undefined;
 
@@ -97,19 +97,12 @@ export async function listDocumentCheckpoints(scope = currentDocumentScope()): P
 export async function createDocumentCheckpoint(name: string): Promise<DocumentCheckpoint> {
   const cleanName = name.trim();
   if (!cleanName) throw new Error('请输入检查点名称。');
-  const ready = await excelBridge.waitUntilReady(BRIDGE_READY_TIMEOUT_MS);
+  const ready = await officeBridge.waitUntilReady(BRIDGE_READY_TIMEOUT_MS);
   if (!ready) throw new Error('编辑器尚未连接，无法创建检查点。');
 
-  const capture = captureNextSaveAsBin(SAVE_CAPTURE_TIMEOUT_MS);
-  const saveRequest = await excelBridge.execute('saveDocument', {}, BRIDGE_READY_TIMEOUT_MS);
-  if (!saveRequest.ok) {
-    cancelPendingSaveCapture(new Error(saveRequest.error || '无法触发文件保存。'));
-    throw new Error(saveRequest.error || '无法触发文件保存。');
-  }
-
-  const captured = await capture;
-  const fileName = captured.fileName || currentDocumentScope();
-  const bin = toStoredBuffer(captured.bin);
+  const exported = await exportCurrentOnlyOfficeCheckpointData();
+  const fileName = exported.fileName || currentDocumentScope();
+  const bin = toStoredBuffer(exported.bin);
   const record: DocumentCheckpointRecord = {
     id: crypto.randomUUID(),
     scope: currentDocumentScope(),

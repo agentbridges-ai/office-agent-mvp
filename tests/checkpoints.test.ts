@@ -31,4 +31,12 @@ describe('Document checkpoints', () => {
     expect(panelSource).not.toContain('打开 Excel 后可创建检查点');
     expect(editorSource).not.toContain('workbook checkpoint');
   });
+
+  it('captures checkpoint bytes without frame save requested flags', () => {
+    const source = readProjectFile('lib/checkpoints.ts');
+
+    expect(source).toContain('exportCurrentOnlyOfficeCheckpointData');
+    expect(source).not.toContain("excelBridge.execute('saveDocument'");
+    expect(source).not.toContain('captureNextSaveAsBin');
+  });
 });

@@ -997,15 +997,6 @@
       return ok(serializeContext(editor, payload));
     }
 
-    if (action === 'saveDocument') {
-      if (!hasMethod(editor, ['asc_Save'])) {
-        return fail('ONLYOFFICE save API is unavailable in this editor build.', 'unsupported');
-      }
-      call(editor, ['asc_setIsForceSaveOnUserSave'], [true]);
-      call(editor, ['asc_Save'], [false]);
-      return ok({ requested: true }, 'partial');
-    }
-
     if (action === 'officeApiCatalog') {
       return dispatchOfficeApiCatalog(editor, payload);
     }

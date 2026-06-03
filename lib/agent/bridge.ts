@@ -214,7 +214,6 @@ export class OfficePluginBridge extends EventTarget {
 
 function getRequiredSource(action: string): RequiredSource | undefined {
   if (action.startsWith('word') || action.startsWith('ppt')) return 'plugin';
-  if (action === 'saveDocument') return 'frame';
   return undefined;
 }
 

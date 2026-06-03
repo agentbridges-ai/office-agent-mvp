@@ -75,6 +75,14 @@ describe('Word/PPT Agent frame bridges', () => {
     expect(pptSource).not.toContain("officeBridge.execute('saveDocument', {})");
   });
 
+  it('does not expose spreadsheet frame save requested flags', () => {
+    const bridgePath = 'public/web-apps/apps/spreadsheeteditor/main/office-agent-frame-bridge.js';
+    const source = readProjectFile(bridgePath);
+
+    expect(source).not.toContain("action === 'saveDocument'");
+    expect(source).not.toContain('requested: true');
+  });
+
   it('lets late-loaded host bridges discover the trusted plugin bridge', () => {
     const source = readProjectFile('public/office-agent-plugin/scripts/bridge.js');
 
