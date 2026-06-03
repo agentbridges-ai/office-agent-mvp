@@ -37,6 +37,9 @@ describe('ONLYOFFICE local save format resolution', () => {
     expect(source).toContain('AscCommonExcel?.Cl');
     expect(source).toContain('frame.AscCommon?.lQj');
     expect(source).toContain("loadFullSdk('cell'");
+    expect(source).toContain('waitForSpreadsheetNativeDownloadApi');
+    expect(source).toContain('getLocalDownloadApi(frame)');
+    expect(source).toContain('api.wa?.Pxg');
     expect(source).not.toContain('api.MHa === true');
   });
 

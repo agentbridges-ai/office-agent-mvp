@@ -10,6 +10,9 @@ type DownloadOptions = {
 
 type LocalDownloadApi = {
   asc_DownloadAs?: (options: DownloadOptions) => unknown;
+  wa?: {
+    Pxg?: unknown;
+  };
 };
 
 type LocalDownloadFrameWindow = Window & {
@@ -36,12 +39,16 @@ export async function downloadLocalDataFromCurrentEditor(options: {
 }): Promise<void> {
   const frame = getEditorFrameWindow();
   if (!frame) throw new Error('ONLYOFFICE editor iframe is unavailable for local download');
-  const api = frame.Asc?.editor || frame.editor;
-  if (typeof api?.asc_DownloadAs !== 'function') throw new Error('ONLYOFFICE download API is unavailable');
+  if (typeof getLocalDownloadApi(frame)?.asc_DownloadAs !== 'function') {
+    throw new Error('ONLYOFFICE download API is unavailable');
+  }
   const DownloadOptionsCtor = frame.Asc?.asc_CDownloadOptions;
   if (typeof DownloadOptionsCtor !== 'function') throw new Error('ONLYOFFICE download options API is unavailable');
 
   await waitForFullSpreadsheetSdk(frame, options.timeoutMs ?? LOCAL_DOWNLOAD_TIMEOUT_MS);
+  await waitForSpreadsheetNativeDownloadApi(frame, options.timeoutMs ?? LOCAL_DOWNLOAD_TIMEOUT_MS);
+  const api = getLocalDownloadApi(frame);
+  if (typeof api?.asc_DownloadAs !== 'function') throw new Error('ONLYOFFICE download API is unavailable');
   const completion = waitForLocalDownload(options);
   const downloadOptions = createDownloadOptions(DownloadOptionsCtor, options.outputFormat);
   api.asc_DownloadAs(downloadOptions);
@@ -73,6 +80,24 @@ function hasFullSpreadsheetSdk(frame: LocalDownloadFrameWindow): boolean {
   return typeof frame.AscCommonExcel?.Cl === 'function';
 }
 
+async function waitForSpreadsheetNativeDownloadApi(frame: LocalDownloadFrameWindow, timeoutMs: number): Promise<void> {
+  const startedAt = Date.now();
+  let api = getLocalDownloadApi(frame);
+  while (Date.now() - startedAt < timeoutMs) {
+    api = getLocalDownloadApi(frame);
+    if (api && hasSpreadsheetNativeDownloadApi(api)) return;
+    await delay(LOCAL_DOWNLOAD_READY_POLL_MS);
+  }
+  throw new Error(
+    `ONLYOFFICE spreadsheet native download API was not ready after ${timeoutMs}ms ` +
+      `(api.wa.Pxg=${typeof api?.wa?.Pxg}).`,
+  );
+}
+
+function hasSpreadsheetNativeDownloadApi(api: LocalDownloadApi): boolean {
+  return typeof api.wa?.Pxg === 'function';
+}
+
 function requestFullSpreadsheetSdk(frame: LocalDownloadFrameWindow): Promise<void> {
   if (hasFullSpreadsheetSdk(frame)) return Promise.resolve();
   const loadFullSdk = frame.AscCommon?.lQj;
@@ -98,6 +123,10 @@ function delay(ms: number): Promise<void> {
 function getEditorFrameWindow(): LocalDownloadFrameWindow | null {
   const iframe = document.querySelector<HTMLIFrameElement>('iframe[name="frameEditor"]');
   return (iframe?.contentWindow as LocalDownloadFrameWindow | null) || null;
+}
+
+function getLocalDownloadApi(frame: LocalDownloadFrameWindow): LocalDownloadApi | undefined {
+  return frame.Asc?.editor || frame.editor;
 }
 
 function createDownloadOptions(
