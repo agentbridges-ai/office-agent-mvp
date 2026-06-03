@@ -16,6 +16,12 @@ APP_URL=http://127.0.0.1:5173
 node manual browser sampling against /tmp/document-e2e-run
 ```
 
+Reproducible evidence command:
+
+```bash
+APP_URL=http://127.0.0.1:5173 pnpm exec playwright test tests/e2e/agent-manual-review.spec.ts --reporter=line --workers=1 --retries=0
+```
+
 Artifacts:
 
 - `/tmp/document-e2e-run/test-results/manual-review/excel-ui.png`
@@ -29,6 +35,16 @@ Artifacts:
 - `/tmp/document-e2e-run/test-results/manual-review-current/word-current.png`
 - `/tmp/document-e2e-run/test-results/manual-review-current/ppt-current.png`
 - `/tmp/document-e2e-run/test-results/manual-review-current/evidence.json`
+
+Latest refreshed current evidence:
+
+- Generated at: 2026-06-03 17:25 +08:00.
+- Command result: `1 passed`.
+- Artifact sizes:
+  - `excel-current.png`: 71052 bytes
+  - `word-current.png`: 69138 bytes
+  - `ppt-current.png`: 61162 bytes
+  - `evidence.json`: 2383 bytes
 
 Observed machine evidence:
 

@@ -66,6 +66,19 @@ Machine evidence is available at:
 /tmp/document-e2e-run/test-results/manual-review-current/
 ```
 
+Regenerate it with:
+
+```bash
+APP_URL=http://127.0.0.1:5173 pnpm exec playwright test tests/e2e/agent-manual-review.spec.ts --reporter=line --workers=1 --retries=0
+```
+
+Latest run at 2026-06-03 17:25 +08:00 passed and wrote:
+
+- `excel-current.png`
+- `word-current.png`
+- `ppt-current.png`
+- `evidence.json`
+
 Human sign-off is still required for:
 
 - Excel UI/UX no obvious regression.
@@ -73,4 +86,3 @@ Human sign-off is still required for:
 - PPT slide/text box edit is present and readable in browser.
 - Downloaded DOCX/PPTX open manually with correct format.
 - Unsupported or missing runtime API errors are observable.
-
