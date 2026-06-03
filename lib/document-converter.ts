@@ -7,6 +7,64 @@ import { toStandaloneArrayBuffer, toUint8Array } from './onlyoffice-compat/binar
 import { assertValidPdfOutput } from './onlyoffice-compat/pdf';
 import { sanitizeX2TFileName } from './x2t-paths';
 
+const X2T_SCRIPT_RELATIVE_PATH = 'wasm/x2t/x2t.js';
+const FALLBACK_LOCATION_HREF = 'http://localhost/';
+const RUNTIME_STORAGE_READY_TIMEOUT_MS = 10000;
+const RUNTIME_STORAGE_READY_POLL_MS = 50;
+const RUNTIME_PROBE_PATH = '/working/.x2t-runtime-ready';
+
+type MutableEmscriptenModule = Partial<EmscriptenModule> & {
+  calledRun?: boolean;
+  runtimeInitialized?: boolean;
+};
+
+export function resolveX2TScriptUrl(basePath = BASE_PATH, locationHref = getCurrentLocationHref()): string {
+  return new URL(joinBasePath(basePath, X2T_SCRIPT_RELATIVE_PATH), locationHref).href;
+}
+
+function getCurrentLocationHref(): string {
+  if (typeof window === 'undefined') return FALLBACK_LOCATION_HREF;
+  return window.location.href;
+}
+
+function joinBasePath(basePath: string, relativePath: string): string {
+  const base = basePath || '/';
+  return `${base.endsWith('/') ? base : `${base}/`}${relativePath}`;
+}
+
+function getMutableX2TModule(): MutableEmscriptenModule {
+  window.Module = (window.Module || {}) as EmscriptenModule;
+  return window.Module as MutableEmscriptenModule;
+}
+
+function isX2TRuntimeReady(module: MutableEmscriptenModule | undefined): module is EmscriptenModule {
+  return Boolean(module?.FS && typeof module.ccall === 'function');
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function waitForX2TStorageReady(module: EmscriptenModule): Promise<void> {
+  const startedAt = Date.now();
+  let lastError: unknown = null;
+
+  while (Date.now() - startedAt < RUNTIME_STORAGE_READY_TIMEOUT_MS) {
+    try {
+      module.FS.writeFile(RUNTIME_PROBE_PATH, new Uint8Array([0]));
+      const probe = toUint8Array(module.FS.readFile(RUNTIME_PROBE_PATH));
+      if (probe?.byteLength === 1) return;
+      throw new Error('X2T runtime probe file could not be read back.');
+    } catch (error) {
+      lastError = error;
+      await delay(RUNTIME_STORAGE_READY_POLL_MS);
+    }
+  }
+
+  const message = lastError instanceof Error ? lastError.message : String(lastError || 'unknown error');
+  throw new Error(`X2T runtime storage was not writable after ${RUNTIME_STORAGE_READY_TIMEOUT_MS}ms: ${message}`);
+}
+
 export class X2TConverter {
   private x2tModule: EmscriptenModule | null = null;
   private isReady = false;
@@ -17,7 +75,6 @@ export class X2TConverter {
   private readonly DOCUMENT_TYPE_MAP: Record<string, DocumentType> = DOCUMENT_TYPE_MAP;
 
   private readonly WORKING_DIRS = ['/working', '/working/media', '/working/fonts', '/working/themes'];
-  private readonly SCRIPT_PATH = `${BASE_PATH}wasm/x2t/x2t.js`;
   private readonly INIT_TIMEOUT = 300000;
 
   /**
@@ -28,7 +85,7 @@ export class X2TConverter {
 
     try {
       // scriptOnLoad accepts an array of URLs
-      await scriptOnLoad([this.SCRIPT_PATH]);
+      await scriptOnLoad([resolveX2TScriptUrl()]);
       this.hasScriptLoaded = true;
       console.log('X2T WASM script loaded successfully');
     } catch (error) {
@@ -57,33 +114,63 @@ export class X2TConverter {
 
   private async doInitialize(): Promise<EmscriptenModule> {
     try {
-      await this.loadScript();
       return new Promise((resolve, reject) => {
-        const x2t = window.Module;
-        if (!x2t) {
-          reject(new Error('X2T module not found after script loading'));
-          return;
-        }
+        const x2t = getMutableX2TModule();
+        let settled = false;
 
         // Set timeout handling
         const timeoutId = setTimeout(() => {
-          if (!this.isReady) {
+          if (!settled) {
+            settled = true;
             reject(new Error(`X2T initialization timeout after ${this.INIT_TIMEOUT}ms`));
           }
         }, this.INIT_TIMEOUT);
 
-        x2t.onRuntimeInitialized = () => {
-          try {
+        let resolving = false;
+        const resolveReady = async (module: MutableEmscriptenModule) => {
+          if (settled || resolving) return;
+          if (!isX2TRuntimeReady(module)) {
+            settled = true;
             clearTimeout(timeoutId);
-            this.createWorkingDirectories(x2t);
-            this.x2tModule = x2t;
+            reject(new Error('X2T module did not expose FS/ccall after runtime initialization'));
+            return;
+          }
+          resolving = true;
+          try {
+            this.createWorkingDirectories(module);
+            await waitForX2TStorageReady(module);
+            settled = true;
+            clearTimeout(timeoutId);
+            this.x2tModule = module;
             this.isReady = true;
             console.log('X2T module initialized successfully');
-            resolve(x2t);
+            resolve(module);
           } catch (error) {
-            reject(error);
+            if (!settled) {
+              settled = true;
+              clearTimeout(timeoutId);
+              reject(error);
+            }
           }
         };
+
+        const previousOnRuntimeInitialized = x2t.onRuntimeInitialized;
+        x2t.onRuntimeInitialized = () => {
+          if (typeof previousOnRuntimeInitialized === 'function') previousOnRuntimeInitialized();
+          void resolveReady(getMutableX2TModule());
+        };
+
+        this.loadScript()
+          .then(() => {
+            const loadedModule = getMutableX2TModule();
+            if (isX2TRuntimeReady(loadedModule)) void resolveReady(loadedModule);
+          })
+          .catch((error) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeoutId);
+            reject(error);
+          });
       });
     } catch (error) {
       this.initPromise = null; // Reset to allow retry

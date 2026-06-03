@@ -3,20 +3,24 @@ import { createObjectURL } from 'ranuts/utils';
 import { getDocmentObj } from '../store';
 import { getOnlyOfficeLang, t } from './i18n';
 import type { SaveEvent } from './document-types';
-import { getMimeTypeFromExtension } from './document-utils';
-
-
-// Save adapter — delegates download bridge to onlyoffice-compat/save.ts
-import { handleLocalSaveDocument, installLocalDownloadBridge } from './onlyoffice-compat/save';
+import { getDocumentType, getMimeTypeFromExtension } from './document-utils';
+import { prepareOnlyOfficeBuffer } from './onlyoffice-compat/binary';
+import { installLocalBinaryBridge } from './onlyoffice-compat/local-binary';
+import { downloadLocalDataFromCurrentEditor } from './onlyoffice-compat/local-download';
+import { ensureOnlyOfficeHostSizing, openLocalDocument } from './onlyoffice-compat/runtime';
+import {
+  exportNativeDataFromCurrentEditor,
+  resolveLocalSaveTargetFormat,
+  resolveNativeSaveTarget,
+} from './onlyoffice-compat/save';
 
 function getEditorCleanupDelayMs(hasExistingEditor: boolean, fileType: string): number {
   const isPresentation = fileType === 'pptx' || fileType === 'ppt';
   return hasExistingEditor && isPresentation ? 400 : hasExistingEditor ? 250 : 150;
 }
 // Import converter function to avoid circular dependency
-let convertBinToDocumentAndDownloadFn:
-  | ((bin: Uint8Array, fileName: string, targetExt?: string) => Promise<any>)
-  | null = null;
+type ConverterCallback = (bin: Uint8Array, fileName: string, targetExt?: string) => Promise<any>;
+let convertBinToDocumentAndDownloadFn: ConverterCallback | null = null;
 
 interface PendingSaveCapture {
   resolve: (value: { bin: Uint8Array; fileName: string; outputFormat: number }) => void;
@@ -24,12 +28,33 @@ interface PendingSaveCapture {
   timeout: number;
 }
 
+export interface SaveCompletion {
+  fileName: string;
+  outputFormat: number;
+  targetFormat: string;
+}
+
+interface PendingSaveCompletion {
+  resolve: (value: SaveCompletion) => void;
+  reject: (error: Error) => void;
+  timeout: number;
+}
+
 let pendingSaveCapture: PendingSaveCapture | null = null;
+let pendingSaveCompletion: PendingSaveCompletion | null = null;
 
 export function setConverterCallback(
-  callback: (bin: Uint8Array, fileName: string, targetExt?: string) => Promise<any>,
+  callback: ConverterCallback,
 ): void {
   convertBinToDocumentAndDownloadFn = callback;
+}
+
+async function getConverterCallback(): Promise<ConverterCallback> {
+  if (convertBinToDocumentAndDownloadFn) return convertBinToDocumentAndDownloadFn;
+  const converter = await import('./converter');
+  setConverterCallback(converter.convertBinToDocumentAndDownload);
+  if (convertBinToDocumentAndDownloadFn) return convertBinToDocumentAndDownloadFn;
+  throw new Error('Converter callback not set');
 }
 
 export function captureNextSaveAsBin(timeoutMs = 20000): Promise<{
@@ -41,7 +66,7 @@ export function captureNextSaveAsBin(timeoutMs = 20000): Promise<{
   return new Promise((resolve, reject) => {
     const timeout = window.setTimeout(() => {
       pendingSaveCapture = null;
-      reject(new Error('Timed out while waiting for workbook checkpoint data.'));
+      reject(new Error('Timed out while waiting for document checkpoint data.'));
     }, timeoutMs);
     pendingSaveCapture = { resolve, reject, timeout };
   });
@@ -52,6 +77,40 @@ export function cancelPendingSaveCapture(error = new Error('Save capture cancell
   window.clearTimeout(pendingSaveCapture.timeout);
   pendingSaveCapture.reject(error);
   pendingSaveCapture = null;
+}
+
+export function waitForNextSaveCompletion(timeoutMs = 60000): Promise<SaveCompletion> {
+  cancelPendingSaveCompletion(new Error('A newer save completion request replaced this one.'));
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      pendingSaveCompletion = null;
+      reject(new Error('Timed out while waiting for ONLYOFFICE save completion.'));
+    }, timeoutMs);
+    pendingSaveCompletion = { resolve, reject, timeout };
+  });
+}
+
+export function cancelPendingSaveCompletion(error = new Error('Save completion cancelled.')): void {
+  if (!pendingSaveCompletion) return;
+  window.clearTimeout(pendingSaveCompletion.timeout);
+  pendingSaveCompletion.reject(error);
+  pendingSaveCompletion = null;
+}
+
+function resolvePendingSaveCompletion(value: SaveCompletion): void {
+  if (!pendingSaveCompletion) return;
+  const completion = pendingSaveCompletion;
+  pendingSaveCompletion = null;
+  window.clearTimeout(completion.timeout);
+  completion.resolve(value);
+}
+
+function rejectPendingSaveCompletion(error: Error): void {
+  if (!pendingSaveCompletion) return;
+  const completion = pendingSaveCompletion;
+  pendingSaveCompletion = null;
+  window.clearTimeout(completion.timeout);
+  completion.reject(error);
 }
 
 // Global media mapping object
@@ -194,39 +253,79 @@ async function handleWriteFile(event: any) {
 async function handleSaveDocument(event: SaveEvent) {
   console.log('Save document event:', event);
 
-  if (event.data && event.data.data) {
-    const { data, option } = event.data;
-    const { fileName } = getDocmentObj() || {};
-
-    if (pendingSaveCapture) {
-      const capture = pendingSaveCapture;
-      pendingSaveCapture = null;
-      window.clearTimeout(capture.timeout);
-      capture.resolve({
-        bin: data.data instanceof Uint8Array ? data.data : new Uint8Array(data.data),
-        fileName,
-        outputFormat: option.outputformat,
-      });
-    } else {
-      // Phase 1 is Excel-only: always save edited workbooks as XLSX.
-      const targetFormat = 'XLSX';
-      console.log(
-        `Saving as ${targetFormat} format (original file: ${fileName}, editor format: ${option.outputformat})`,
-      );
-
-      // Create download
-      if (convertBinToDocumentAndDownloadFn) {
-        await convertBinToDocumentAndDownloadFn(data.data, fileName, targetFormat);
-      } else {
-        throw new Error('Converter callback not set');
-      }
+  try {
+    if (event.data && event.data.data) {
+      await processSaveDocumentData(event);
     }
+    sendEditorSaveCallback();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown save error';
+    rejectPendingSaveCompletion(new Error(message));
+    sendEditorSaveCallback(message);
+    throw error;
+  }
+}
+
+async function processSaveDocumentData(event: SaveEvent): Promise<void> {
+  const { data, option } = event.data!;
+  const { fileName } = getDocmentObj() || {};
+  const targetFormat = resolveLocalSaveTargetFormat(option.outputformat, fileName);
+
+  if (pendingSaveCapture) {
+    resolvePendingSaveCapture(data.data, fileName, option.outputformat);
+    resolvePendingSaveCompletion({ fileName, outputFormat: option.outputformat, targetFormat });
+    return;
   }
 
-  // Notify editor that save is complete
+  console.log(`Saving as ${targetFormat} format (original file: ${fileName}, editor format: ${option.outputformat})`);
+  const convert = await getConverterCallback();
+  await convert(data.data, fileName, targetFormat);
+  resolvePendingSaveCompletion({ fileName, outputFormat: option.outputformat, targetFormat });
+}
+
+export async function saveCurrentOnlyOfficeDocument(): Promise<SaveCompletion> {
+  const convert = await getConverterCallback();
+
+  const { fileName } = getDocmentObj() || {};
+  if (!fileName) throw new Error('Current document file name is unavailable for native save.');
+
+  const { outputFormat, targetFormat } = resolveNativeSaveTarget(fileName);
+  if (targetFormat === 'XLSX') {
+    await downloadLocalDataFromCurrentEditor({
+      editor: window.editor as DocEditor | undefined,
+      convert,
+      outputFormat,
+      targetFormat,
+    });
+    const completion = { fileName, outputFormat, targetFormat };
+    resolvePendingSaveCompletion(completion);
+    return completion;
+  }
+
+  const nativeData = exportNativeDataFromCurrentEditor();
+  await convert(nativeData, fileName, targetFormat);
+
+  const completion = { fileName, outputFormat, targetFormat };
+  resolvePendingSaveCompletion(completion);
+  return completion;
+}
+
+function resolvePendingSaveCapture(data: unknown, fileName: string, outputFormat: number): void {
+  if (!pendingSaveCapture) return;
+  const capture = pendingSaveCapture;
+  pendingSaveCapture = null;
+  window.clearTimeout(capture.timeout);
+  capture.resolve({
+    bin: data instanceof Uint8Array ? data : new Uint8Array(data as ArrayBufferLike),
+    fileName,
+    outputFormat,
+  });
+}
+
+function sendEditorSaveCallback(error?: string): void {
   ;(window.editor as any).sendCommand({
     command: 'asc_onSaveCallback',
-    data: { err_code: 0 },
+    data: error ? { err_code: 1, error } : { err_code: 0 },
   });
 }
 
@@ -280,11 +379,14 @@ export function createEditorInstance(config: {
     await new Promise((resolve) => setTimeout(resolve, cleanupDelay));
 
     const editorLang = getOnlyOfficeLang();
+    const localDocumentBuffer = prepareOnlyOfficeBuffer(binData);
     console.log('Creating new editor instance for:', fileName, 'type:', fileType);
     forceOfficeLightTheme();
+    ensureOnlyOfficeHostSizing();
 
     try {
       window.editor = new window.DocsAPI.DocEditor('iframe', {
+        documentType: getDocumentType(fileType),
         document: {
           title: fileName,
           url: fileName, // Use file name as identifier
@@ -297,12 +399,16 @@ export function createEditorInstance(config: {
         },
         editorConfig: {
           lang: editorLang,
+          plugins: {
+            autostart: ['asc.{A11CE0FF-1CE0-4A6E-8E11-B0A000000001}'],
+            pluginsData: ['/office-agent-plugin/config.json'],
+          },
           customization: {
             uiTheme: 'theme-classic-light',
             help: false,
             about: false,
             hideRightMenu: false,
-            plugins: false,
+            plugins: true,
             features: {
               spellcheck: {
                 change: false,
@@ -324,19 +430,15 @@ export function createEditorInstance(config: {
               });
             }
 
-            // Load document content
-            ;(window.editor as any).sendCommand({
-              
-              data: { buf: binData },
-            });
+            installLocalBinaryBridge();
+            openLocalDocument(window.editor as DocEditor | undefined, localDocumentBuffer);
           },
 	          onDocumentReady: () => {
 	            console.log(`${t('documentLoaded')}${fileName}`);
 	            window.dispatchEvent(new CustomEvent('office-agent:document-ready', { detail: { fileName, fileType } }));
-	            // Note: For CSV files, the save dialog may show XLSX format,
-            // but the actual save will be forced to CSV format in handleSaveDocument
+	            // Note: CSV files are saved with the original CSV target format.
           },
-          onSave: handleSaveDocument,
+          onSaveDocument: handleSaveDocument,
           // writeFile
           // TODO: writeFile - handle when pasting images from external sources
           writeFile: handleWriteFile,

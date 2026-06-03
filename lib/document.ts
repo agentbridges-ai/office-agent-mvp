@@ -1,6 +1,6 @@
 import { createObjectURL } from 'ranuts/utils';
 import { getDocmentObj, setDocmentObj } from '../store';
-import { handleDocumentOperation, initX2T, loadEditorApi, loadScript } from './converter';
+import { handleDocumentOperation, initX2T, loadEditorApi } from './converter';
 import { t } from './i18n';
 import { showLoading } from './loading';
 
@@ -37,9 +37,7 @@ export const onCreateNew = async (ext: string): Promise<void> => {
       fileName: 'New_Document' + ext,
       file: undefined,
     });
-    await loadScript();
     await loadEditorApi();
-    await initX2T();
     const { fileName, file: fileBlob } = getDocmentObj();
     await handleDocumentOperation({ file: fileBlob, fileName, isNew: !fileBlob });
     // Show menu guide after document is loaded

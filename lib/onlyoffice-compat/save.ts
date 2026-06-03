@@ -1,7 +1,7 @@
 import { getDocmentObj } from '../../store';
-import { c_oAscFileType2 } from '../file-types';
+import { c_oAscFileType2, oAscFileType } from '../file-types';
 import type { SaveEvent } from '../document-types';
-import { toUint8Array } from './binary';
+import { prepareOnlyOfficeBuffer, toUint8Array } from './binary';
 
 export type ConvertBinAndDownload = (bin: Uint8Array, fileName: string, targetExt?: string) => Promise<unknown>;
 type LocalSaveResult = { ok: true } | { ok: false; error: string };
@@ -10,6 +10,12 @@ const LOCAL_DOWNLOAD_HANDLER = '__onlyofficeHandleLocalDownloadAs';
 const BLOCKING_ACTION_TYPE = 1;
 const DOWNLOAD_ACTION_ID = 6;
 const SAME_ORIGIN_TARGET = window.location.origin;
+const NATIVE_SAVE_TARGETS = {
+  csv: { targetFormat: 'CSV', outputFormat: oAscFileType.CSV },
+  docx: { targetFormat: 'DOCX', outputFormat: oAscFileType.DOCX },
+  pptx: { targetFormat: 'PPTX', outputFormat: oAscFileType.PPTX },
+  xlsx: { targetFormat: 'XLSX', outputFormat: oAscFileType.XLSX },
+} as const;
 
 const SAVE_HOOKS = [
   { name: 'T7c', label: 'word' },
@@ -18,6 +24,29 @@ const SAVE_HOOKS = [
 ] as const;
 
 type SaveHookName = (typeof SAVE_HOOKS)[number]['name'];
+
+export function resolveLocalSaveTargetFormat(outputFormat: number, fileName?: string): string {
+  if (fileName?.toLowerCase().endsWith('.csv')) return 'CSV';
+
+  const targetFormat = c_oAscFileType2[outputFormat];
+  if (!targetFormat || targetFormat === 'UNKNOWN') {
+    throw new Error(`Unsupported ONLYOFFICE local save output format: ${outputFormat}`);
+  }
+  return targetFormat;
+}
+
+export function resolveNativeSaveTargetFormat(fileName: string): string {
+  return resolveNativeSaveTarget(fileName).targetFormat;
+}
+
+export function resolveNativeSaveTarget(fileName: string): { targetFormat: string; outputFormat: number } {
+  const extension = fileName.split('.').pop()?.toLowerCase() || '';
+  const target = NATIVE_SAVE_TARGETS[extension as keyof typeof NATIVE_SAVE_TARGETS];
+  if (!target) {
+    throw new Error(`Unsupported browser-local native save target extension: ${extension || 'empty'}`);
+  }
+  return target;
+}
 
 type OnlyOfficeFrameWindow = Window & {
   Asc?: {
@@ -64,11 +93,7 @@ export async function handleLocalSaveDocument(options: {
 
     const { data, option } = event.data;
     const { fileName } = getDocmentObj() || {};
-    let targetFormat = c_oAscFileType2[option.outputformat];
-
-    if (fileName && fileName.toLowerCase().endsWith('.csv')) {
-      targetFormat = 'CSV';
-    }
+    const targetFormat = resolveLocalSaveTargetFormat(option.outputformat, fileName);
 
     await convert(data.data, fileName, targetFormat);
     sendOnlyOfficeSaveCallback(editor);
@@ -142,6 +167,12 @@ export function installLocalDownloadBridge(options: {
   state[LOCAL_DOWNLOAD_BRIDGE_FLAG] = { original, hookName };
 }
 
+export function exportNativeDataFromCurrentEditor(): Uint8Array {
+  const frame = getEditorFrameWindow();
+  if (!frame) throw new Error('ONLYOFFICE editor iframe is unavailable for native export');
+  return exportLocalBinaryFromEditor(frame);
+}
+
 function getEditorFrameWindow(): OnlyOfficeFrameWindow | null {
   const iframe = document.querySelector<HTMLIFrameElement>('iframe[name="frameEditor"]');
   return (iframe?.contentWindow as OnlyOfficeFrameWindow | null) || null;
@@ -188,13 +219,14 @@ function exportLocalBinaryFromEditor(frame: OnlyOfficeFrameWindow): Uint8Array {
   const exported = callLocalExport(api);
   const bytes = toUint8Array(exported);
   if (bytes) return bytes;
+  if (typeof exported === 'string') return new Uint8Array(prepareOnlyOfficeBuffer(exported));
   throw new Error('ONLYOFFICE local export did not return binary data');
 }
 
 function callLocalExport(api: LocalExportApi): unknown {
+  if (typeof api.asc_nativeGetFile === 'function') return api.asc_nativeGetFile();
   if (typeof api.asc_nativeGetFile2 === 'function') return api.asc_nativeGetFile2();
   if (typeof api.Lsi === 'function') return api.Lsi()?.data;
-  if (typeof api.asc_nativeGetFile === 'function') return api.asc_nativeGetFile();
   throw new Error('ONLYOFFICE local export API is unavailable');
 }
 
