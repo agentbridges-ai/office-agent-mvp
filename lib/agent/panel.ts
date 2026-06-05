@@ -1,6 +1,6 @@
 import {
   maybeAskUserQuestion,
-  runExcelAgent,
+  runOfficeAgent,
   summarizeSessionTitle,
   type ChatToolCall,
   type ChatTurn,
@@ -18,15 +18,15 @@ import {
   loadAiSettings,
   saveAiSettings,
 } from './settings';
-import type { AiSettings } from './types';
+import type { AiSettings, OfficeDocumentKind } from './types';
 import type { ToolApprovalInput, ToolApprovalRuntime } from './approval';
 import { createGeistIcon, type GeistIconName } from '../geist-icons';
 import {
-  createWorkbookCheckpoint,
-  deleteWorkbookCheckpoint,
-  listWorkbookCheckpoints,
-  restoreWorkbookCheckpoint,
-  type WorkbookCheckpoint,
+  createDocumentCheckpoint,
+  deleteDocumentCheckpoint,
+  listDocumentCheckpoints,
+  restoreDocumentCheckpoint,
+  type DocumentCheckpoint,
 } from '../checkpoints';
 
 interface ChatSession {
@@ -47,6 +47,7 @@ interface PanelState {
   busy: boolean;
   checkpointBusy: boolean;
   sheets: string[];
+  documentKind: OfficeDocumentKind;
   activeSheetName?: string;
 }
 
@@ -84,6 +85,8 @@ const CHAT_SESSIONS_STORAGE_KEY = 'office-agent.chat-sessions.v1';
 const BEHAVIOR_SETTINGS_STORAGE_KEY = 'office-agent.behavior-settings.v1';
 const DEFAULT_SESSION_TITLE = '新聊天';
 const TOKEN_METER_LIMIT = 1_000_000;
+const WORD_FILE_TYPES = new Set(['doc', 'docx', 'odt', 'rtf', 'txt']);
+const PRESENTATION_FILE_TYPES = new Set(['ppt', 'pptx', 'odp']);
 const TEXT_UPLOAD_EXTENSIONS = new Set([
   'txt',
   'md',
@@ -105,6 +108,13 @@ const TEXT_UPLOAD_EXTENSIONS = new Set([
   'ini',
   'sql',
 ]);
+
+function documentKindFromFileType(fileType?: string): OfficeDocumentKind {
+  const normalized = (fileType || '').trim().toLowerCase();
+  if (WORD_FILE_TYPES.has(normalized)) return 'word';
+  if (PRESENTATION_FILE_TYPES.has(normalized)) return 'presentation';
+  return 'spreadsheet';
+}
 
 function createButton(label: string, title: string, className = 'agent-icon-button'): HTMLButtonElement {
   const button = document.createElement('button');
@@ -728,6 +738,7 @@ export function createAgentPanel(): void {
     busy: false,
     checkpointBusy: false,
     sheets: [],
+    documentKind: 'spreadsheet',
   };
 
   root.innerHTML = '';
@@ -854,7 +865,7 @@ export function createAgentPanel(): void {
   let pendingTextFiles: PendingTextFile[] = [];
   let pendingApprovalRequests: PendingApprovalRequest[] = [];
   let editingSessionId: string | undefined;
-  let checkpoints: WorkbookCheckpoint[] = [];
+  let checkpoints: DocumentCheckpoint[] = [];
   const titleGenerationSessionIds = new Set<string>();
 
   function updateBehaviorControls(): void {
@@ -1236,7 +1247,7 @@ export function createAgentPanel(): void {
 
   async function refreshCheckpoints(): Promise<void> {
     try {
-      checkpoints = await listWorkbookCheckpoints();
+      checkpoints = await listDocumentCheckpoints();
     } catch {
       checkpoints = [];
     }
@@ -1253,7 +1264,7 @@ export function createAgentPanel(): void {
     if (state.busy || state.checkpointBusy) return;
     setCheckpointBusy(true);
     try {
-      await createWorkbookCheckpoint(name);
+      await createDocumentCheckpoint(name);
       await refreshCheckpoints();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : String(error));
@@ -1266,7 +1277,7 @@ export function createAgentPanel(): void {
     if (state.busy || state.checkpointBusy) return;
     setCheckpointBusy(true);
     try {
-      await restoreWorkbookCheckpoint(id);
+      await restoreDocumentCheckpoint(id);
       checkpointPopover.hidden = true;
       await refreshCheckpoints();
       await refreshSelection();
@@ -1282,7 +1293,7 @@ export function createAgentPanel(): void {
     if (state.checkpointBusy) return;
     setCheckpointBusy(true);
     try {
-      await deleteWorkbookCheckpoint(id);
+      await deleteDocumentCheckpoint(id);
       await refreshCheckpoints();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : String(error));
@@ -1323,7 +1334,7 @@ export function createAgentPanel(): void {
     if (!excelBridge.isReady()) {
       const empty = document.createElement('div');
       empty.className = 'agent-checkpoint-empty';
-      empty.textContent = '打开 Excel 后可创建检查点';
+      empty.textContent = '打开文件后可创建检查点';
       list.appendChild(empty);
     } else if (!checkpoints.length) {
       const empty = document.createElement('div');
@@ -2443,10 +2454,11 @@ export function createAgentPanel(): void {
 
     state.abortController = new AbortController();
     try {
-      const result = await runExcelAgent({
+      const result = await runOfficeAgent({
         settings: state.settings,
         turns: state.turns.slice(0, -2),
         userText,
+        documentKind: state.documentKind,
         log: operationLogStore.createLogger(),
         fileRuntime,
         approvalRuntime: undefined,
@@ -2636,7 +2648,9 @@ export function createAgentPanel(): void {
     void refreshCheckpoints();
     void refreshSelection();
   });
-  window.addEventListener('office-agent:document-ready', () => {
+  window.addEventListener('office-agent:document-ready', (event) => {
+    const detail = (event as CustomEvent<{ fileType?: string }>).detail;
+    state.documentKind = documentKindFromFileType(detail?.fileType);
     void refreshCheckpoints();
   });
   window.addEventListener('office-agent:selection', (event) => {

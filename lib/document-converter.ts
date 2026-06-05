@@ -3,6 +3,67 @@ import 'ranui/message';
 import { t } from './i18n';
 import type { BinConversionResult, ConversionResult, DocumentType, EmscriptenModule } from './document-types';
 import { BASE_PATH, DOCUMENT_TYPE_MAP } from './document-utils';
+import { toStandaloneArrayBuffer, toUint8Array } from './onlyoffice-compat/binary';
+import { assertValidPdfOutput } from './onlyoffice-compat/pdf';
+import { sanitizeX2TFileName } from './x2t-paths';
+
+const X2T_SCRIPT_RELATIVE_PATH = 'wasm/x2t/x2t.js';
+const FALLBACK_LOCATION_HREF = 'http://localhost/';
+const RUNTIME_STORAGE_READY_TIMEOUT_MS = 10000;
+const RUNTIME_STORAGE_READY_POLL_MS = 50;
+const RUNTIME_PROBE_PATH = '/working/.x2t-runtime-ready';
+
+type MutableEmscriptenModule = Partial<EmscriptenModule> & {
+  calledRun?: boolean;
+  runtimeInitialized?: boolean;
+};
+
+export function resolveX2TScriptUrl(basePath = BASE_PATH, locationHref = getCurrentLocationHref()): string {
+  return new URL(joinBasePath(basePath, X2T_SCRIPT_RELATIVE_PATH), locationHref).href;
+}
+
+function getCurrentLocationHref(): string {
+  if (typeof window === 'undefined') return FALLBACK_LOCATION_HREF;
+  return window.location.href;
+}
+
+function joinBasePath(basePath: string, relativePath: string): string {
+  const base = basePath || '/';
+  return `${base.endsWith('/') ? base : `${base}/`}${relativePath}`;
+}
+
+function getMutableX2TModule(): MutableEmscriptenModule {
+  window.Module = (window.Module || {}) as EmscriptenModule;
+  return window.Module as MutableEmscriptenModule;
+}
+
+function isX2TRuntimeReady(module: MutableEmscriptenModule | undefined): module is EmscriptenModule {
+  return Boolean(module?.FS && typeof module.ccall === 'function');
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function waitForX2TStorageReady(module: EmscriptenModule): Promise<void> {
+  const startedAt = Date.now();
+  let lastError: unknown = null;
+
+  while (Date.now() - startedAt < RUNTIME_STORAGE_READY_TIMEOUT_MS) {
+    try {
+      module.FS.writeFile(RUNTIME_PROBE_PATH, new Uint8Array([0]));
+      const probe = toUint8Array(module.FS.readFile(RUNTIME_PROBE_PATH));
+      if (probe?.byteLength === 1) return;
+      throw new Error('X2T runtime probe file could not be read back.');
+    } catch (error) {
+      lastError = error;
+      await delay(RUNTIME_STORAGE_READY_POLL_MS);
+    }
+  }
+
+  const message = lastError instanceof Error ? lastError.message : String(lastError || 'unknown error');
+  throw new Error(`X2T runtime storage was not writable after ${RUNTIME_STORAGE_READY_TIMEOUT_MS}ms: ${message}`);
+}
 
 export class X2TConverter {
   private x2tModule: EmscriptenModule | null = null;
@@ -14,7 +75,6 @@ export class X2TConverter {
   private readonly DOCUMENT_TYPE_MAP: Record<string, DocumentType> = DOCUMENT_TYPE_MAP;
 
   private readonly WORKING_DIRS = ['/working', '/working/media', '/working/fonts', '/working/themes'];
-  private readonly SCRIPT_PATH = `${BASE_PATH}wasm/x2t/x2t.js`;
   private readonly INIT_TIMEOUT = 300000;
 
   /**
@@ -25,7 +85,7 @@ export class X2TConverter {
 
     try {
       // scriptOnLoad accepts an array of URLs
-      await scriptOnLoad([this.SCRIPT_PATH]);
+      await scriptOnLoad([resolveX2TScriptUrl()]);
       this.hasScriptLoaded = true;
       console.log('X2T WASM script loaded successfully');
     } catch (error) {
@@ -54,33 +114,63 @@ export class X2TConverter {
 
   private async doInitialize(): Promise<EmscriptenModule> {
     try {
-      await this.loadScript();
       return new Promise((resolve, reject) => {
-        const x2t = window.Module;
-        if (!x2t) {
-          reject(new Error('X2T module not found after script loading'));
-          return;
-        }
+        const x2t = getMutableX2TModule();
+        let settled = false;
 
         // Set timeout handling
         const timeoutId = setTimeout(() => {
-          if (!this.isReady) {
+          if (!settled) {
+            settled = true;
             reject(new Error(`X2T initialization timeout after ${this.INIT_TIMEOUT}ms`));
           }
         }, this.INIT_TIMEOUT);
 
-        x2t.onRuntimeInitialized = () => {
-          try {
+        let resolving = false;
+        const resolveReady = async (module: MutableEmscriptenModule) => {
+          if (settled || resolving) return;
+          if (!isX2TRuntimeReady(module)) {
+            settled = true;
             clearTimeout(timeoutId);
-            this.createWorkingDirectories(x2t);
-            this.x2tModule = x2t;
+            reject(new Error('X2T module did not expose FS/ccall after runtime initialization'));
+            return;
+          }
+          resolving = true;
+          try {
+            this.createWorkingDirectories(module);
+            await waitForX2TStorageReady(module);
+            settled = true;
+            clearTimeout(timeoutId);
+            this.x2tModule = module;
             this.isReady = true;
             console.log('X2T module initialized successfully');
-            resolve(x2t);
+            resolve(module);
           } catch (error) {
-            reject(error);
+            if (!settled) {
+              settled = true;
+              clearTimeout(timeoutId);
+              reject(error);
+            }
           }
         };
+
+        const previousOnRuntimeInitialized = x2t.onRuntimeInitialized;
+        x2t.onRuntimeInitialized = () => {
+          if (typeof previousOnRuntimeInitialized === 'function') previousOnRuntimeInitialized();
+          void resolveReady(getMutableX2TModule());
+        };
+
+        this.loadScript()
+          .then(() => {
+            const loadedModule = getMutableX2TModule();
+            if (isX2TRuntimeReady(loadedModule)) void resolveReady(loadedModule);
+          })
+          .catch((error) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeoutId);
+            reject(error);
+          });
       });
     } catch (error) {
       this.initPromise = null; // Reset to allow retry
@@ -114,31 +204,14 @@ export class X2TConverter {
   }
 
   /**
-   * Sanitize file name
+   * Sanitize file name for use inside the wasm virtual filesystem.
+   *
+   * Path-semantic inputs (traversal, absolute, drive prefix, protocol) are
+   * rejected immediately because they indicate a misuse of the API, not a
+   * benign filename that happens to contain a slash.
    */
   private sanitizeFileName(input: string): string {
-    if (typeof input !== 'string' || !input.trim()) {
-      return 'file.bin';
-    }
-
-    const parts = input.split('.');
-    const ext = parts.pop() || 'bin';
-    const name = parts.join('.');
-
-    const illegalChars = /[/?<>\\:*|"]/g;
-    // eslint-disable-next-line no-control-regex
-    const controlChars = /[\x00-\x1f\x80-\x9f]/g;
-    const reservedPattern = /^\.+$/;
-    const unsafeChars = /[&'%!"{}[\]]/g;
-
-    let sanitized = name
-      .replace(illegalChars, '')
-      .replace(controlChars, '')
-      .replace(reservedPattern, '')
-      .replace(unsafeChars, '');
-
-    sanitized = sanitized.trim() || 'file';
-    return `${sanitized.slice(0, 200)}.${ext}`; // Limit length
+    return sanitizeX2TFileName(input);
   }
 
   /**
@@ -155,8 +228,9 @@ export class X2TConverter {
       try {
         const paramsContent = this.x2tModule.FS.readFile(paramsPath, { encoding: 'binary' });
         // Convert binary to string for logging
-        if (paramsContent instanceof Uint8Array) {
-          const paramsText = new TextDecoder('utf-8').decode(paramsContent);
+        const paramsBytes = toUint8Array(paramsContent);
+        if (paramsBytes) {
+          const paramsText = new TextDecoder('utf-8').decode(paramsBytes);
           console.error('Conversion failed. Parameters XML:', paramsText);
         } else {
           console.error('Conversion failed. Parameters XML:', paramsContent);
@@ -167,6 +241,11 @@ export class X2TConverter {
       }
       throw new Error(`Conversion failed with code: ${result}`);
     }
+  }
+
+  private readBinaryFile(path: string): ArrayBuffer | Uint8Array {
+    const result = this.x2tModule!.FS.readFile(path);
+    return toStandaloneArrayBuffer(result as ArrayBuffer | ArrayBufferView);
   }
 
   /**
@@ -252,8 +331,41 @@ export class X2TConverter {
   }
 
   /**
+   * Try native x2t CSV conversion (9.3 x2t format ID 260).
+   * Returns the result on success, null if x2t does not support CSV natively.
+   */
+  private async tryNativeCsvConvert(
+    data: Uint8Array,
+    fileName: string,
+    documentType: DocumentType,
+  ): Promise<ConversionResult | null> {
+    try {
+      const sanitizedName = this.sanitizeFileName(fileName);
+      const inputPath = `/working/${sanitizedName}`;
+      const outputPath = `${inputPath}.bin`;
+
+      this.x2tModule!.FS.writeFile(inputPath, data);
+      const params = this.createConversionParams(
+        inputPath,
+        outputPath,
+        '<m_nFormatFrom>260</m_nFormatFrom>\n',
+      );
+      this.x2tModule!.FS.writeFile('/working/params.xml', params);
+      this.executeConversion('/working/params.xml');
+
+      const result = this.readBinaryFile(outputPath);
+      const media = await this.readMediaFiles();
+      console.log('Native x2t CSV conversion succeeded');
+      return { fileName: sanitizedName, type: documentType, bin: result, media };
+    } catch (error) {
+      console.log('Native x2t CSV failed, falling back to SheetJS:', (error as Error).message);
+      return null;
+    }
+  }
+
+  /**
    * Convert CSV to XLSX format using SheetJS library
-   * This is a workaround since x2t may not support CSV directly
+   * Fallback workaround when x2t does not support CSV directly
    */
   private async convertCsvToXlsx(csvData: Uint8Array, fileName: string): Promise<File> {
     try {
@@ -307,15 +419,20 @@ export class X2TConverter {
       const arrayBuffer = await file.arrayBuffer();
       const data = new Uint8Array(arrayBuffer);
 
-      // Handle CSV files - x2t may not support them directly, so convert to XLSX first
+      // Handle CSV files — try native x2t CSV first (9.3 support), fall back to SheetJS
       if (fileExt.toLowerCase() === 'csv') {
         if (data.length === 0) {
           throw new Error('CSV file is empty');
         }
+
+        // Try native x2t CSV conversion first
+        const csvResult = await this.tryNativeCsvConvert(data, fileName, documentType);
+        if (csvResult) return csvResult;
+
+        // Fall back to SheetJS → XLSX → x2t
         console.log('CSV file detected. Converting to XLSX format...');
         console.log('CSV file size:', data.length, 'bytes');
 
-        // Convert CSV to XLSX first
         try {
           const xlsxFile = await this.convertCsvToXlsx(data, fileName);
           console.log('CSV converted to XLSX, now converting with x2t...');
@@ -340,7 +457,7 @@ export class X2TConverter {
           this.executeConversion('/working/params.xml');
 
           // Read conversion result
-          const result = this.x2tModule!.FS.readFile(outputPath);
+          const result = this.readBinaryFile(outputPath);
           const media = await this.readMediaFiles();
 
           // Return original CSV fileName, not the XLSX one
@@ -375,7 +492,7 @@ export class X2TConverter {
       this.executeConversion('/working/params.xml');
 
       // Read conversion result
-      const result = this.x2tModule!.FS.readFile(outputPath);
+      const result = this.readBinaryFile(outputPath);
       const media = await this.readMediaFiles();
 
       return {
@@ -424,7 +541,7 @@ export class X2TConverter {
     this.executeConversion('/working/params.xml');
 
     // If we get here, conversion succeeded (unlikely for CSV)
-    const result = this.x2tModule!.FS.readFile(outputPath);
+    const result = this.readBinaryFile(outputPath);
     const media = await this.readMediaFiles();
 
     return {
@@ -463,7 +580,8 @@ export class X2TConverter {
 
         // Read XLSX file
         const xlsxResult = this.x2tModule!.FS.readFile(`/working/${xlsxFileName}`);
-        const xlsxArray = xlsxResult instanceof Uint8Array ? xlsxResult : new Uint8Array(xlsxResult as ArrayBuffer);
+        const xlsxArray = toUint8Array(xlsxResult);
+        if (!xlsxArray) throw new Error(`Expected binary x2t output at /working/${xlsxFileName}`);
 
         // Convert XLSX to CSV using SheetJS
         const XLSX = await this.loadXlsxLibrary();
@@ -517,7 +635,11 @@ export class X2TConverter {
       const result = this.x2tModule!.FS.readFile(`/working/${outputFileName}`);
 
       // Ensure result is Uint8Array type
-      const resultArray = result instanceof Uint8Array ? result : new Uint8Array(result as ArrayBuffer);
+      const resultArray = toUint8Array(result);
+      if (!resultArray) throw new Error(`Expected binary x2t output at /working/${outputFileName}`);
+      if (targetExt === 'PDF') {
+        assertValidPdfOutput(resultArray, outputFileName);
+      }
 
       // Download file
       // TODO: Improve print functionality

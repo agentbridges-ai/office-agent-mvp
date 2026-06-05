@@ -1,8 +1,9 @@
 import { getDocmentObj, setDocmentObj } from '../store';
-import { excelBridge } from './agent/bridge';
-import { cancelPendingSaveCapture, captureNextSaveAsBin, createEditorInstance, loadEditorApi } from './onlyoffice-editor';
+import { officeBridge } from './agent/bridge';
+import { exportCurrentOnlyOfficeCheckpointData } from './onlyoffice-compat/checkpoint-export';
+import { createEditorInstance, loadEditorApi } from './onlyoffice-editor';
 
-export interface WorkbookCheckpoint {
+export interface DocumentCheckpoint {
   id: string;
   scope: string;
   name: string;
@@ -12,13 +13,15 @@ export interface WorkbookCheckpoint {
   size: number;
 }
 
-interface WorkbookCheckpointRecord extends WorkbookCheckpoint {
+interface DocumentCheckpointRecord extends DocumentCheckpoint {
   bin: ArrayBuffer;
 }
 
 const DB_NAME = 'office-agent-checkpoints';
 const DB_VERSION = 1;
-const STORE_NAME = 'workbook-checkpoints';
+const STORE_NAME = 'document-checkpoints';
+const MAX_CHECKPOINT_NAME_LENGTH = 80;
+const BRIDGE_READY_TIMEOUT_MS = 5000;
 
 let dbPromise: Promise<IDBDatabase> | undefined;
 
@@ -74,7 +77,7 @@ function toStoredBuffer(bytes: Uint8Array): ArrayBuffer {
   return copy.buffer;
 }
 
-function metadataOf(record: WorkbookCheckpointRecord): WorkbookCheckpoint {
+function metadataOf(record: DocumentCheckpointRecord): DocumentCheckpoint {
   const { bin: _bin, ...metadata } = record;
   return metadata;
 }
@@ -83,34 +86,27 @@ export function getCurrentCheckpointScope(): string {
   return currentDocumentScope();
 }
 
-export async function listWorkbookCheckpoints(scope = currentDocumentScope()): Promise<WorkbookCheckpoint[]> {
-  const records = await withStore<WorkbookCheckpointRecord[]>('readonly', (store) => store.getAll());
+export async function listDocumentCheckpoints(scope = currentDocumentScope()): Promise<DocumentCheckpoint[]> {
+  const records = await withStore<DocumentCheckpointRecord[]>('readonly', (store) => store.getAll());
   return records
     .filter((record) => record.scope === scope)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .map(metadataOf);
 }
 
-export async function createWorkbookCheckpoint(name: string): Promise<WorkbookCheckpoint> {
+export async function createDocumentCheckpoint(name: string): Promise<DocumentCheckpoint> {
   const cleanName = name.trim();
   if (!cleanName) throw new Error('请输入检查点名称。');
-  const ready = await excelBridge.waitUntilReady(5000);
-  if (!ready) throw new Error('Excel 尚未连接，无法创建检查点。');
+  const ready = await officeBridge.waitUntilReady(BRIDGE_READY_TIMEOUT_MS);
+  if (!ready) throw new Error('编辑器尚未连接，无法创建检查点。');
 
-  const capture = captureNextSaveAsBin(25000);
-  const saveRequest = await excelBridge.execute('saveDocument', {}, 5000);
-  if (!saveRequest.ok) {
-    cancelPendingSaveCapture(new Error(saveRequest.error || '无法触发工作簿保存。'));
-    throw new Error(saveRequest.error || '无法触发工作簿保存。');
-  }
-
-  const captured = await capture;
-  const fileName = captured.fileName || currentDocumentScope();
-  const bin = toStoredBuffer(captured.bin);
-  const record: WorkbookCheckpointRecord = {
+  const exported = await exportCurrentOnlyOfficeCheckpointData();
+  const fileName = exported.fileName || currentDocumentScope();
+  const bin = toStoredBuffer(exported.bin);
+  const record: DocumentCheckpointRecord = {
     id: crypto.randomUUID(),
     scope: currentDocumentScope(),
-    name: cleanName.slice(0, 80),
+    name: cleanName.slice(0, MAX_CHECKPOINT_NAME_LENGTH),
     fileName,
     fileType: currentFileType(fileName),
     createdAt: new Date().toISOString(),
@@ -121,8 +117,8 @@ export async function createWorkbookCheckpoint(name: string): Promise<WorkbookCh
   return metadataOf(record);
 }
 
-export async function restoreWorkbookCheckpoint(id: string): Promise<WorkbookCheckpoint> {
-  const record = await withStore<WorkbookCheckpointRecord | undefined>('readonly', (store) => store.get(id));
+export async function restoreDocumentCheckpoint(id: string): Promise<DocumentCheckpoint> {
+  const record = await withStore<DocumentCheckpointRecord | undefined>('readonly', (store) => store.get(id));
   if (!record) throw new Error('检查点不存在或已被删除。');
   await loadEditorApi();
   setDocmentObj({
@@ -137,6 +133,12 @@ export async function restoreWorkbookCheckpoint(id: string): Promise<WorkbookChe
   return metadataOf(record);
 }
 
-export async function deleteWorkbookCheckpoint(id: string): Promise<void> {
+export async function deleteDocumentCheckpoint(id: string): Promise<void> {
   await withStore<undefined>('readwrite', (store) => store.delete(id));
 }
+
+export type WorkbookCheckpoint = DocumentCheckpoint;
+export const listWorkbookCheckpoints = listDocumentCheckpoints;
+export const createWorkbookCheckpoint = createDocumentCheckpoint;
+export const restoreWorkbookCheckpoint = restoreDocumentCheckpoint;
+export const deleteWorkbookCheckpoint = deleteDocumentCheckpoint;

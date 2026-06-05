@@ -9,5 +9,5 @@ AscCommon.g_defaultThemes = [
   'Safari',
   'Dotted',
   'Corner',
-  'Turtle',
+  'Tort',
 ];

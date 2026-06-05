@@ -1,6 +1,6 @@
 import path, { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -33,5 +33,8 @@ export default defineConfig({
         additionalData: `@import "@/styles/base.css";`,
       },
     },
+  },
+  test: {
+    exclude: ['node_modules/**', 'dist/**', 'tests/e2e/**'],
   },
 });

@@ -1,16 +1,8 @@
 import { createObjectURL } from 'ranuts/utils';
 import { getDocmentObj, setDocmentObj } from '../store';
-import { handleDocumentOperation, initX2T, loadEditorApi, loadScript } from './converter';
+import { handleDocumentOperation, initX2T, loadEditorApi } from './converter';
+import { t } from './i18n';
 import { showLoading } from './loading';
-
-const EXCEL_EXTENSIONS = new Set(['xlsx', 'xls', 'csv']);
-
-function assertExcelFileName(fileName: string): void {
-  const extension = fileName.split('.').pop()?.toLowerCase() || '';
-  if (!EXCEL_EXTENSIONS.has(extension)) {
-    throw new Error(`第一阶段仅支持 Excel 文件（.xlsx/.xls/.csv）：${fileName}`);
-  }
-}
 
 // Import UI functions with type-only to avoid circular dependency
 // These will be passed as callbacks or called after document operations
@@ -31,15 +23,12 @@ export function setUICallbacks(callbacks: {
 // Create a single file input element
 const fileInput = document.createElement('input');
 fileInput.type = 'file';
-fileInput.accept = '.xlsx,.xls,.csv';
+fileInput.accept = '.docx,.xlsx,.pptx,.doc,.xls,.ppt,.csv';
 fileInput.style.setProperty('visibility', 'hidden');
 document.body.appendChild(fileInput);
 
 export const onCreateNew = async (ext: string): Promise<void> => {
-  // Note: Loading is now shown in the menu button click handler
-  // This function should not show loading again to avoid double loading indicators
   try {
-    assertExcelFileName(`New_Document${ext}`);
     // Always hide control panel and ensure FAB is visible when creating new document
     if (hideControlPanelFn) {
       hideControlPanelFn();
@@ -48,9 +37,7 @@ export const onCreateNew = async (ext: string): Promise<void> => {
       fileName: 'New_Document' + ext,
       file: undefined,
     });
-    await loadScript();
     await loadEditorApi();
-    await initX2T();
     const { fileName, file: fileBlob } = getDocmentObj();
     await handleDocumentOperation({ file: fileBlob, fileName, isNew: !fileBlob });
     // Show menu guide after document is loaded
@@ -69,37 +56,6 @@ export const onCreateNew = async (ext: string): Promise<void> => {
   }
 };
 
-export const openSelectedDocumentFile = async (file: File): Promise<void> => {
-  const { removeLoading } = showLoading();
-  try {
-    assertExcelFileName(file.name);
-    if (hideControlPanelFn) {
-      hideControlPanelFn();
-    }
-    setDocmentObj({
-      fileName: file.name,
-      file,
-      url: await createObjectURL(file),
-    });
-    await initX2T();
-    const { fileName, file: fileBlob } = getDocmentObj();
-    await handleDocumentOperation({ file: fileBlob, fileName, isNew: !fileBlob });
-    if (showMenuGuideFn) {
-      setTimeout(() => {
-        showMenuGuideFn!();
-      }, 1000);
-    }
-  } catch (error) {
-    console.error('Error opening document:', error);
-    if (showControlPanelFn) {
-      showControlPanelFn();
-    }
-    throw error;
-  } finally {
-    removeLoading();
-  }
-};
-
 export const onOpenDocument = (): void => {
   // Clear previous event handler and value
   fileInput.onchange = null;
@@ -115,12 +71,36 @@ export const onOpenDocument = (): void => {
     // Only process if a file was actually selected
     // If user cancelled, onchange won't fire, nothing happens
     if (file) {
+      const { removeLoading } = showLoading();
       try {
-        await openSelectedDocumentFile(file);
+        if (hideControlPanelFn) {
+          hideControlPanelFn();
+        }
+        setDocmentObj({
+          fileName: file.name,
+          file: file,
+          url: await createObjectURL(file),
+        });
+        await initX2T();
+        const { fileName, file: fileBlob } = getDocmentObj();
+        await handleDocumentOperation({ file: fileBlob, fileName, isNew: !fileBlob });
         // Clear file selection so the same file can be selected again
         fileInput.value = '';
+        // Show menu guide after document is loaded
+        if (showMenuGuideFn) {
+          setTimeout(() => {
+            showMenuGuideFn!();
+          }, 1000);
+        }
       } catch (error) {
-        // openSelectedDocumentFile already reported the error and restored the UI.
+        console.error('Error opening document:', error);
+        // Ensure control panel is shown on error
+        if (showControlPanelFn) {
+          showControlPanelFn();
+        }
+      } finally {
+        // Always remove loading, even if there's an error
+        removeLoading();
       }
     }
     // If no file selected, nothing happens (user cancelled)
@@ -176,7 +156,6 @@ export const openDocumentFromUrl = async (url: string, fileName?: string): Promi
     }
 
     // Get file blob
-    assertExcelFileName(finalFileName);
     const blob = await response.blob();
     const file = new File([blob], finalFileName, { type: blob.type });
 

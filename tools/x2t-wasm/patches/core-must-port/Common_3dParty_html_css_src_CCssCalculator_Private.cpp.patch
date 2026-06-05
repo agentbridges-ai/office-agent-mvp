@@ -1,0 +1,17 @@
+--- a/Common/3dParty/html/css/src/CCssCalculator_Private.cpp	2026-05-30 17:36:34.864942150 +0800
++++ b/Common/3dParty/html/css/src/CCssCalculator_Private.cpp	2026-05-29 12:08:47.163105239 +0800
+@@ -864,7 +864,7 @@
+ 			if (arSelectors[i].m_mAttributes.end() != arSelectors[i].m_mAttributes.find(L"page"))
+ 				SetPageData(oPageData, GetPageData(arSelectors[i].m_mAttributes.at(L"page")), i + 1, false);
+ 		}
+-		
++
+ 		return true;
+ 	}
+ 	#endif
+@@ -1049,5 +1049,3 @@
+ 	        L"tbody" == wsNameTag || L"thead" == wsNameTag || L"tfoot" == wsNameTag ||
+ 	        L"th" == wsNameTag;
+ }
+-
+-

@@ -1,4 +1,5 @@
 export type SupportLevel = 'supported' | 'partial' | 'unsupported';
+export type OfficeDocumentKind = 'word' | 'spreadsheet' | 'presentation';
 
 export interface AiSettings {
   baseURL: string;
@@ -45,6 +46,24 @@ export interface ExcelContextInput {
   maxCells?: number;
 }
 
+export interface OfficeApiCatalogInput {
+  view?: 'overview' | 'category' | 'object' | 'search' | 'detail';
+  category?: string;
+  subcategory?: string;
+  objectType?: string;
+  memberName?: string;
+  query?: string;
+  limit?: number;
+}
+
+export interface OfficeApiCallInput {
+  target?: {
+    root: 'editor' | 'Editor' | 'Asc' | 'AscCommon' | 'AscCommonExcel' | 'Common' | 'cellInfo' | 'CellInfo';
+  };
+  memberName: string;
+  args?: unknown[];
+}
+
 export interface ToolResult<T = unknown> {
   ok: boolean;
   supportLevel: SupportLevel;
@@ -68,4 +87,3 @@ export type OperationLogger = (
   summary: string,
   result: ToolResult,
 ) => OperationLogEntry;
-

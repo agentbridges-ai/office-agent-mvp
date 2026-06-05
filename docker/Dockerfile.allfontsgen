@@ -1,0 +1,20 @@
+FROM ubuntu:22.04 AS builder
+
+RUN apt update && apt install -y \
+    build-essential git make wget
+
+# Clone Nextcloud documentserver_community to get allfontsgen tool
+WORKDIR /build
+RUN git clone --depth 1 https://github.com/nextcloud/documentserver_community.git .
+
+# Build allfontsgen
+RUN make
+
+# The built binary is at: 3rdparty/onlyoffice/documentserver/tools/allfontsgen
+
+FROM ubuntu:22.04 AS runner
+COPY --from=builder /build/3rdparty/onlyoffice/documentserver/tools/allfontsgen /usr/local/bin/allfontsgen
+RUN mkdir -p /fonts /out
+
+WORKDIR /work
+ENTRYPOINT ["/usr/local/bin/allfontsgen"]

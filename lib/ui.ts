@@ -2,15 +2,26 @@ import { localStorageGetItem, localStorageSetItem } from 'ranuts/utils';
 import { t } from './i18n';
 import { showLoading } from './loading';
 import { onCreateNew, onOpenDocument } from './document';
-import { createGeistIcon, type GeistIconName } from './geist-icons';
 
-// Hide control panel when the editor takes over the window.
+function hideFabMenu(): void {
+  const fabMenu = document.querySelector('#fab-menu') as HTMLElement | null;
+  if (!fabMenu) return;
+  fabMenu.style.opacity = '0';
+  fabMenu.style.transform = 'translateY(10px) scale(0.95)';
+  fabMenu.style.display = 'none';
+  fabMenu.style.pointerEvents = 'none';
+}
+
+// Hide control panel and show top floating bar
 export const hideControlPanel = (): void => {
   const container = document.querySelector('#control-panel-container') as HTMLElement;
   const fabContainer = document.querySelector('#fab-container') as HTMLElement;
 
+  hideFabMenu();
+
+  // Always ensure FAB is visible when hiding control panel
   if (fabContainer) {
-    fabContainer.style.display = 'none';
+    fabContainer.style.display = 'block';
   }
 
   if (container) {
@@ -34,7 +45,9 @@ export const showControlPanel = (): void => {
       container.style.opacity = '1';
     }, 10);
   }
-  if (fabContainer) {
+  // Only hide FAB if editor is not open
+  // If editor is already open, keep FAB visible so user can access menu
+  if (fabContainer && !window.editor) {
     fabContainer.style.display = 'none';
   }
 };
@@ -48,31 +61,22 @@ export const createFixedActionButton = (): HTMLElement => {
   // Main FAB button
   const fabButton = document.createElement('button');
   fabButton.id = 'fab-button';
-  fabButton.title = t('menu');
-  fabButton.setAttribute('aria-label', t('menu'));
+  fabButton.textContent = t('menu');
   fabButton.className = 'fab-button';
-  fabButton.appendChild(createGeistIcon('SidebarLeft'));
 
   // Menu panel - compact style
   const menuPanel = document.createElement('div');
   menuPanel.id = 'fab-menu';
   menuPanel.className = 'fab-menu';
 
-  const createMenuButton = (
-    text: string,
-    onClick: () => void | Promise<void>,
-    showLoadingImmediately = true,
-    iconName: GeistIconName = 'Menu',
-  ) => {
+  const createMenuButton = (text: string, onClick: () => void | Promise<void>, showLoadingImmediately = true) => {
     // Create wrapper for the entire menu item
     const menuItem = document.createElement('div');
     menuItem.className = 'fab-menu-item';
 
     const button = document.createElement('button');
+    button.textContent = text;
     button.className = 'fab-menu-button';
-    const label = document.createElement('span');
-    label.textContent = text;
-    button.append(createGeistIcon(iconName), label);
 
     // Handle hover on the wrapper
     menuItem.addEventListener('mouseenter', () => {
@@ -119,13 +123,22 @@ export const createFixedActionButton = (): HTMLElement => {
         // If user selected file, document will be opened in handleChange
       },
       false, // Don't show loading immediately - wait for file selection
-      'FolderOpen',
     ),
+  );
+  menuPanel.appendChild(
+    createMenuButton(t('newWord'), async () => {
+      await onCreateNew('.docx');
+    }),
   );
   menuPanel.appendChild(
     createMenuButton(t('newExcel'), async () => {
       await onCreateNew('.xlsx');
-    }, true, 'GridSquare'),
+    }),
+  );
+  menuPanel.appendChild(
+    createMenuButton(t('newPowerPoint'), async () => {
+      await onCreateNew('.pptx');
+    }),
   );
 
   let isMenuOpen = false;
@@ -206,7 +219,7 @@ export const showMenuGuide = (): void => {
   }
 
   const fabButton = document.querySelector('#fab-button') as HTMLElement;
-  if (!fabButton || fabButton.offsetParent === null) {
+  if (!fabButton) {
     return;
   }
 
@@ -226,10 +239,8 @@ export const showMenuGuide = (): void => {
 
   // Create close button
   const closeBtn = document.createElement('button');
+  closeBtn.innerHTML = '×';
   closeBtn.className = 'menu-guide-close';
-  closeBtn.title = '关闭';
-  closeBtn.setAttribute('aria-label', '关闭');
-  closeBtn.appendChild(createGeistIcon('CrossSmall'));
 
   closeBtn.addEventListener('mouseenter', () => {
     closeBtn.style.color = '#333';
@@ -298,10 +309,10 @@ export const createControlPanel = (): void => {
   const createTextButton = (id: string, text: string, onClick: () => void) => {
     const button = document.createElement('r-button');
     button.id = id;
+    button.textContent = text;
     button.setAttribute('variant', 'text');
     button.setAttribute('type', 'text');
     button.className = 'control-panel-button';
-    button.textContent = text;
 
     button.addEventListener('mouseenter', () => {
       button.style.color = '#667eea';
@@ -316,13 +327,27 @@ export const createControlPanel = (): void => {
     return button;
   };
 
-  // Create Excel-first buttons.
+  // Create four buttons
   const uploadButton = createTextButton('upload-button', t('uploadDocument'), () => {
     onOpenDocument();
     // If user cancelled, nothing happens (onchange won't fire, control panel remains visible)
     // If user selected file, document will be opened and control panel will be hidden in handleChange
   });
   buttonGroup.appendChild(uploadButton);
+
+  const newWordButton = createTextButton('new-word-button', t('newWord'), async () => {
+    hideControlPanel();
+    const { removeLoading } = showLoading();
+    try {
+      await onCreateNew('.docx');
+    } catch (error) {
+      console.error('Error creating new Word document:', error);
+      showControlPanel();
+    } finally {
+      removeLoading();
+    }
+  });
+  buttonGroup.appendChild(newWordButton);
 
   const newExcelButton = createTextButton('new-excel-button', t('newExcel'), async () => {
     hideControlPanel();
@@ -337,6 +362,20 @@ export const createControlPanel = (): void => {
     }
   });
   buttonGroup.appendChild(newExcelButton);
+
+  const newPptxButton = createTextButton('new-pptx-button', t('newPowerPoint'), async () => {
+    hideControlPanel();
+    const { removeLoading } = showLoading();
+    try {
+      await onCreateNew('.pptx');
+    } catch (error) {
+      console.error('Error creating new PowerPoint document:', error);
+      showControlPanel();
+    } finally {
+      removeLoading();
+    }
+  });
+  buttonGroup.appendChild(newPptxButton);
 
   container.appendChild(buttonGroup);
   document.body.appendChild(container);

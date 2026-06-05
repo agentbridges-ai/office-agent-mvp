@@ -3,7 +3,9 @@ import { generateText, streamText, stepCountIs } from 'ai';
 import type { ModelMessage } from 'ai';
 import { createExcelTools } from './excel-tools';
 import { createFileTools, type RuntimeTextFile, type TextFileRuntime } from './file-tools';
-import type { AiSettings, OperationLogger, ToolResult } from './types';
+import { createPptTools } from './ppt-tools';
+import { createWordTools } from './word-tools';
+import type { AiSettings, OfficeDocumentKind, OperationLogger, ToolResult } from './types';
 import { normalizeBaseURL } from './settings';
 import type { ToolApprovalRuntime } from './approval';
 
@@ -104,7 +106,7 @@ export interface RunAgentOptions {
   onToolEvent?: (tool: ChatToolCall) => void;
 }
 
-const BASE_SYSTEM_PROMPT = `你是浏览器内 Excel Office-Agent。
+const SPREADSHEET_SYSTEM_PROMPT = `你是浏览器内 Excel Office-Agent。
 你通过工具直接读取和修改当前 ONLYOFFICE 电子表格。
 优先使用 excel_get_context 理解当前工作簿、工作表或选区；需要确认接口能力时使用 excel_capabilities。
 执行修改时使用 excel_call 或 excel_batch。工具结果中的 unsupported 是可信边界，请解释替代方案，不要假装已经完成。
@@ -123,11 +125,23 @@ const BASE_SYSTEM_PROMPT = `你是浏览器内 Excel Office-Agent。
 非必要不要添加 emoji；只有用户明确要求、原文需要保留，或 emoji 本身是任务内容时才使用。
 当你实际修改了单元格或区域时，只输出与本次任务最关键的变更位置，不要罗列所有工具调用区域。使用 Markdown 锚点格式 [简短说明 工作表!区域](excel:工作表!区域)，并在锚点旁附上一句相关说明；如果只是读取、解释或没有关键修改位置，则不要输出锚点。`;
 
-function createSystemPrompt(options: { approvalEnabled: boolean }): string {
+const WORD_SYSTEM_PROMPT = `你是浏览器内 Word Office-Agent。
+你通过工具读取和修改当前 ONLYOFFICE 文档。当前阶段优先使用 office_api_catalog / office_api_call 发现并调用真实浏览器 runtime API；工具结果中的 unsupported 是可信边界，不要假装已经完成。`;
+
+const PRESENTATION_SYSTEM_PROMPT = `你是浏览器内 PPT Office-Agent。
+你通过工具读取和修改当前 ONLYOFFICE 演示文稿。当前阶段优先使用 office_api_catalog / office_api_call 发现并调用真实浏览器 runtime API；工具结果中的 unsupported 是可信边界，不要假装已经完成。`;
+
+const SYSTEM_PROMPTS: Record<OfficeDocumentKind, string> = {
+  word: WORD_SYSTEM_PROMPT,
+  spreadsheet: SPREADSHEET_SYSTEM_PROMPT,
+  presentation: PRESENTATION_SYSTEM_PROMPT,
+};
+
+function createSystemPrompt(options: { approvalEnabled: boolean; documentKind?: OfficeDocumentKind }): string {
   const executionPolicy = options.approvalEnabled
     ? '当前开启了工具审批：你仍然按需调用工具，浏览器会在敏感写入工具真正执行前暂停并等待用户批准。'
     : '用户已经选择“全部自动执行”，无需再次请求确认。';
-  return `${BASE_SYSTEM_PROMPT}\n${executionPolicy}`;
+  return `${SYSTEM_PROMPTS[options.documentKind || 'spreadsheet']}\n${executionPolicy}`;
 }
 
 type AgentStreamPart = {
@@ -220,7 +234,17 @@ function createAbortError(reason?: string): Error {
   return error;
 }
 
-export async function runExcelAgent(options: RunAgentOptions): Promise<{
+function createDocumentAgentTools(
+  documentKind: OfficeDocumentKind,
+  log: OperationLogger,
+  approvalRuntime?: ToolApprovalRuntime,
+) {
+  if (documentKind === 'word') return createWordTools(log, approvalRuntime);
+  if (documentKind === 'presentation') return createPptTools(log, approvalRuntime);
+  return createExcelTools(log, approvalRuntime);
+}
+
+export async function runOfficeAgent(options: RunAgentOptions & { documentKind?: OfficeDocumentKind }): Promise<{
   text: string;
   usage?: unknown;
 }> {
@@ -238,6 +262,7 @@ export async function runExcelAgent(options: RunAgentOptions): Promise<{
 
   const toolCalls = new Map<string, ChatToolCall>();
   const rawInputs = new Map<string, string>();
+  const documentKind = options.documentKind || 'spreadsheet';
 
   function emitTool(
     id: string,
@@ -267,10 +292,13 @@ export async function runExcelAgent(options: RunAgentOptions): Promise<{
   const providerOptions = getReasoningProviderOptions(options.settings, options.reasoningEffort);
   const result = streamText({
     model: provider.chatModel(options.settings.modelId),
-    system: createSystemPrompt({ approvalEnabled: Boolean(options.approvalRuntime) }),
+    system: createSystemPrompt({
+      approvalEnabled: Boolean(options.approvalRuntime),
+      documentKind,
+    }),
     messages: [...history, { role: 'user', content: options.userText }],
     tools: {
-      ...createExcelTools(options.log, options.approvalRuntime),
+      ...createDocumentAgentTools(documentKind, options.log, options.approvalRuntime),
       ...(options.fileRuntime ? createFileTools(options.fileRuntime, options.log, options.approvalRuntime) : {}),
     },
     stopWhen: stepCountIs(8),
@@ -412,6 +440,13 @@ export async function runExcelAgent(options: RunAgentOptions): Promise<{
     text: text || '已完成。',
     usage,
   };
+}
+
+export async function runExcelAgent(options: RunAgentOptions): Promise<{
+  text: string;
+  usage?: unknown;
+}> {
+  return runOfficeAgent({ ...options, documentKind: 'spreadsheet' });
 }
 
 function extractJsonObject(text: string): Record<string, unknown> | undefined {

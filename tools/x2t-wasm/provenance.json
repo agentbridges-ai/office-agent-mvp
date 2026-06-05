@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "artifact": "x2t-wasm",
+  "upstream": {
+    "core": "https://github.com/ONLYOFFICE/core",
+    "coreCommit": "v9.3.0.140",
+    "buildTools": "https://github.com/ONLYOFFICE/build_tools",
+    "buildToolsBranch": "v9.3.0.140"
+  },
+  "cryptpadBaseline": "CryptPad onlyoffice-x2t-wasm v9.3.0+0",
+  "buildEnvironment": {
+    "dockerBase": "ubuntu:22.04",
+    "emsdk": "emscripten/emsdk:4.0.11",
+    "qtVersion": "qt6",
+    "artifactBuildTime": "2026-05-30T00:10:00+08:00"
+  },
+  "artifacts": {
+    "x2t.js": {
+      "sha256": "e0abb59942bf4bf3734e04208107e88aeab243f26ca4b689b4c193bc96e58eeb",
+      "size": 136191
+    },
+    "x2t.wasm": {
+      "sha256": "e166c252adbd603e5e3abf65cf3b37bf0424a33edd9ae1b4b791176ce7fd2caa",
+      "size": 36700160
+    },
+    "x2t.wasm.br": {
+      "sha256": "8dfeb638225fff59547eaca1ae6d24e0123aa90a2688c73d246e2ba1127d689e",
+      "size": 6815744
+    },
+    "x2t.wasm.gz": {
+      "sha256": "85b25f7372ab9ff8252cda945d8290d92d8ace587cbde0248586326b034f1713",
+      "size": 7452275
+    }
+  },
+  "patches": [
+    {
+      "file": "patches/harfbuzz.patch",
+      "reason": "CryptPad: fix harfbuzz build for WASM"
+    }
+  ],
+  "trimmed": [
+    "Fb2File: removed from linker deps (not built for WASM)",
+    "OFDFile: removed from linker deps (not built for WASM)",
+    "Dockerfile fb2file/log-symbols stages: broken references, not on build→output dependency chain"
+  ],
+  "locateFilePatch": "Replaced document.currentScript.getAttribute('src') with Module.locateFile=function(path,prefix){return prefix+path} in x2t.js pre-js",
+  "notes": {
+    "buildToolsVersionMismatch": "build_tools v8.3.0.91 was used by CryptPad, but core is v9.3.0.140. Artifact is bit-identical despite this mismatch.",
+    "nativeRef": "Native x2t reference is 8.3.3, WASM is 9.3. Version difference is expected (CryptPad backported 9.3 WASM support to older build_tools)."
+  }
+}

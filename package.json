@@ -14,7 +14,13 @@
     "format": "prettier --write .",
     "lint:ts": "oxlint && tsc --noEmit",
     "lint:docker": "docker compose -f docker-compose.yaml config --quiet",
-    "lint": "pnpm run lint:ts && pnpm run lint:docker"
+    "lint": "pnpm run lint:ts && pnpm run lint:docker",
+    "gate:onlyoffice": "node bin/check_onlyoffice_bridge_contract.mjs --root . && node bin/check_onlyoffice_9_3_risks.mjs --root . && node bin/check_onlyoffice_format_table.mjs --root . && node bin/check_x2t_fs_sandbox.mjs --root . && node bin/check_x2t_path_behavior.mjs --root . && node bin/check_onlyoffice_9_3_docs_consistency.mjs --root . && node bin/check_x2t_api_boundary.mjs --root .",
+    "smoke:onlyoffice": "node bin/smoke_onlyoffice_9_3_browser.mjs --chrome /snap/bin/chromium --timeout-ms 240000",
+    "test:e2e": "npx playwright test --reporter=list",
+    "test:e2e:smoke": "npx playwright test tests/e2e/onlyoffice-9.3-fidelity.spec.ts --reporter=list",
+    "verify:onlyoffice9": "pnpm run lint:ts && pnpm run gate:onlyoffice && pnpm run build && pnpm run smoke:onlyoffice",
+    "verify:onlyoffice9:e2e": "pnpm run verify:onlyoffice9 && pnpm run test:e2e:smoke"
   },
   "engines": {
     "node": ">=20.19.0"
@@ -59,6 +65,8 @@
     "tsx": "^4.22.3",
     "typescript": "^5.9.3",
     "vite": "^7.3.2",
+    "@playwright/test": "^1.60.0",
+    "playwright": "^1.60.0",
     "vitest": "^4.1.7",
     "xlsx": "^0.18.5"
   },
@@ -67,6 +75,7 @@
     "@khmyznikov/pwa-install": "^0.6.3",
     "ai": "^6.0.193",
     "geist-icons": "^1.3.0",
+    "officecrypto-tool": "^0.0.19",
     "ranui": "0.1.10-alpha-27",
     "ranuts": "0.1.0-alpha-23",
     "zod": "^4.4.3"

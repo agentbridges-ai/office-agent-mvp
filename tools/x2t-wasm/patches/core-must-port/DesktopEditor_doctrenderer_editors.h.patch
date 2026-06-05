@@ -1,0 +1,11 @@
+--- a/DesktopEditor/doctrenderer/editors.h	2026-05-30 17:28:43.765603762 +0800
++++ b/DesktopEditor/doctrenderer/editors.h	2026-05-29 12:08:49.206753408 +0800
+@@ -33,7 +33,7 @@
+ #define DOC_BUILDER_EDITORS_CONFIG
+ 
+ #include "./config.h"
+-#include "../js_internal/js_base.h"
++#include "./js_internal/js_base.h"
+ 
+ #ifdef CreateFile
+ #undef CreateFile
