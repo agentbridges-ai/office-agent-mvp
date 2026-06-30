@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@agentbridges-ai/onlyoffice-browser':
-        specifier: 0.3.4
-        version: 0.3.4
+        specifier: 0.3.6
+        version: 0.3.6
       '@ai-sdk/openai-compatible':
         specifier: ^2.0.48
         version: 2.0.48(zod@4.4.3)
@@ -69,8 +69,8 @@ importers:
 
 packages:
 
-  '@agentbridges-ai/onlyoffice-browser@0.3.4':
-    resolution: {integrity: sha512-WJdupTtIkenKG9l7K7TmKrx7IgFogQwOQMdUXYYtVgNIjMyXvNsSkAjvFEe6oqs/mMBkiZBLUN5INXZO1eTdYQ==}
+  '@agentbridges-ai/onlyoffice-browser@0.3.6':
+    resolution: {integrity: sha512-Ds3BYsPNneD8KVvL5AhjMJw99MNMNRfI5F7V81eMgzVrH3uQjFWz8CU3K2lY8oEZ89zq9madOAGEg4X+Gw1s+Q==}
     engines: {node: '>=20.19.0'}
     hasBin: true
 
@@ -1220,7 +1220,7 @@ packages:
 
 snapshots:
 
-  '@agentbridges-ai/onlyoffice-browser@0.3.4': {}
+  '@agentbridges-ai/onlyoffice-browser@0.3.6': {}
 
   '@ai-sdk/gateway@3.0.121(zod@4.4.3)':
     dependencies:
