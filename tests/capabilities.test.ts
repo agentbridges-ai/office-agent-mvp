@@ -1,11 +1,15 @@
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseCapabilityWorkbook } from '../scripts/capability-parser';
 import { excelCapabilities } from '../lib/agent/capabilities';
 
 describe('Excel capability registry', () => {
-  it('parses the reference workbook into a full registry', () => {
-    const capabilities = parseCapabilityWorkbook(resolve(process.cwd(), 'chatgpt-ms-office-api文档参考.xlsx'));
+  const referenceWorkbookPath = resolve(process.cwd(), 'chatgpt-ms-office-api文档参考.xlsx');
+  const itIfReferenceWorkbookExists = existsSync(referenceWorkbookPath) ? it : it.skip;
+
+  itIfReferenceWorkbookExists('parses the reference workbook into a full registry', () => {
+    const capabilities = parseCapabilityWorkbook(referenceWorkbookPath);
     expect(capabilities.length).toBeGreaterThan(600);
     expect(
       capabilities.some(
