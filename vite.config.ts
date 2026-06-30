@@ -13,9 +13,13 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
+        officeHost: resolve(__dirname, 'office-host.html'),
         officeAgentPanel: resolve(__dirname, 'office-agent-plugin/panel.html'),
       },
     },
+  },
+  server: {
+    allowedHosts: ['.localhost'],
   },
   resolve: {
     alias: {

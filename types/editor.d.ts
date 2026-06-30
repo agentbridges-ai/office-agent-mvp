@@ -5,25 +5,52 @@ interface PluginConfig {
 }
 
 interface DocEditorConfig {
+  height?: string | number;
+  type?: 'desktop' | 'mobile' | 'embedded';
+  width?: string | number;
+  documentType?: string;
   document: {
     title: string;
     url: string;
     fileType: string;
+    key?: string;
     permissions: {
       edit: boolean;
       chat: boolean;
       protect: boolean;
+      download?: boolean;
     };
   };
   editorConfig: {
     lang: string;
+    mode?: 'edit' | 'view';
+    user?: {
+      id: string;
+      name: string;
+    };
+    embedded?: {
+      autostart?: 'document' | 'player';
+      toolbarDocked?: 'top' | 'bottom';
+      embedUrl?: string;
+      fullscreenUrl?: string;
+      saveUrl?: string;
+      shareUrl?: string;
+    };
     customization: {
       help: boolean;
       about: boolean;
       hideRightMenu: boolean;
+      /** Start with the native OnlyOffice ribbon collapsed. */
+      compactToolbar?: boolean;
+      /** OnlyOffice zoom preset. -2 maps to native fit-to-width. */
+      zoom?: number;
+      /** Whether spell checking is enabled by default. */
+      spellcheck?: boolean;
       /** Enable/disable plugins. Set to false to disable plugins */
       plugins?: boolean;
       features: {
+        /** Disable built-in new-feature coach marks. */
+        featuresTips?: boolean;
         spellcheck: {
           change: boolean;
         };
@@ -42,6 +69,7 @@ interface DocEditorConfig {
     onAppReady: () => void;
     onDocumentReady: () => void;
     onSave: (event: SaveEvent) => void;
+    onDownloadAs?: (event: DownloadAsEvent) => void;
     writeFile: (event: WriteFileEvent) => void;
     /** Handle external messages from plugins */
     onExternalPluginMessage?: (event: { type: string; data: any; pluginName?: string }) => void;
@@ -70,10 +98,42 @@ interface WriteFileEvent {
   callback?: (result: { success: boolean; error?: string }) => void;
 }
 
+interface DownloadAsEvent {
+  data?: {
+    url?: string;
+    fileType?: string | number;
+  };
+}
+
+interface OnlyOfficeMockServer {
+  buildNumber?: number;
+  buildVersion?: string;
+  getInitialChanges?: () => any[];
+  getParticipants: () => {
+    index: number;
+    list: [
+      {
+        id: number;
+        idOriginal: string;
+        username: string;
+        indexUser: number;
+        connectionId: string;
+        isCloseCoAuthoring: boolean;
+        view: boolean;
+      },
+    ];
+  };
+  getImageURL?: (name: string) => Promise<string>;
+  onAuth?: () => void;
+  handleMessage?: (msg: any, respond: (response: any) => void) => boolean;
+  onMessage: (msg: any) => void;
+  onCorruptionWarning?: (duplicateId: string) => void;
+}
+
 interface DocEditor {
-  sendCommand: (params: {
+  sendCommand?: (params: {
     command: string;
-    data: {
+    data: Record<string, unknown> & {
       err_code?: number;
       urls?: Record<string, string>;
       path?: string;
@@ -81,8 +141,19 @@ interface DocEditor {
       buf?: ArrayBuffer;
       success?: boolean;
       error?: string;
+      enabled?: boolean;
+      message?: string;
     };
   }) => void;
+  openDocument?: (data: Uint8Array) => void;
+  downloadAs?: (data?: string) => void;
+  zoomFitToWidth?: () => void;
+  processRightsChange?: (enabled: boolean, message?: string) => void;
+  connectMockServer?: (server: OnlyOfficeMockServer) => void;
+  cryptPadMessageToOO?: (msg: any) => void;
+  sendMessageToOO?: (msg: any) => void;
+  serviceCommand?: (command: string, data: any) => void;
+  waitForAppReady?: Promise<void>;
   destroyEditor: () => void;
 }
 
@@ -92,8 +163,7 @@ interface DocsAPI {
 
 declare global {
   interface Window {
-    onCreateNew: (ext: string) => Promise<void>;
-    DocsAPI: DocsAPI;
-    editor: DocEditor;
+    DocsAPI?: DocsAPI;
+    APP?: Record<string, unknown>;
   }
 }

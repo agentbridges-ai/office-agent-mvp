@@ -1,7 +1,8 @@
 import { MessageCodec, Platform, createObjectURL } from 'ranuts/utils';
 import type { MessageHandler } from 'ranuts/utils';
 import { getDocmentObj, setDocmentObj } from '../store';
-import { handleDocumentOperation, initX2T } from './converter';
+import { handleDocumentOperation } from './converter';
+import { destroyActiveEditor } from './onlyoffice-editor';
 import { showLoading } from './loading';
 
 // UI callbacks to avoid circular dependency
@@ -41,7 +42,6 @@ export const events: Record<string, MessageHandler<any, unknown>> = {
           file: file,
           url: await createObjectURL(file),
         });
-        await initX2T();
         const { fileName, file: fileBlob } = getDocmentObj();
         await handleDocumentOperation({ file: fileBlob, fileName, isNew: !fileBlob });
         // Show menu guide after document is loaded
@@ -61,9 +61,7 @@ export const events: Record<string, MessageHandler<any, unknown>> = {
   },
   CLOSE_EDITOR: () => {
     fileChunks = [];
-    if (window.editor && typeof window.editor.destroyEditor === 'function') {
-      window.editor.destroyEditor();
-    }
+    void destroyActiveEditor();
   },
 };
 

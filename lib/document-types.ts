@@ -4,6 +4,7 @@ export interface EmscriptenFileSystem {
   mkdir(path: string): void;
   readdir(path: string): string[];
   readFile(path: string, options?: { encoding: 'binary' }): BlobPart;
+  unlink(path: string): void;
   writeFile(path: string, data: Uint8Array | string): void;
 }
 
@@ -30,7 +31,7 @@ export type DocumentType = 'word' | 'cell' | 'slide';
 export interface SaveEvent {
   data: {
     data: {
-      data: Uint8Array;
+      data: ArrayBuffer | Uint8Array;
     };
     option: {
       outputformat: number;

@@ -12,6 +12,7 @@
     "tsc": "tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write .",
+    "generate:onlyoffice-font-assets": "node scripts/generate-local-onlyoffice-font-assets.mjs",
     "lint:ts": "oxlint && tsc --noEmit",
     "lint:docker": "docker compose -f docker-compose.yaml config --quiet",
     "lint": "pnpm run lint:ts && pnpm run lint:docker"
@@ -63,6 +64,7 @@
     "xlsx": "^0.18.5"
   },
   "dependencies": {
+    "@agentbridges-ai/onlyoffice-browser": "0.3.4",
     "@ai-sdk/openai-compatible": "^2.0.48",
     "@khmyznikov/pwa-install": "^0.6.3",
     "ai": "^6.0.193",

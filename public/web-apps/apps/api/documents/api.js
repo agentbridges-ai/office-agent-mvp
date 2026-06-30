@@ -1,465 +1,505 @@
-!(function (e, t, o, n) {
-  function i(e, o) {
-    e && e.postMessage && t.JSON && (o.data?.event && (o = JSON.stringify(o)), e.postMessage(o, '*'));
-  }
-  function s(e, t) {
-    for (var o in t)
-      t.hasOwnProperty(o) &&
-        (void 0 === e[o] ? (e[o] = t[o]) : 'object' == typeof e[o] && 'object' == typeof t[o] && s(e[o], t[o]));
-    return e;
-  }
-  ((e.DocEditor = function (n, d) {
-    var r = this,
-      a = d || {};
-    (s(a, e.DocEditor.defaultConfig),
-      (a.editorConfig.canUseHistory = a.events && !!a.events.onRequestHistory),
-      (a.editorConfig.canHistoryClose = a.events && !!a.events.onRequestHistoryClose),
-      (a.editorConfig.canHistoryRestore = a.events && !!a.events.onRequestRestore),
-      (a.editorConfig.canSendEmailAddresses = a.events && !!a.events.onRequestEmailAddresses),
-      (a.editorConfig.canRequestEditRights = a.events && !!a.events.onRequestEditRights),
-      (a.editorConfig.canRequestClose = a.events && !!a.events.onRequestClose),
-      (a.editorConfig.canRename = a.events && !!a.events.onRequestRename),
-      (a.editorConfig.canMakeActionLink = a.events && !!a.events.onMakeActionLink),
-      (a.editorConfig.canRequestUsers = a.events && !!a.events.onRequestUsers),
-      (a.editorConfig.canRequestSendNotify = a.events && !!a.events.onRequestSendNotify),
-      (a.editorConfig.mergeFolderUrl = a.editorConfig.mergeFolderUrl || a.editorConfig.saveAsUrl),
-      (a.editorConfig.canRequestSaveAs = a.events && !!a.events.onRequestSaveAs),
-      (a.editorConfig.canRequestInsertImage = a.events && !!a.events.onRequestInsertImage),
-      (a.editorConfig.canRequestMailMergeRecipients = a.events && !!a.events.onRequestMailMergeRecipients),
-      (a.editorConfig.canRequestCompareFile = a.events && !!a.events.onRequestCompareFile),
-      (a.editorConfig.canRequestSharingSettings = a.events && !!a.events.onRequestSharingSettings),
-      (a.editorConfig.canRequestCreateNew = !1),
-      (a.editorConfig.canRequestReferenceData = a.events && !!a.events.onRequestReferenceData),
-      (a.editorConfig.canRequestOpen = a.events && !!a.events.onRequestOpen),
-      (a.editorConfig.canRequestSelectDocument = a.events && !!a.events.onRequestSelectDocument),
-      (a.editorConfig.canRequestSelectSpreadsheet = a.events && !!a.events.onRequestSelectSpreadsheet),
-      (a.editorConfig.canRequestReferenceSource = a.events && !!a.events.onRequestReferenceSource),
-      (a.frameEditorId = n),
-      (a.parentOrigin = t.location.origin));
-    var c,
-      m = function (e) {
-        R(e);
-      },
-      u = function () {
-        t.addEventListener ? t.addEventListener('mouseup', m, !1) : t.attachEvent && t.attachEvent('onmouseup', m);
-      },
-      f = function () {
-        t.removeEventListener
-          ? t.removeEventListener('mouseup', m, !1)
-          : t.detachEvent && t.detachEvent('onmouseup', m);
-      };
-    (c = /[\?\&]placement=(\w+)&?/.exec(t.location.search)) &&
-      c.length &&
-      'desktop' == c[1] &&
-      ((a.editorConfig.targetApp = c[1]),
-      a.editorConfig.customization || (a.editorConfig.customization = {}),
-      (a.editorConfig.customization.about = !1),
-      (a.editorConfig.customization.compactHeader = !1));
-    var p,
-      g = o.getElementById(n);
-    if (
-      g &&
-      (function () {
-        if (a.document) {
-          if (
-            !a.document.url ||
-            (('string' != typeof a.document.fileType || '' == a.document.fileType) &&
-              ('string' != typeof a.documentType || '' == a.documentType))
-          )
-            return !1;
-          var e;
-          if (
-            (('text' != a.documentType && 'spreadsheet' != a.documentType && 'presentation' != a.documentType) ||
-              console.warn(
-                'The "documentType" parameter for the config object must take one of the values word/cell/slide.',
-              ),
-            'string' == typeof a.documentType && '' != a.documentType)
-          ) {
-            if (
-              !(e = {
-                text: 'docx',
-                'text-pdf': 'pdf',
-                spreadsheet: 'xlsx',
-                presentation: 'pptx',
-                word: 'docx',
-                cell: 'xlsx',
-                slide: 'pptx',
-              }[a.documentType.toLowerCase()])
-            )
-              return (t.alert('The "documentType" parameter for the config object is invalid. Please correct it.'), !1);
-            ('string' == typeof a.document.fileType && '' != a.document.fileType) || (a.document.fileType = e);
-          }
-          if ('string' == typeof a.document.fileType && '' != a.document.fileType) {
-            var o;
-            if (
-              ((a.document.fileType = a.document.fileType.toLowerCase()),
-              !(o =
-                /^(?:(xls|xlsx|ods|csv|gsheet|xlsm|xlt|xltm|xltx|fods|ots|xlsb|sxc|et|ett)|(pps|ppsx|ppt|pptx|odp|gslides|pot|potm|potx|ppsm|pptm|fodp|otp|sxi|dps|dpt)|(doc|docx|odt|gdoc|txt|rtf|mht|htm|html|mhtml|epub|docm|dot|dotm|dotx|fodt|ott|fb2|xml|oform|docxf|sxw|stw|wps|wpt|pdf|djvu|xps|oxps))$/.exec(
-                  a.document.fileType,
-                )))
-            )
-              return (
-                t.alert('The "document.fileType" parameter for the config object is invalid. Please correct it.'),
-                !1
-              );
-            ('string' == typeof a.documentType && '' != a.documentType) ||
-              ('string' == typeof o[1]
-                ? (a.documentType = 'cell')
-                : 'string' == typeof o[2]
-                  ? (a.documentType = 'slide')
-                  : 'string' == typeof o[3] && (a.documentType = 'word'));
-          }
-          if (
-            ((o = /^(?:(pdf|djvu|xps|oxps))$/.exec(a.document.fileType)) &&
-              'string' == typeof o[1] &&
-              (a.editorConfig.canUseHistory = !1),
-            (a.document.title && '' != a.document.title) || (a.document.title = 'Unnamed.' + a.document.fileType),
-            a.document.key)
-          ) {
-            if ('string' != typeof a.document.key)
-              return (
-                t.alert('The "document.key" parameter for the config object must be string. Please correct it.'),
-                !1
-              );
-          } else
-            a.document.key = 'xxxxxxxxxxxxxxxxxxxx'.replace(/[x]/g, function (e) {
-              return ((16 * Math.random()) | 0).toString(16);
-            });
-          (a.editorConfig.user &&
-            a.editorConfig.user.id &&
-            'number' == typeof a.editorConfig.user.id &&
-            ((a.editorConfig.user.id = a.editorConfig.user.id.toString()),
-            console.warn('The "id" parameter for the editorConfig.user object must be a string.')),
-            (a.document.token = a.token));
-        }
-        return !0;
-      })()
-    ) {
-      if (
-        ((p = (function (e) {
-          var t = o.createElement('iframe');
-          ((t.src =
-            (function (e) {
-              var t =
-                  'undefined' == typeof extensionParams || null == extensionParams.url
-                    ? null
-                    : extensionParams.url + 'apps/',
-                n =
-                  t ||
-                  ('test' == e.type
-                    ? (function () {
-                        for (var e, t = o.getElementsByTagName('script'), n = t.length - 1; n >= 0; n--)
-                          if ((e = t[n].src.match(/(.*)apps\/api\/documents\/api.js/i))) return e[1] + 'test/';
-                        return '';
-                      })()
-                    : (function () {
-                        for (var e, t = o.getElementsByTagName('script'), n = t.length - 1; n >= 0; n--)
-                          if ((e = t[n].src.match(/(.*)api\/documents\/api.js/i))) return e[1];
-                        return '';
-                      })()),
-                i = {
-                  text: 'documenteditor',
-                  'text-pdf': 'documenteditor',
-                  spreadsheet: 'spreadsheeteditor',
-                  presentation: 'presentationeditor',
-                  word: 'documenteditor',
-                  cell: 'spreadsheeteditor',
-                  slide: 'presentationeditor',
-                  pdf: 'pdfeditor',
-                },
-                s = i.word;
-              if ('string' == typeof e.documentType) {
-                if (
-                  ((s = i[e.documentType.toLowerCase()]),
-                  'desktop' == e.type && e.document && 'string' == typeof e.document.fileType)
-                )
-                  (d = /^(?:(pdf|djvu|xps|oxps))$/.exec(e.document.fileType)) && 'string' == typeof d[1] && (s = i.pdf);
-              } else if (e.document && 'string' == typeof e.document.fileType) {
-                var d;
-                ((d =
-                  /^(?:(xls|xlsx|ods|csv|xlst|xlsy|gsheet|xlsm|xlt|xltm|xltx|fods|ots|xlsb)|(pps|ppsx|ppt|pptx|odp|pptt|ppty|gslides|pot|potm|potx|ppsm|pptm|fodp|otp))$/.exec(
-                    e.document.fileType,
-                  )) && ('string' == typeof d[1] ? (s = i.cell) : 'string' == typeof d[2] && (s = i.slide)),
-                  'desktop' == e.type &&
-                    (d = /^(?:(pdf|djvu|xps|oxps))$/.exec(e.document.fileType)) &&
-                    'string' == typeof d[1] &&
-                    (s = i.pdf));
-              }
-              n += s + '/';
-              const r =
-                'mobile' === e.type
-                  ? 'mobile'
-                  : 'embedded' === e.type
-                    ? 'embed'
-                    : e.document &&
-                        'string' == typeof e.document.fileType &&
-                        'oform' === e.document.fileType.toLowerCase()
-                      ? 'forms'
-                      : 'main';
-              n += r;
-              var a = '/index.html';
-              if (e.editorConfig && 'forms' !== r) {
-                var c = e.editorConfig.customization;
-                'object' == typeof c &&
-                (c.toolbarNoTabs || ('desktop' !== e.editorConfig.targetApp && (c.loaderName || c.loaderLogo)))
-                  ? (a = '/index_loader.html')
-                  : ('editdiagram' !== e.editorConfig.mode &&
-                      'editmerge' !== e.editorConfig.mode &&
-                      'editole' !== e.editorConfig.mode) ||
-                    (a = '/index_internal.html');
-              }
-              return (n += a);
-            })(e) +
-            (function (e) {
-              var t = '?_dc=' + Date.now();
-              e.editorConfig && e.editorConfig.lang && (t += '&lang=' + e.editorConfig.lang);
-              e.editorConfig &&
-                'desktop' !== e.editorConfig.targetApp &&
-                ('object' == typeof e.editorConfig.customization && e.editorConfig.customization.loaderName
-                  ? 'none' !== e.editorConfig.customization.loaderName &&
-                    (t += '&customer=' + encodeURIComponent(e.editorConfig.customization.loaderName))
-                  : (t += '&customer=ONLYOFFICE'),
-                'object' == typeof e.editorConfig.customization &&
-                  (e.editorConfig.customization.loaderLogo &&
-                    '' !== e.editorConfig.customization.loaderLogo &&
-                    (t += '&logo=' + encodeURIComponent(e.editorConfig.customization.loaderLogo)),
-                  e.editorConfig.customization.logo &&
-                    ('embedded' == e.type &&
-                    (e.editorConfig.customization.logo.image || e.editorConfig.customization.logo.imageEmbedded)
-                      ? (t +=
-                          '&headerlogo=' +
-                          encodeURIComponent(
-                            e.editorConfig.customization.logo.image || e.editorConfig.customization.logo.imageEmbedded,
-                          ))
-                      : 'embedded' != e.type &&
-                        (e.editorConfig.customization.logo.image || e.editorConfig.customization.logo.imageDark) &&
-                        (e.editorConfig.customization.logo.image &&
-                          (t += '&headerlogo=' + encodeURIComponent(e.editorConfig.customization.logo.image)),
-                        e.editorConfig.customization.logo.imageDark &&
-                          (t +=
-                            '&headerlogodark=' + encodeURIComponent(e.editorConfig.customization.logo.imageDark))))));
-              !e.editorConfig ||
-                ('editdiagram' != e.editorConfig.mode &&
-                  'editmerge' != e.editorConfig.mode &&
-                  'editole' != e.editorConfig.mode) ||
-                (t += '&internal=true');
-              e.frameEditorId && (t += '&frameEditorId=' + e.frameEditorId);
-              var o = /^(?:(pdf))$/.exec(e.document.fileType);
-              (o && 'string' == typeof o[1]) ||
-                !(
-                  (e.editorConfig && 'view' == e.editorConfig.mode) ||
-                  (e.document &&
-                    e.document.permissions &&
-                    !1 === e.document.permissions.edit &&
-                    !e.document.permissions.review)
-                ) ||
-                (t += '&mode=view');
-              e.editorConfig &&
-                e.editorConfig.customization &&
-                e.editorConfig.customization.compactHeader &&
-                (t += '&compact=true');
-              e.editorConfig &&
-                e.editorConfig.customization &&
-                !1 === e.editorConfig.customization.toolbar &&
-                (t += '&toolbar=false');
-              e.parentOrigin && (t += '&parentOrigin=' + e.parentOrigin);
-              e.editorConfig &&
-                e.editorConfig.customization &&
-                e.editorConfig.customization.uiTheme &&
-                (t += '&uitheme=' + e.editorConfig.customization.uiTheme);
-              return (
-                (t += '&_document=' + encodeURIComponent(JSON.stringify(e.document))),
-                (t += '&_config=' + encodeURIComponent(JSON.stringify(e.editorConfig))),
-                t
-              );
-            })(e)),
-            (t.width = e.width),
-            (t.height = e.height),
-            (t.align = 'top'),
-            (t.frameBorder = 0),
-            (t.name = 'frameEditor'),
-            e.title && 'string' == typeof e.title && (t.title = e.title),
-            (t.allowFullscreen = !0),
-            t.setAttribute('allowfullscreen', ''),
-            t.setAttribute('onmousewheel', ''),
-            t.setAttribute('allow', 'autoplay; camera; microphone; display-capture; clipboard-write;'),
-            'mobile' == e.type &&
-              ((t.style.position = 'fixed'),
-              (t.style.overflow = 'hidden'),
-              (o.body.style.overscrollBehaviorY = 'contain')));
-          return t;
-        })(a)),
-        a.editorConfig.customization &&
-          'embed' === a.editorConfig.customization.integrationMode &&
-          t.AscEmbed &&
-          t.AscEmbed.initWorker(p),
-        p.src)
-      ) {
-        var l = p.src.split('/');
-        this.frameOrigin = l[0] + '//' + l[2];
-      }
-      g.parentNode && g.parentNode.replaceChild(p, g);
-      var C = new MessageDispatcher(function (e) {
-        if (e)
-          if ('onExternalPluginMessage' === e.type) v(e);
-          else if (t.parent !== t && 'onExternalPluginMessageCallback' === e.type) i(t.parent, e);
-          else if (e.frameEditorId == n) {
-            var s = (a.events || {})[e.event];
-            'onRequestEditRights' !== e.event || s
-              ? ('onAppReady' === e.event &&
-                  ('mobile' === a.type &&
-                    (o.body.onfocus = function (e) {
-                      setTimeout(function () {
-                        (p.contentWindow.focus(), v({ command: 'resetFocus', data: {} }));
-                      }, 10);
-                    }),
-                  u(),
-                  a.editorConfig && y(a.editorConfig),
-                  a.document && h(a.document)),
-                s && 'function' == typeof s && s.call(r, { target: r, data: e.data }))
-              : x(!1, "handler isn't defined");
-          }
-      }, this);
+(() => {
+  'use strict';
+
+  class AsyncMessageHub {
+    handlers = new Map();
+    counter = 0;
+    queue = [];
+    debug;
+
+    constructor(debug) {
+      this.debug = debug;
     }
-    var v = function (e) {
-        p && p.contentWindow && i(p.contentWindow, e);
-      },
-      y = function (e) {
-        v({ command: 'init', data: { config: e } });
-      },
-      h = function (e) {
-        v({ command: 'openDocument', data: { doc: e } });
-      },
-      x = function (e, t) {
-        v({ command: 'applyEditRights', data: { allowed: e, message: t } });
-      },
-      R = function (e) {
-        var t = p.getBoundingClientRect(),
-          o = { type: e.type, x: e.x - t.left, y: e.y - t.top, event: e };
-        v({ command: 'processMouse', data: o });
-      };
+
+    addHandler(handler) {
+      const wrapped = this.debug
+        ? (message) => {
+            console.log(this.debug, message);
+            handler(message);
+          }
+        : handler;
+      const id = this.counter;
+      this.counter += 1;
+      this.handlers.set(id, wrapped);
+      if (this.queue.length > 0) {
+        for (const message of this.queue) this.callHandlers(message);
+        this.queue = [];
+      }
+      return new HandlerRegistration(this.handlers, id);
+    }
+
+    fire(message) {
+      if (this.handlers.size > 0) {
+        this.callHandlers(message);
+      } else {
+        this.queue.push(structuredClone(message));
+      }
+    }
+
+    callHandlers(message) {
+      for (const handler of this.handlers.values()) {
+        const cloned = structuredClone(message);
+        setTimeout(() => handler(cloned));
+      }
+    }
+  }
+
+  class HandlerRegistration {
+    handlers;
+    id;
+
+    constructor(handlers, id) {
+      this.handlers = handlers;
+      this.id = id;
+    }
+
+    remove() {
+      this.handlers.delete(this.id);
+    }
+  }
+
+  function mergeConfig(base, overrides) {
+    if (typeof base !== 'object') return overrides;
+    const result = Object.assign({}, base);
+    for (const key of Object.keys(overrides)) {
+      result[key] = mergeConfig(base[key], overrides[key]);
+    }
+    return result;
+  }
+
+  function noop() {}
+
+  function createDeferredEvent(fireOnce = false) {
+    const handlers = [];
+    let fired = false;
     return {
-      showMessage: function (e, t) {
-        v({ command: 'showMessage', data: { msg: (t = t || e) } });
-      },
-      processSaveResult: function (e, t) {
-        v({ command: 'processSaveResult', data: { result: e, message: t } });
-      },
-      processRightsChange: function (e, t) {
-        v({ command: 'processRightsChange', data: { enabled: e, message: t } });
-      },
-      denyEditingRights: function (e) {
-        v({ command: 'processRightsChange', data: { enabled: !1, message: e } });
-      },
-      refreshHistory: function (e, t) {
-        v({ command: 'refreshHistory', data: { data: e, message: t } });
-      },
-      setHistoryData: function (e, t) {
-        v({ command: 'setHistoryData', data: { data: e, message: t } });
-      },
-      setEmailAddresses: function (e) {
-        v({ command: 'setEmailAddresses', data: { data: e } });
-      },
-      setActionLink: function (e) {
-        v({ command: 'setActionLink', data: { url: e } });
-      },
-      processMailMerge: function (e, t) {
-        v({ command: 'processMailMerge', data: { enabled: e, message: t } });
-      },
-      downloadAs: function (e) {
-        v({ command: 'downloadAs', data: e });
-      },
-      serviceCommand: function (e, t) {
-        v({ command: 'internalCommand', data: { command: e, data: t } });
-      },
-      attachMouseEvents: u,
-      detachMouseEvents: f,
-      destroyEditor: function (e) {
-        var t = o.createElement('div');
-        (t.setAttribute('id', n), p && (C && C.unbindEvents(), f(), p.parentNode && p.parentNode.replaceChild(t, p)));
-      },
-      setUsers: function (e) {
-        v({ command: 'setUsers', data: e });
-      },
-      showSharingSettings: function (e) {
-        v({ command: 'showSharingSettings', data: e });
-      },
-      setSharingSettings: function (e) {
-        v({ command: 'setSharingSettings', data: e });
-      },
-      insertImage: function (e) {
-        v({ command: 'insertImage', data: e });
-      },
-      setMailMergeRecipients: function (e) {
-        v({ command: 'setMailMergeRecipients', data: e });
-      },
-      setRevisedFile: function (e) {
-        v({ command: 'setRevisedFile', data: e });
-      },
-      setFavorite: function (e) {
-        v({ command: 'setFavorite', data: e });
-      },
-      requestClose: function (e) {
-        v({ command: 'requestClose', data: e });
-      },
-      grabFocus: function (e) {
-        setTimeout(function () {
-          v({ command: 'grabFocus', data: e });
-        }, 10);
-      },
-      blurFocus: function (e) {
-        v({ command: 'blurFocus', data: e });
-      },
-      setReferenceData: function (e) {
-        v({ command: 'setReferenceData', data: e });
-      },
-      setRequestedDocument: function (e) {
-        v({ command: 'setRequestedDocument', data: e });
-      },
-      setRequestedSpreadsheet: function (e) {
-        v({ command: 'setRequestedSpreadsheet', data: e });
-      },
-      setReferenceSource: function (e) {
-        v({ command: 'setReferenceSource', data: e });
-      },
-      sendCommand: v,
-    };
-  }),
-    (e.DocEditor.defaultConfig = {
-      type: 'desktop',
-      width: '100%',
-      height: '100%',
-      editorConfig: { lang: 'en', canCoAuthoring: !0, customization: { about: !0, feedback: !1 } },
-    }),
-    (e.DocEditor.version = function () {
-      return '7.4.1';
-    }),
-    (MessageDispatcher = function (e, o) {
-      var n = e,
-        i = o || t,
-        s = function (e) {
-          d(e);
-        },
-        d = function (e) {
-          if (e && t.JSON && i.frameOrigin == e.origin)
-            try {
-              e = e.data;
-              n && n.call(i, e);
-            } catch (e) {
-              console.error(e);
-            }
-        };
-      return (
-        function () {
-          t.addEventListener ? t.addEventListener('message', s, !1) : t.attachEvent && t.attachEvent('onmessage', s);
-        }.call(this),
-        {
-          unbindEvents: function () {
-            t.removeEventListener
-              ? t.removeEventListener('message', s, !1)
-              : t.detachEvent && t.detachEvent('onmessage', s);
-          },
+      reg(handler) {
+        if (fireOnce && fired) {
+          setTimeout(handler);
+        } else {
+          handlers.push(handler);
         }
+      },
+      unreg(handler) {
+        const index = handlers.indexOf(handler);
+        if (index !== -1) {
+          handlers.splice(index, 1);
+        } else {
+          console.log('event handler was already unregistered');
+        }
+      },
+      fire(...args) {
+        if (fireOnce && fired) return;
+        fired = true;
+        handlers.forEach((handler) => {
+          handler(...args);
+        });
+      },
+    };
+  }
+
+  let OriginalDocEditor;
+
+  class BrowserDocEditor {
+    waitForAppReady;
+    origEditor;
+    fromOOHandler = new AsyncMessageHub();
+    toOOHandler = new AsyncMessageHub();
+    placeholderId;
+    server;
+    fromOOHandle;
+    corruptionWarningHandler = new AsyncMessageHub();
+
+    constructor(placeholderId, config) {
+      this.placeholderId = placeholderId;
+      this.init(config).catch((error) => {
+        console.error(error);
+      });
+    }
+
+    async init(config) {
+      let resolveAppReady;
+      await loadOriginalApi;
+      this.waitForAppReady = new Promise((resolve) => {
+        resolveAppReady = resolve;
+      });
+      this.waitForAppReady.then(config?.events?.onAppReady ?? noop).catch(noop);
+
+      const merged = mergeConfig(config, {
+        events: {
+          onAppReady: resolveAppReady,
+          cryptPadSendMessageFromOO: (event) => {
+            this.fromOOHandler.fire(event.data.msg);
+          },
+          cryptPadCorruptionWarningHandler: (event) => {
+            this.corruptionWarningHandler.fire(event.data.duplicateId);
+          },
+        },
+      });
+
+      this.origEditor = new OriginalDocEditor(this.placeholderId, merged);
+      this.toOOHandler.addHandler((message) => this.origEditor.cryptPadMessageToOO(message));
+    }
+
+    installLegacyChannel() {
+      const editorMessages = createDeferredEvent();
+      const frameWindow = this.getIframe().contentWindow;
+      window.addEventListener('message', (event) => {
+        if (event.source === frameWindow) editorMessages.fire(event);
+      });
+
+      installRpcBridge(
+        editorMessages,
+        (message) => {
+          frameWindow.postMessage(message);
+        },
+        (rpc) => {
+          this.toOOHandler.addHandler((message) => {
+            rpc.event('CMD', message);
+          });
+          rpc.on('CMD', (message) => {
+            this.fromOOHandler.fire(message);
+          });
+        },
       );
-    }));
-})((window.DocsAPI = window.DocsAPI || {}), window, document);
+    }
+
+    destroyEditor() {
+      this.fromOOHandle?.remove();
+      this.origEditor.destroyEditor();
+    }
+
+    getIframe() {
+      return document.querySelector('iframe[name="frameEditor"]');
+    }
+
+    injectCSS(css) {
+      const head = this.getIframe().contentDocument.querySelector('head');
+      const style = document.createElement('style');
+      style.innerText = css;
+      head.appendChild(style);
+    }
+
+    sendMessageToOO(message) {
+      this.toOOHandler.fire(message);
+    }
+
+    connectMockServer(server) {
+      this.server = server;
+      window.APP.getImageURL = server.getImageURL
+        ? (name, callback) => {
+            server.getImageURL(name).then(callback).catch((error) => console.error(error));
+          }
+        : (_name, callback) => callback('');
+
+      this.fromOOHandle = this.fromOOHandler.addHandler((message) => {
+        if (message?.type === 'auth') {
+          this.handleAuth(message);
+        }
+        server.handleMessage?.(message, (response) => this.sendMessageToOO(response));
+        server.onMessage(message);
+      });
+      if (server.onCorruptionWarning) {
+        this.corruptionWarningHandler.addHandler(server.onCorruptionWarning);
+      }
+    }
+
+    handleAuth(message) {
+      const changes = this.server.getInitialChanges ? this.server.getInitialChanges() : [];
+      const participants = this.server.getParticipants();
+      if (changes.length > 0) {
+        this.sendMessageToOO({ type: 'authChanges', changes });
+      }
+      this.sendMessageToOO({
+        type: 'auth',
+        result: 1,
+        sessionId: 'session-id',
+        participants: participants.list,
+        locks: [],
+        changes,
+        changesIndex: 0,
+        indexUser: participants.index,
+        buildVersion: this.server.buildVersion || '9.3.0',
+        buildNumber: this.server.buildNumber || 140,
+        licenseType: 3,
+      });
+      this.sendMessageToOO({
+        type: 'documentOpen',
+        data: {
+          type: 'open',
+          status: 'ok',
+          data: { 'Editor.bin': message.openCmd.url },
+        },
+      });
+      this.server.onAuth?.();
+    }
+
+    serviceCommand(...args) {
+      return this.origEditor.serviceCommand(...args);
+    }
+    showMessage(...args) {
+      return this.origEditor.showMessage(...args);
+    }
+    processSaveResult(...args) {
+      return this.origEditor.processSaveResult(...args);
+    }
+    processRightsChange(...args) {
+      return this.origEditor.processRightsChange(...args);
+    }
+    denyEditingRights(...args) {
+      return this.origEditor.denyEditingRights(...args);
+    }
+    refreshHistory(...args) {
+      return this.origEditor.refreshHistory(...args);
+    }
+    setHistoryData(...args) {
+      return this.origEditor.setHistoryData(...args);
+    }
+    setEmailAddresses(...args) {
+      return this.origEditor.setEmailAddresses(...args);
+    }
+    setActionLink(...args) {
+      return this.origEditor.setActionLink(...args);
+    }
+    processMailMerge(...args) {
+      return this.origEditor.processMailMerge(...args);
+    }
+    downloadAs(...args) {
+      return this.origEditor.downloadAs(...args);
+    }
+    attachMouseEvents(...args) {
+      return this.origEditor.attachMouseEvents(...args);
+    }
+    detachMouseEvents(...args) {
+      return this.origEditor.detachMouseEvents(...args);
+    }
+    setUsers(...args) {
+      return this.origEditor.setUsers(...args);
+    }
+    showSharingSettings(...args) {
+      return this.origEditor.showSharingSettings(...args);
+    }
+    setSharingSettings(...args) {
+      return this.origEditor.setSharingSettings(...args);
+    }
+    insertImage(...args) {
+      return this.origEditor.insertImage(...args);
+    }
+    setMailMergeRecipients(...args) {
+      return this.origEditor.setMailMergeRecipients(...args);
+    }
+    setRevisedFile(...args) {
+      return this.origEditor.setRevisedFile(...args);
+    }
+    setFavorite(...args) {
+      return this.origEditor.setFavorite(...args);
+    }
+    requestClose(...args) {
+      return this.origEditor.requestClose(...args);
+    }
+    grabFocus(...args) {
+      return this.origEditor.grabFocus(...args);
+    }
+    blurFocus(...args) {
+      return this.origEditor.blurFocus(...args);
+    }
+    setReferenceData(...args) {
+      return this.origEditor.setReferenceData(...args);
+    }
+  }
+
+  function installRpcBridge(editorMessages, postToFrame, setup) {
+    let ready = false;
+    const backlog = [];
+    const readyEvent = createDeferredEvent(true);
+
+    editorMessages.reg((event) => {
+      if (ready) return;
+      const data = event.data;
+      if (data === '_READY') {
+        postToFrame('_READY');
+        ready = true;
+        readyEvent.fire();
+        backlog.forEach((backlogged) => {
+          editorMessages.fire(backlogged);
+        });
+        return;
+      }
+      backlog.push(data);
+    });
+
+    const handlers = {};
+    const pendingResponses = {};
+    const pendingAcks = {};
+    const registeredEvents = [];
+    const whenRegistered = {};
+
+    const rpc = {
+      query(name, content, callback, options) {
+        const txid = Math.random().toString(16).replace('0.', '') + Math.random().toString(16).replace('0.', '');
+        const actualOptions = options || {};
+        const timeout = actualOptions.timeout || 30000;
+        let timer;
+        if (timeout > 0) {
+          timer = setTimeout(() => {
+            delete pendingResponses[txid];
+            callback('TIMEOUT');
+          }, timeout);
+        }
+        pendingAcks[txid] = (unhandled) => {
+          clearTimeout(timer);
+          delete pendingAcks[txid];
+          if (unhandled) {
+            delete pendingResponses[txid];
+            callback('UNHANDLED');
+          }
+        };
+        pendingResponses[txid] = (message, event) => {
+          delete pendingResponses[txid];
+          callback(undefined, message.content, event);
+        };
+        readyEvent.reg(() => {
+          const message = { txid, content, q: name, raw: actualOptions.raw };
+          postToFrame(actualOptions.raw ? message : JSON.stringify(message));
+        });
+      },
+    };
+
+    const event = (rpc.event = (name, content, options) => {
+      const actualOptions = options || {};
+      readyEvent.reg(() => {
+        const message = { content, q: name, raw: actualOptions.raw };
+        postToFrame(actualOptions.raw ? message : JSON.stringify(message));
+      });
+    });
+
+    rpc.on = (name, handler, raw) => {
+      const wrapped = (message, callback, isRaw) => {
+        handler(
+          message.content,
+          (response) => {
+            const reply = { txid: message.txid, content: response };
+            postToFrame(isRaw ? reply : JSON.stringify(reply));
+          },
+          raw,
+        );
+      };
+      (handlers[name] = handlers[name] || []).push(wrapped);
+      if (!raw) event('EV_REGISTER_HANDLER', name);
+      return {
+        stop() {
+          const index = handlers[name].indexOf(wrapped);
+          if (index !== -1) handlers[name].splice(index, 1);
+        },
+      };
+    };
+
+    rpc.whenReg = (name, callback, retain) => {
+      let shouldRetain = retain;
+      if (registeredEvents.indexOf(name) > -1) {
+        callback();
+      } else {
+        shouldRetain = true;
+      }
+      if (shouldRetain) {
+        (whenRegistered[name] = whenRegistered[name] || []).push(callback);
+      }
+    };
+
+    rpc.onReg = (name, callback) => {
+      rpc.whenReg(name, callback, true);
+    };
+
+    rpc.on('EV_REGISTER_HANDLER', (name) => {
+      if (whenRegistered[name]) {
+        whenRegistered[name].forEach((callback) => {
+          callback();
+        });
+        delete whenRegistered[name];
+      }
+      registeredEvents.push(name);
+    });
+
+    let rpcReady = false;
+    rpc.onReady = (callback) => {
+      if (rpcReady) {
+        callback();
+      } else if (typeof callback === 'function') {
+        rpc.on('EV_RPC_READY', () => {
+          rpcReady = true;
+          callback();
+        });
+      }
+    };
+
+    rpc.ready = () => {
+      rpc.whenReg('EV_RPC_READY', () => {
+        rpc.event('EV_RPC_READY');
+      });
+    };
+
+    editorMessages.reg((eventMessage) => {
+      if (!ready) return;
+      if (!eventMessage.data || eventMessage.data === '_READY') return;
+      let parsed;
+      try {
+        parsed = typeof eventMessage.data === 'object' ? eventMessage.data : JSON.parse(eventMessage.data);
+      } catch (error) {
+        console.warn(error);
+        return;
+      }
+
+      if (parsed.ack !== undefined) {
+        pendingAcks[parsed.txid]?.(!parsed.ack);
+      } else if (typeof parsed.q === 'string') {
+        if (handlers[parsed.q]) {
+          if (parsed.txid) postToFrame(JSON.stringify({ txid: parsed.txid, ack: true }));
+          handlers[parsed.q].forEach((handler) => {
+            handler(parsed || JSON.parse(eventMessage.data), eventMessage, parsed?.raw);
+            parsed = undefined;
+          });
+        } else if (parsed.txid) {
+          postToFrame(JSON.stringify({ txid: parsed.txid, ack: false }));
+        }
+      } else if (parsed.q === undefined && pendingResponses[parsed.txid]) {
+        pendingResponses[parsed.txid](parsed, eventMessage);
+      }
+    });
+
+    postToFrame('_READY');
+    setup(rpc);
+  }
+
+  const loadOriginalApi = (async function () {
+    let apiUrl;
+    let apiScript;
+    for (const script of document.getElementsByTagName('script')) {
+      try {
+        if (new URL(script.src).pathname.endsWith('web-apps/apps/api/documents/api.js')) {
+          apiUrl = script.src;
+          apiScript = script;
+          break;
+        }
+      } catch (error) {
+        if (!(error instanceof TypeError)) throw error;
+      }
+    }
+
+    const script = document.createElement('script');
+    script.setAttribute('type', 'text/javascript');
+    const originalUrl = new URL('api-orig.js', apiUrl);
+    originalUrl.search = new URL(apiUrl).search;
+    script.setAttribute('src', originalUrl.href);
+    const loaded = new Promise((resolve) => {
+      script.addEventListener('load', () => resolve(), { once: true });
+    });
+
+    apiScript.after(script);
+    const runtimeWindow = window;
+    runtimeWindow.DocsAPI = runtimeWindow.DocsAPI ?? {};
+    runtimeWindow.DocsAPI.DocEditor = BrowserDocEditor;
+    await loaded;
+    OriginalDocEditor = runtimeWindow.DocsAPI.DocEditor;
+    runtimeWindow.DocsAPI.DocEditor = BrowserDocEditor;
+  })();
+})();

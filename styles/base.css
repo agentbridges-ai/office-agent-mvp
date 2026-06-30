@@ -39,25 +39,47 @@ input {
 .office-agent-app {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   background: #f4f6f8;
 }
 
 .editor-pane {
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   position: relative;
   background: #f8fafc;
 }
 
+#office-host,
+.office-editor-host,
+.office-editor-frame {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
 #iframe,
-.editor-pane > iframe {
+#iframe > iframe,
+.editor-pane > iframe,
+.office-editor-host-frame,
+.office-editor-frame > iframe,
+.office-editor-frame iframe[name='frameEditor'] {
   width: 100%;
   height: 100%;
 }
 
-.editor-pane > iframe {
+#iframe > iframe,
+.editor-pane > iframe,
+.office-editor-host-frame,
+.office-editor-frame > iframe,
+.office-editor-frame iframe[name='frameEditor'] {
   display: block;
   border: 0;
 }
@@ -1261,8 +1283,13 @@ input {
   }
 
   #iframe,
-  .editor-pane > iframe {
+  #iframe > iframe,
+  .editor-pane > iframe,
+  .office-editor-host-frame,
+  .office-editor-frame > iframe,
+  .office-editor-frame iframe[name='frameEditor'] {
     width: 100%;
+    height: 100%;
     min-height: 0;
   }
 
@@ -2201,7 +2228,11 @@ r-button[type='text']::part(ran-btn-content) {
   }
 
   #iframe,
-  .editor-pane > iframe {
+  #iframe > iframe,
+  .editor-pane > iframe,
+  .office-editor-host-frame,
+  .office-editor-frame > iframe,
+  .office-editor-frame iframe[name='frameEditor'] {
     display: block;
     width: 100%;
     height: 100%;

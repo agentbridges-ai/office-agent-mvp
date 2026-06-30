@@ -1,6 +1,7 @@
 import { getDocmentObj, setDocmentObj } from '../store';
 import { excelBridge } from './agent/bridge';
-import { cancelPendingSaveCapture, captureNextSaveAsBin, createEditorInstance, loadEditorApi } from './onlyoffice-editor';
+import { convertBinToDocument } from './converter';
+import { createEditorInstance, loadEditorApi, saveActiveEditor } from './onlyoffice-editor';
 
 export interface WorkbookCheckpoint {
   id: string;
@@ -14,6 +15,7 @@ export interface WorkbookCheckpoint {
 
 interface WorkbookCheckpointRecord extends WorkbookCheckpoint {
   bin: ArrayBuffer;
+  storageFormat?: 'document' | 'onlyoffice-bin';
 }
 
 const DB_NAME = 'office-agent-checkpoints';
@@ -68,14 +70,23 @@ function currentFileType(fileName: string): string {
   return fileName.split('.').pop()?.toLowerCase() || 'xlsx';
 }
 
-function toStoredBuffer(bytes: Uint8Array): ArrayBuffer {
-  const copy = new Uint8Array(bytes.byteLength);
-  copy.set(bytes);
-  return copy.buffer;
+async function blobPartToStoredBuffer(data: BlobPart): Promise<ArrayBuffer> {
+  if (data instanceof ArrayBuffer) {
+    return data.slice(0);
+  }
+  if (ArrayBuffer.isView(data)) {
+    const copy = new Uint8Array(data.byteLength);
+    copy.set(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+    return copy.buffer;
+  }
+  if (typeof data === 'string') {
+    return new TextEncoder().encode(data).buffer;
+  }
+  return new Blob([data]).arrayBuffer();
 }
 
 function metadataOf(record: WorkbookCheckpointRecord): WorkbookCheckpoint {
-  const { bin: _bin, ...metadata } = record;
+  const { bin: _bin, storageFormat: _storageFormat, ...metadata } = record;
   return metadata;
 }
 
@@ -97,16 +108,9 @@ export async function createWorkbookCheckpoint(name: string): Promise<WorkbookCh
   const ready = await excelBridge.waitUntilReady(5000);
   if (!ready) throw new Error('Excel 尚未连接，无法创建检查点。');
 
-  const capture = captureNextSaveAsBin(25000);
-  const saveRequest = await excelBridge.execute('saveDocument', {}, 5000);
-  if (!saveRequest.ok) {
-    cancelPendingSaveCapture(new Error(saveRequest.error || '无法触发工作簿保存。'));
-    throw new Error(saveRequest.error || '无法触发工作簿保存。');
-  }
-
-  const captured = await capture;
-  const fileName = captured.fileName || currentDocumentScope();
-  const bin = toStoredBuffer(captured.bin);
+  const file = await saveActiveEditor('XLSX');
+  const fileName = file.name || currentDocumentScope();
+  const bin = await file.arrayBuffer();
   const record: WorkbookCheckpointRecord = {
     id: crypto.randomUUID(),
     scope: currentDocumentScope(),
@@ -116,6 +120,7 @@ export async function createWorkbookCheckpoint(name: string): Promise<WorkbookCh
     createdAt: new Date().toISOString(),
     size: bin.byteLength,
     bin,
+    storageFormat: 'document',
   };
   await withStore<IDBValidKey>('readwrite', (store) => store.put(record));
   return metadataOf(record);
@@ -129,10 +134,25 @@ export async function restoreWorkbookCheckpoint(id: string): Promise<WorkbookChe
     fileName: record.fileName,
     file: undefined,
   });
+  if (!record.storageFormat || record.storageFormat === 'onlyoffice-bin') {
+    const converted = await convertBinToDocument(new Uint8Array(record.bin), record.fileName, 'XLSX');
+    const buffer = await blobPartToStoredBuffer(converted.data);
+    const fileName = converted.fileName || record.fileName;
+    setDocmentObj({
+      fileName,
+      file: undefined,
+    });
+    await createEditorInstance({
+      fileName,
+      fileType: currentFileType(fileName),
+      buffer,
+    });
+    return metadataOf(record);
+  }
   await createEditorInstance({
     fileName: record.fileName,
     fileType: record.fileType,
-    binData: record.bin,
+    buffer: record.bin,
   });
   return metadataOf(record);
 }

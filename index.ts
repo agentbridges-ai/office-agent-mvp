@@ -17,9 +17,6 @@ declare global {
     onCreateNew: (ext: string) => Promise<void>;
     hideControlPanel?: () => void;
     showControlPanel?: () => void;
-    DocsAPI: {
-      DocEditor: new (elementId: string, config: any) => any;
-    };
   }
 }
 

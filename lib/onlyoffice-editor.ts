@@ -1,56 +1,47 @@
-import 'ranui/message';
-import { createObjectURL } from 'ranuts/utils';
-import { getDocmentObj } from '../store';
+import {
+  createOfficeEditor,
+  loadOfficeEditorApi,
+  type CreateOfficeEditorOptions,
+  type OfficeEditorInstance,
+  type OfficeEditorMode,
+  type OfficeHostUrlContext,
+} from '@agentbridges-ai/onlyoffice-browser';
 import { getOnlyOfficeLang, t } from './i18n';
-import type { SaveEvent } from './document-types';
-import { getMimeTypeFromExtension } from './document-utils';
 
-// Import converter function to avoid circular dependency
-let convertBinToDocumentAndDownloadFn:
-  | ((bin: Uint8Array, fileName: string, targetExt?: string) => Promise<any>)
-  | null = null;
+type OfficeEmptyType = 'docx' | 'xlsx' | 'pptx' | 'csv';
+type SaveTargetExt = 'XLSX' | 'CSV';
 
-interface PendingSaveCapture {
-  resolve: (value: { bin: Uint8Array; fileName: string; outputFormat: number }) => void;
-  reject: (error: Error) => void;
-  timeout: number;
-}
+const HOST_SAVE_SOURCE = 'office-agent-host-save';
+const DEFAULT_SAVE_TARGET: SaveTargetExt = 'XLSX';
 
-let pendingSaveCapture: PendingSaveCapture | null = null;
-
-export function setConverterCallback(
-  callback: (bin: Uint8Array, fileName: string, targetExt?: string) => Promise<any>,
-): void {
-  convertBinToDocumentAndDownloadFn = callback;
-}
-
-export function captureNextSaveAsBin(timeoutMs = 20000): Promise<{
-  bin: Uint8Array;
-  fileName: string;
-  outputFormat: number;
-}> {
-  cancelPendingSaveCapture(new Error('A newer save capture request replaced this one.'));
-  return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      pendingSaveCapture = null;
-      reject(new Error('Timed out while waiting for workbook checkpoint data.'));
-    }, timeoutMs);
-    pendingSaveCapture = { resolve, reject, timeout };
-  });
-}
-
-export function cancelPendingSaveCapture(error = new Error('Save capture cancelled.')): void {
-  if (!pendingSaveCapture) return;
-  window.clearTimeout(pendingSaveCapture.timeout);
-  pendingSaveCapture.reject(error);
-  pendingSaveCapture = null;
-}
-
-// Global media mapping object
-const media: Record<string, string> = {};
-
-// Editor operation queue to prevent concurrent operations
+let activeEditor: OfficeEditorInstance | null = null;
 let editorOperationQueue: Promise<void> = Promise.resolve();
+let nativeSaveListenerInstalled = false;
+
+export interface CreateEditorInstanceConfig {
+  fileName: string;
+  fileType?: string;
+  file?: File | Blob;
+  buffer?: ArrayBuffer | Uint8Array;
+  url?: string;
+  emptyType?: OfficeEmptyType;
+  mode?: OfficeEditorMode;
+  readonly?: boolean;
+  fetchOptions?: RequestInit;
+  // Backward-compatible alias for callers that already hold document bytes.
+  binData?: ArrayBuffer | Uint8Array | string;
+}
+
+interface NativeSaveMessage {
+  source?: string;
+  fileName?: string;
+  mimeType?: string;
+  buffer?: ArrayBuffer;
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
 
 function forceOfficeLightTheme(): void {
   try {
@@ -62,303 +53,192 @@ function forceOfficeLightTheme(): void {
   }
 }
 
-/**
- * Queue editor operations to prevent concurrent editor creation/destruction
- */
 async function queueEditorOperation<T>(operation: () => Promise<T>): Promise<T> {
-  // Wait for previous operations to complete
-  // Add a timeout to prevent infinite waiting
   try {
     await Promise.race([
       editorOperationQueue,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Editor operation queue timeout')), 30000)),
+      new Promise((_, reject) => window.setTimeout(() => reject(new Error('Editor operation queue timeout')), 30000)),
     ]);
   } catch (error) {
-    // If timeout, log warning but continue (previous operation may have failed)
     if (error instanceof Error && error.message === 'Editor operation queue timeout') {
       console.warn('Editor operation queue timeout, proceeding anyway');
     } else {
-      // Re-throw other errors
       throw error;
     }
   }
 
-  // Create a new promise for this operation
-  let resolveOperation: () => void;
-  let rejectOperation: (error: any) => void;
-  const operationPromise = new Promise<void>((resolve, reject) => {
-    resolveOperation = resolve;
-    rejectOperation = reject;
+  let release: () => void;
+  let fail: (error: unknown) => void;
+  editorOperationQueue = new Promise<void>((resolve, reject) => {
+    release = resolve;
+    fail = reject;
   });
-
-  // Update the queue
-  editorOperationQueue = operationPromise;
 
   try {
     const result = await operation();
-    resolveOperation!();
+    release!();
     return result;
   } catch (error) {
-    rejectOperation!(error);
+    fail!(error);
     throw error;
   }
 }
 
-/**
- * Handle file write request (mainly for handling pasted images)
- * @param event - OnlyOffice editor file write event
- */
-async function handleWriteFile(event: any) {
-  try {
-    console.log('Write file event:', event);
-
-    const { data: eventData } = event;
-    if (!eventData) {
-      console.warn('No data provided in writeFile event');
-      return;
-    }
-
-    const {
-      data: imageData, // Uint8Array image data
-      file: fileName, // File name, e.g., "display8image-174799443357-0.png"
-      _target, // Target object containing frameOrigin and other info
-    } = eventData;
-
-    // Validate data
-    if (!imageData || !(imageData instanceof Uint8Array)) {
-      throw new Error('Invalid image data: expected Uint8Array');
-    }
-
-    if (!fileName || typeof fileName !== 'string') {
-      throw new Error('Invalid file name');
-    }
-
-    // Extract extension from file name
-    const fileExtension = fileName.split('.').pop()?.toLowerCase() || 'png';
-    const mimeType = getMimeTypeFromExtension(fileExtension);
-
-    // Create Blob object
-    const blob = new Blob([imageData as unknown as BlobPart], { type: mimeType });
-
-    // Create object URL
-    const objectUrl = await createObjectURL(blob);
-    // Add image URL to media mapping using original file name as key
-    media[`media/${fileName}`] = objectUrl;
-    window.editor?.sendCommand({
-      command: 'asc_setImageUrls',
-      data: {
-        urls: media,
-      },
-    });
-
-    window.editor?.sendCommand({
-      command: 'asc_writeFileCallback',
-      data: {
-        // Image base64
-        path: objectUrl,
-        imgName: fileName,
-      },
-    });
-    console.log(`Successfully processed image: ${fileName}, URL: ${media}`);
-  } catch (error: any) {
-    console.error('Error handling writeFile:', error);
-
-    // Notify editor that file processing failed
-    if (window.editor && typeof window.editor.sendCommand === 'function') {
-      window.editor.sendCommand({
-        command: 'asc_writeFileCallback',
-        data: {
-          success: false,
-          error: error.message,
-        },
-      });
-    }
-
-    if (event.callback && typeof event.callback === 'function') {
-      event.callback({
-        success: false,
-        error: error.message,
-      });
-    }
+function getEditorContainer(): HTMLElement {
+  const container = document.getElementById('iframe');
+  if (!container) {
+    throw new Error('Editor container #iframe was not found.');
   }
+  return container;
 }
 
-async function handleSaveDocument(event: SaveEvent) {
-  console.log('Save document event:', event);
+function resolveDefaultHostUrl(): string {
+  const current = new URL(window.location.href);
+  const localHostnames = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
+  if (localHostnames.has(current.hostname) || current.hostname.endsWith('.localhost')) {
+    current.hostname = 'host.localhost';
+  } else {
+    current.hostname = `office-host.${current.hostname}`;
+  }
+  current.pathname = `${current.pathname.replace(/\/[^/]*$/, '/') || '/'}office-host.html`;
+  current.search = '';
+  current.hash = '';
+  return current.href;
+}
 
-  if (event.data && event.data.data) {
-    const { data, option } = event.data;
-    const { fileName } = getDocmentObj() || {};
+function resolveConfiguredHostUrl(context: OfficeHostUrlContext): string {
+  const configured = import.meta.env.VITE_ONLYOFFICE_HOST_URL?.trim();
+  if (!configured) return resolveDefaultHostUrl();
+  return configured.replaceAll('{sessionId}', encodeURIComponent(context.sessionId));
+}
 
-    if (pendingSaveCapture) {
-      const capture = pendingSaveCapture;
-      pendingSaveCapture = null;
-      window.clearTimeout(capture.timeout);
-      capture.resolve({
-        bin: data.data instanceof Uint8Array ? data.data : new Uint8Array(data.data),
-        fileName,
-        outputFormat: option.outputformat,
-      });
-    } else {
-      // Phase 1 is Excel-only: always save edited workbooks as XLSX.
-      const targetFormat = 'XLSX';
-      console.log(
-        `Saving as ${targetFormat} format (original file: ${fileName}, editor format: ${option.outputformat})`,
+function toEditorBuffer(input: ArrayBuffer | Uint8Array | string): ArrayBuffer | Uint8Array {
+  if (typeof input === 'string') {
+    return new TextEncoder().encode(input);
+  }
+  return input;
+}
+
+function makeEditorOptions(config: CreateEditorInstanceConfig): CreateOfficeEditorOptions {
+  const options: CreateOfficeEditorOptions = {
+    hostUrl: resolveConfiguredHostUrl,
+    fileName: config.fileName,
+    mode: config.mode || 'edit',
+    readonly: config.readonly ?? false,
+    spellcheck: false,
+    lang: getOnlyOfficeLang(),
+    fetchOptions: config.fetchOptions,
+    onReady: (instance) => {
+      const state = instance.getState();
+      console.log(`${t('documentLoaded')}${state.fileName}`);
+      window.dispatchEvent(
+        new CustomEvent('office-agent:document-ready', {
+          detail: { fileName: state.fileName, fileType: state.fileType },
+        }),
       );
+    },
+    onError: (error) => {
+      console.error('OnlyOffice editor error:', error);
+    },
+  };
 
-      // Create download
-      if (convertBinToDocumentAndDownloadFn) {
-        await convertBinToDocumentAndDownloadFn(data.data, fileName, targetFormat);
-      } else {
-        throw new Error('Converter callback not set');
-      }
-    }
+  if (config.emptyType) {
+    options.emptyType = config.emptyType;
+  } else if (config.file) {
+    options.file = config.file;
+  } else if (config.url) {
+    options.url = config.url;
+  } else if (config.buffer) {
+    options.buffer = config.buffer;
+  } else if (config.binData) {
+    options.buffer = toEditorBuffer(config.binData);
+  } else {
+    throw new Error('createEditorInstance requires file, buffer, url, emptyType, or binData.');
   }
 
-  // Notify editor that save is complete
-  window.editor?.sendCommand({
-    command: 'asc_onSaveCallback',
-    data: { err_code: 0 },
+  return options;
+}
+
+async function downloadFile(file: File): Promise<void> {
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.name;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  window.setTimeout(() => {
+    link.remove();
+    URL.revokeObjectURL(url);
+  }, 100);
+}
+
+function installNativeSaveListener(): void {
+  if (nativeSaveListenerInstalled) return;
+  nativeSaveListenerInstalled = true;
+  window.addEventListener('message', (event: MessageEvent<NativeSaveMessage>) => {
+    const data = event.data;
+    if (!data || data.source !== HOST_SAVE_SOURCE || !(data.buffer instanceof ArrayBuffer)) return;
+    const fileName = data.fileName || 'workbook.xlsx';
+    const file = new File([data.buffer], fileName, { type: data.mimeType || 'application/octet-stream' });
+    void downloadFile(file).catch((error) => {
+      console.error('Failed to download saved workbook:', error);
+    });
   });
 }
 
-// Public editor creation method
-export function createEditorInstance(config: {
-  fileName: string;
-  fileType: string;
-  binData: ArrayBuffer | string;
-  media?: any;
-}): Promise<void> {
+export function getActiveEditor(): OfficeEditorInstance | null {
+  return activeEditor;
+}
+
+export async function destroyActiveEditor(): Promise<void> {
+  await queueEditorOperation(async () => {
+    const editor = activeEditor;
+    activeEditor = null;
+    try {
+      await editor?.destroy();
+    } finally {
+      getEditorContainer().replaceChildren();
+    }
+  });
+}
+
+export function createEditorInstance(config: CreateEditorInstanceConfig): Promise<void> {
+  installNativeSaveListener();
   return queueEditorOperation(async () => {
-    const { fileName, fileType, binData, media: mediaUrls } = config;
-
-    // Check if there's an existing editor that needs cleanup
-    const hasExistingEditor = !!window.editor;
-
-    // Clean up old editor instance properly
-    if (window.editor) {
-      try {
-        console.log('Destroying previous editor instance...');
-        window.editor.destroyEditor();
-
-        // When switching between document types, especially from/to PPT,
-        // we need more time for cleanup. PPT editors are particularly resource-intensive.
-        // Use longer delay when switching editors or when dealing with presentations
-        const isPresentation = fileType === 'pptx' || fileType === 'ppt';
-        const destroyDelay = hasExistingEditor && isPresentation ? 400 : hasExistingEditor ? 250 : 150;
-
-        // Wait a bit for destroy to complete
-        await new Promise((resolve) => setTimeout(resolve, destroyDelay));
-      } catch (error) {
-        console.warn('Error destroying previous editor:', error);
-      }
-      window.editor = undefined;
+    const container = getEditorContainer();
+    const previousEditor = activeEditor;
+    activeEditor = null;
+    if (previousEditor) {
+      await previousEditor.destroy();
     }
-
-    // Clean up iframe container to ensure clean state
-    const iframeContainer = document.getElementById('iframe');
-    if (iframeContainer) {
-      // Remove all child elements
-      while (iframeContainer.firstChild) {
-        iframeContainer.removeChild(iframeContainer.firstChild);
-      }
-    }
-
-    // Additional delay to ensure cleanup completes before creating new editor
-    // This is especially important when switching between different document types
-    // When switching editors, especially involving PPT, we need more time
-    const isPresentation = fileType === 'pptx' || fileType === 'ppt';
-    const cleanupDelay = hasExistingEditor && isPresentation ? 400 : hasExistingEditor ? 250 : 150;
-    await new Promise((resolve) => setTimeout(resolve, cleanupDelay));
-
-    const editorLang = getOnlyOfficeLang();
-    console.log('Creating new editor instance for:', fileName, 'type:', fileType);
+    container.replaceChildren();
     forceOfficeLightTheme();
 
     try {
-      window.editor = new window.DocsAPI.DocEditor('iframe', {
-        document: {
-          title: fileName,
-          url: fileName, // Use file name as identifier
-          fileType: fileType,
-          permissions: {
-            edit: true,
-            chat: false,
-            protect: false,
-          },
-        },
-        editorConfig: {
-          lang: editorLang,
-          customization: {
-            uiTheme: 'theme-classic-light',
-            help: false,
-            about: false,
-            hideRightMenu: false,
-            plugins: false,
-            features: {
-              spellcheck: {
-                change: false,
-              },
-            },
-            anonymous: {
-              request: false,
-              label: 'Guest',
-	            },
-	          },
-	        },
-        events: {
-          onAppReady: () => {
-            // Set media resources
-            if (mediaUrls) {
-              window.editor?.sendCommand({
-                command: 'asc_setImageUrls',
-                data: { urls: mediaUrls },
-              });
-            }
-
-            // Load document content
-            window.editor?.sendCommand({
-              command: 'asc_openDocument',
-              // @ts-expect-error binData type is handled by the editor
-              data: { buf: binData },
-            });
-          },
-	          onDocumentReady: () => {
-	            console.log(`${t('documentLoaded')}${fileName}`);
-	            window.dispatchEvent(new CustomEvent('office-agent:document-ready', { detail: { fileName, fileType } }));
-	            // Note: For CSV files, the save dialog may show XLSX format,
-            // but the actual save will be forced to CSV format in handleSaveDocument
-          },
-          onSave: handleSaveDocument,
-          // writeFile
-          // TODO: writeFile - handle when pasting images from external sources
-          writeFile: handleWriteFile,
-        },
-      });
+      activeEditor = await createOfficeEditor(container, makeEditorOptions(config));
     } catch (error) {
-      console.error('Error creating editor instance:', error);
-      throw error;
+      const normalized = toError(error);
+      alert(`${t('failedToLoadEditor')}\n${normalized.message}`);
+      throw normalized;
     }
   });
 }
 
-export function loadEditorApi(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Check if already loaded
-    if (window.DocsAPI) {
-      resolve();
-      return;
-    }
+export async function saveActiveEditor(targetExt: SaveTargetExt = DEFAULT_SAVE_TARGET): Promise<File> {
+  const editor = activeEditor;
+  if (!editor) {
+    throw new Error('Excel 尚未连接，无法保存工作簿。');
+  }
+  return editor.save(targetExt);
+}
 
-    // Load editor API
-    const script = document.createElement('script');
-    script.src = './web-apps/apps/api/documents/api.js?v=office-agent-align-fix-1';
-    script.onload = () => resolve();
-    script.onerror = (error) => {
-      console.error('Failed to load OnlyOffice API:', error);
-      alert(t('failedToLoadEditor'));
-      reject(error);
-    };
-    document.head.appendChild(script);
-  });
+export async function downloadActiveEditor(targetExt: SaveTargetExt = DEFAULT_SAVE_TARGET): Promise<File> {
+  const file = await saveActiveEditor(targetExt);
+  await downloadFile(file);
+  return file;
+}
+
+export function loadEditorApi(): Promise<void> {
+  return loadOfficeEditorApi();
 }

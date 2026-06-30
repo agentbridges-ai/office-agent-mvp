@@ -1,12 +1,15 @@
-import { getExtensions } from 'ranuts/utils';
-import { g_sEmpty_bin } from './empty_bin';
-import { t } from './i18n';
 import { X2TConverter } from './document-converter';
-import { createEditorInstance, loadEditorApi, setConverterCallback } from './onlyoffice-editor';
+import { t } from './i18n';
+import {
+  createEditorInstance,
+  downloadActiveEditor,
+  loadEditorApi,
+  saveActiveEditor,
+  type CreateEditorInstanceConfig,
+} from './onlyoffice-editor';
 import { getDocumentType } from './document-utils';
 import type { BinConversionResult, ConversionResult, EmscriptenModule } from './document-types';
 
-// Export types
 export type {
   ConversionResult,
   BinConversionResult,
@@ -15,32 +18,46 @@ export type {
   SaveEvent,
 } from './document-types';
 
-// Export constants
 export { oAscFileType, c_oAscFileType2 } from './file-types';
-
-// Export utilities
 export { getDocumentType, getBasePath, BASE_PATH, DOCUMENT_TYPE_MAP } from './document-utils';
+export { createEditorInstance, downloadActiveEditor, loadEditorApi, saveActiveEditor };
 
-// Singleton instance
 const x2tConverter = new X2TConverter();
+let conversionQueue: Promise<unknown> = Promise.resolve();
 
-// Export converter methods
+function queueConversion<T>(operation: () => Promise<T>): Promise<T> {
+  const next = conversionQueue.then(operation, operation);
+  conversionQueue = next.catch(() => {});
+  return next;
+}
+
+function normalizeFileType(fileName: string, explicitType?: string): string {
+  return (explicitType || fileName.split('.').pop() || '').replace(/^\./, '').toLowerCase();
+}
+
+function toEmptyType(fileType: string): CreateEditorInstanceConfig['emptyType'] {
+  if (fileType === 'docx' || fileType === 'xlsx' || fileType === 'pptx' || fileType === 'csv') {
+    return fileType;
+  }
+  return undefined;
+}
+
 export const loadScript = (): Promise<void> => x2tConverter.loadScript();
 export const initX2T = (): Promise<EmscriptenModule> => x2tConverter.initialize();
-export const convertDocument = (file: File): Promise<ConversionResult> => x2tConverter.convertDocument(file);
+export const convertDocument = (file: File): Promise<ConversionResult> =>
+  queueConversion(() => x2tConverter.convertDocument(file));
+export const convertBinToDocument = (
+  bin: Uint8Array,
+  fileName: string,
+  targetExt?: string,
+): Promise<BinConversionResult> => queueConversion(() => x2tConverter.convertBinToDocument(bin, fileName, targetExt));
 export const convertBinToDocumentAndDownload = (
   bin: Uint8Array,
   fileName: string,
   targetExt?: string,
-): Promise<BinConversionResult> => x2tConverter.convertBinToDocumentAndDownload(bin, fileName, targetExt);
+): Promise<BinConversionResult> =>
+  queueConversion(() => x2tConverter.convertBinToDocumentAndDownload(bin, fileName, targetExt));
 
-// Export editor functions
-export { createEditorInstance, loadEditorApi };
-
-// Set up converter callback for editor
-setConverterCallback(convertBinToDocumentAndDownload);
-
-// Merged file operation method
 export async function handleDocumentOperation(options: {
   isNew: boolean;
   fileName: string;
@@ -48,36 +65,23 @@ export async function handleDocumentOperation(options: {
 }): Promise<void> {
   try {
     const { isNew, fileName, file } = options;
-    const fileType = getExtensions(file?.type || '')[0] || fileName.split('.').pop() || '';
-    const _docType = getDocumentType(fileType);
-
-    // Get document content
-    let documentData: {
-      bin: ArrayBuffer | string;
-      media?: any;
-    };
-
-    if (isNew) {
-      // New document uses empty template
-      const emptyBin = g_sEmpty_bin[`.${fileType}`];
-      if (!emptyBin) {
-        throw new Error(`${t('unsupportedFileType')}${fileType}`);
-      }
-      documentData = { bin: emptyBin };
-    } else {
-      // Opening existing document requires conversion
-      if (!file) throw new Error(t('invalidFileObject'));
-      // @ts-expect-error convertDocument handles the file type conversion
-      documentData = await convertDocument(file);
+    const fileType = normalizeFileType(fileName, file?.name.split('.').pop());
+    if (!getDocumentType(fileType)) {
+      throw new Error(`${t('unsupportedFileType')}${fileType}`);
     }
 
-    // Create editor instance (now returns a Promise, uses queue internally)
-    await createEditorInstance({
-      fileName,
-      fileType,
-      binData: documentData.bin,
-      media: documentData.media,
-    });
+    await loadEditorApi();
+    if (isNew) {
+      const emptyType = toEmptyType(fileType);
+      if (!emptyType) {
+        throw new Error(`${t('unsupportedFileType')}${fileType}`);
+      }
+      await createEditorInstance({ fileName, fileType, emptyType });
+      return;
+    }
+
+    if (!file) throw new Error(t('invalidFileObject'));
+    await createEditorInstance({ fileName, fileType, file });
   } catch (error: any) {
     console.error(`${t('documentOperationFailed')}`, error);
     alert(`${t('documentOperationFailed')}${error.message}`);

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "generatedAt": "2026-06-30T08:41:00.379Z",
+  "types": [
+    "word",
+    "cell",
+    "slide"
+  ],
+  "dictionaries": [
+    "en_US"
+  ],
+  "keepHelp": false,
+  "packs": {
+    "core": 981,
+    "word": 223,
+    "cell": 235,
+    "slide": 219
+  },
+  "selected": 1658,
+  "excluded": 15007
+}

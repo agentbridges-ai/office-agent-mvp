@@ -1,6 +1,6 @@
 import { createObjectURL } from 'ranuts/utils';
 import { getDocmentObj, setDocmentObj } from '../store';
-import { handleDocumentOperation, initX2T, loadEditorApi, loadScript } from './converter';
+import { handleDocumentOperation } from './converter';
 import { showLoading } from './loading';
 
 const EXCEL_EXTENSIONS = new Set(['xlsx', 'xls', 'csv']);
@@ -48,9 +48,6 @@ export const onCreateNew = async (ext: string): Promise<void> => {
       fileName: 'New_Document' + ext,
       file: undefined,
     });
-    await loadScript();
-    await loadEditorApi();
-    await initX2T();
     const { fileName, file: fileBlob } = getDocmentObj();
     await handleDocumentOperation({ file: fileBlob, fileName, isNew: !fileBlob });
     // Show menu guide after document is loaded
@@ -81,7 +78,6 @@ export const openSelectedDocumentFile = async (file: File): Promise<void> => {
       file,
       url: await createObjectURL(file),
     });
-    await initX2T();
     const { fileName, file: fileBlob } = getDocmentObj();
     await handleDocumentOperation({ file: fileBlob, fileName, isNew: !fileBlob });
     if (showMenuGuideFn) {
@@ -188,7 +184,6 @@ export const openDocumentFromUrl = async (url: string, fileName?: string): Promi
     });
 
     // Initialize and open document
-    await initX2T();
     const { fileName: docFileName, file: fileBlob } = getDocmentObj();
     await handleDocumentOperation({ file: fileBlob, fileName: docFileName, isNew: !fileBlob });
 
